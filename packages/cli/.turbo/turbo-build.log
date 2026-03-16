@@ -1,0 +1,20 @@
+
+> @nova-architect/cli@0.0.1 build /Users/vladimirpronevic/RiderProjects/site-creator/packages/cli
+> tsup
+
+CLI Building entry: {"index":"src/index.ts","bin/nova":"bin/nova.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/vladimirpronevic/RiderProjects/site-creator/packages/cli/tsup.config.ts
+CLI Target: es2022
+CLI Cleaning output folder
+ESM Build start
+ESM dist/setup-NPXFXF3X.js 73.00 B
+ESM dist/index.js          253.00 B
+ESM dist/chunk-SIIRNC3W.js 5.61 KB
+ESM dist/bin/nova.js       181.00 B
+ESM dist/chunk-ZG22DBNG.js 18.57 KB
+ESM ⚡️ Build success in 13ms
+DTS Build start
+DTS ⚡️ Build success in 897ms
+DTS dist/index.d.ts 1.38 KB
