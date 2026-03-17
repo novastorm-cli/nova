@@ -11,6 +11,7 @@ export class DevServerRunner implements IDevServerRunner {
   private running = false;
   private readyHandler: (() => void) | null = null;
   private errorHandler: ((error: string) => void) | null = null;
+  private outputHandlers: Array<(output: string) => void> = [];
 
   async spawn(command: string, cwd: string, port: number): Promise<void> {
     const [cmd, ...args] = command.split(' ');
@@ -26,11 +27,19 @@ export class DevServerRunner implements IDevServerRunner {
     this.logs = [];
 
     this.process.stdout?.on('data', (data: Buffer) => {
-      this.logs.push(data.toString());
+      const text = data.toString();
+      this.logs.push(text);
+      for (const handler of this.outputHandlers) {
+        handler(text);
+      }
     });
 
     this.process.stderr?.on('data', (data: Buffer) => {
-      this.logs.push(data.toString());
+      const text = data.toString();
+      this.logs.push(text);
+      for (const handler of this.outputHandlers) {
+        handler(text);
+      }
     });
 
     this.process.on('exit', (code, signal) => {
@@ -59,6 +68,10 @@ export class DevServerRunner implements IDevServerRunner {
 
   onError(handler: (error: string) => void): void {
     this.errorHandler = handler;
+  }
+
+  onOutput(handler: (output: string) => void): void {
+    this.outputHandlers.push(handler);
   }
 
   getLogs(): string {

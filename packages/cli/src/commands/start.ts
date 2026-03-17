@@ -8,6 +8,10 @@ import {
   ProjectIndexer,
   Brain,
   ProviderFactory,
+  ExecutorPool,
+  Lane1Executor,
+  Lane2Executor,
+  GitManager,
   type ProjectMap,
   type Observation,
   type NovaEvent,
@@ -22,6 +26,7 @@ import { LicenseChecker } from '@nova-architect/licensing';
 import { ConfigReader } from '../config.js';
 import { NovaLogger } from '../logger.js';
 import { promptAndScaffold } from '../scaffold.js';
+import { ErrorAutoFixer } from '../autofix.js';
 
 const PROXY_PORT_OFFSET = 1;
 function findOverlayScript(): string {
@@ -54,6 +59,8 @@ export async function startCommand(): Promise<void> {
   const indexer = new ProjectIndexer();
   const logger = new NovaLogger();
   const taskMap = new Map<string, TaskItem>();
+  let pendingTasks: TaskItem[] = [];
+  let lastObservation: Observation | null = null;
 
   // ── 1. Read config ──────────────────────────────────────────────────
   const spinner = ora('Reading configuration...').start();
@@ -183,7 +190,7 @@ export async function startCommand(): Promise<void> {
 
   // ── 8. Set up event loop ────────────────────────────────────────────
   // Check if API key is available; if not, run setup
-  if (!config.apiKeys.key && config.apiKeys.provider !== 'ollama') {
+  if (!config.apiKeys.key && config.apiKeys.provider !== 'ollama' && config.apiKeys.provider !== 'claude-cli') {
     console.log(chalk.yellow('\nNo API key configured. Running setup...\n'));
     const { runSetup } = await import('../setup.js');
     await runSetup(cwd);
@@ -201,7 +208,50 @@ export async function startCommand(): Promise<void> {
     console.log(chalk.dim('Run "nova setup" to configure your API key.\n'));
     llmClient = null;
   }
-  const brain = llmClient ? new Brain(llmClient) : null;
+  const brain = llmClient ? new Brain(llmClient, eventBus) : null;
+
+  // Set up executors for task execution
+  // Ensure git repo exists for commits
+  try {
+    const { execSync } = await import('node:child_process');
+    execSync('git rev-parse --git-dir', { cwd, stdio: 'ignore' });
+  } catch {
+    // Not a git repo — initialize one
+    const { execSync } = await import('node:child_process');
+    execSync('git init', { cwd, stdio: 'ignore' });
+    execSync('git add -A && git commit -m "Initial commit (before Nova)" --allow-empty', { cwd, stdio: 'ignore', shell: '/bin/sh' });
+    console.log(chalk.dim('Initialized git repository.'));
+  }
+
+  // Create a nova branch for changes
+  const gitManager = new GitManager(cwd);
+  try {
+    const branch = await gitManager.createBranch(config.behavior.branchPrefix);
+    console.log(chalk.dim(`Working on branch: ${branch}`));
+  } catch {
+    // May already be on a nova branch, that's ok
+  }
+  let executorPool: ExecutorPool | null = null;
+  if (llmClient) {
+    const lane1 = new Lane1Executor(cwd);
+    const lane2 = new Lane2Executor(cwd, llmClient, gitManager);
+    executorPool = new ExecutorPool(lane1, lane2, eventBus, llmClient, gitManager, cwd);
+  }
+
+  // Wire dev server output to auto-fixer for error detection
+  let autoFixer: ErrorAutoFixer | null = null;
+  if (llmClient) {
+    autoFixer = new ErrorAutoFixer(cwd, llmClient, gitManager, eventBus, wsServer, projectMap);
+  }
+  devServer.onOutput((output: string) => {
+    autoFixer?.handleOutput(output);
+  });
+
+  // Wire browser errors from overlay to autoFixer
+  wsServer.onBrowserError((error: string) => {
+    console.log(chalk.yellow(`[Nova] Browser error: ${error.slice(0, 150)}`));
+    autoFixer?.handleOutput(error);
+  });
 
   // Wire WebSocket observations into EventBus
   wsServer.onObservation((observation: Observation) => {
@@ -209,31 +259,132 @@ export async function startCommand(): Promise<void> {
     eventBus.emit({ type: 'observation', data: observation });
   });
 
-  // Handle observations: analyze and create tasks
+  // Handle observations: analyze and create tasks (pending confirmation)
   eventBus.on('observation', async (event) => {
     if (!brain) {
       console.log(chalk.yellow('Observation received but no AI configured. Run "nova setup" to add an API key.'));
       return;
     }
     try {
+      lastObservation = event.data;
       logger.logAnalyzing(event.data.transcript);
+
+      const transcript = event.data.transcript ?? 'click';
+      wsServer.sendEvent({ type: 'status', data: { message: `🧠 AI is thinking about: "${transcript.slice(0, 80)}"...` } } as NovaEvent);
+
+      const analyzeSpinner = ora({ text: chalk.yellow('AI is thinking...'), spinner: 'dots' }).start();
+
       const tasks = await brain.analyze(event.data, projectMap);
+      analyzeSpinner.succeed(chalk.green(`AI produced ${tasks.length} task(s)`));
+      wsServer.sendEvent({ type: 'status', data: { message: `AI produced ${tasks.length} task(s)` } } as NovaEvent);
       logger.logTasks(tasks);
 
-      for (const task of tasks) {
-        eventBus.emit({ type: 'task_created', data: task });
+      if (tasks.length === 0) {
+        wsServer.sendEvent({ type: 'status', data: { message: 'No tasks generated.' } } as NovaEvent);
+        return;
       }
+
+      // Store as pending — do not execute until confirmed
+      pendingTasks = tasks;
+
+      const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
+      const pendingMessage = `Pending: ${tasks.length} task(s) — ${taskDescriptions}. Say "yes"/"execute" to proceed or "no"/"cancel" to discard.`;
+      console.log(chalk.yellow(`\n${pendingMessage}`));
+      console.log(chalk.dim('(Waiting for confirmation from overlay... Refresh browser if buttons not visible)\n'));
+      wsServer.sendEvent({ type: 'status', data: { message: pendingMessage, tasks: tasks.map(t => ({ id: t.id, description: t.description, lane: t.lane })) } } as NovaEvent);
+
+      // Re-send pending event after 5s in case overlay missed it (e.g. after hot reload)
+      setTimeout(() => {
+        if (pendingTasks.length > 0) {
+          wsServer.sendEvent({ type: 'status', data: { message: pendingMessage, tasks: tasks.map(t => ({ id: t.id, description: t.description, lane: t.lane })) } } as NovaEvent);
+        }
+      }, 5000);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`Analysis error: ${message}`));
+      wsServer.sendEvent({ type: 'status', data: { message: `Analysis error: ${message}` } } as NovaEvent);
     }
   });
 
-  // Forward task events to overlay clients
-  eventBus.on('task_created', (event) => {
+  // Handle confirm/cancel from overlay
+  wsServer.onConfirm(() => {
+    if (pendingTasks.length === 0) {
+      console.log(chalk.dim('No pending tasks to confirm.'));
+      return;
+    }
+    console.log(chalk.green(`Confirmed ${pendingTasks.length} task(s). Executing...`));
+    wsServer.sendEvent({ type: 'status', data: { message: 'Confirmed! Executing tasks...' } } as NovaEvent);
+    for (const task of pendingTasks) {
+      eventBus.emit({ type: 'task_created', data: task });
+    }
+    pendingTasks = [];
+  });
+
+  wsServer.onCancel(() => {
+    if (pendingTasks.length === 0) {
+      console.log(chalk.dim('No pending tasks to cancel.'));
+      return;
+    }
+    console.log(chalk.yellow(`Cancelled ${pendingTasks.length} task(s).`));
+    wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } } as NovaEvent);
+    pendingTasks = [];
+  });
+
+  // Handle append — user adds details to the pending request, re-analyze
+  wsServer.onAppend(async (text: string) => {
+    if (!brain || !lastObservation) return;
+
+    console.log(chalk.cyan(`[Nova] Appending to request: "${text}"`));
+
+    // Merge the new text with the original transcript
+    const originalTranscript = lastObservation.transcript ?? '';
+    const mergedTranscript = `${originalTranscript}. Additionally: ${text}`;
+
+    const updatedObservation: Observation = {
+      ...lastObservation,
+      transcript: mergedTranscript,
+    };
+
+    // Clear pending, re-analyze
+    pendingTasks = [];
+    wsServer.sendEvent({ type: 'status', data: { message: `Re-analyzing with: "${text}"...` } } as NovaEvent);
+
+    try {
+      logger.logAnalyzing(mergedTranscript);
+      const tasks = await brain.analyze(updatedObservation, projectMap);
+      logger.logTasks(tasks);
+
+      if (tasks.length === 0) {
+        wsServer.sendEvent({ type: 'status', data: { message: 'No tasks generated.' } } as NovaEvent);
+        return;
+      }
+
+      pendingTasks = tasks;
+      const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
+      const pendingMessage = `Pending: ${tasks.length} task(s) — ${taskDescriptions}. Say "yes"/"execute" to proceed or "no"/"cancel" to discard.`;
+      console.log(chalk.yellow(`\n${pendingMessage}\n`));
+      wsServer.sendEvent({ type: 'status', data: { message: pendingMessage, tasks: tasks.map(t => ({ id: t.id, description: t.description, lane: t.lane })) } } as NovaEvent);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(chalk.red(`Analysis error: ${message}`));
+      wsServer.sendEvent({ type: 'status', data: { message: `Analysis error: ${message}` } } as NovaEvent);
+    }
+  });
+
+  // Forward task events to overlay clients and execute
+  eventBus.on('task_created', async (event) => {
     taskMap.set(event.data.id, event.data);
     logger.logTaskStarted(event.data);
     wsServer.sendEvent(event as NovaEvent);
+
+    // Execute the task
+    if (executorPool) {
+      try {
+        await executorPool.execute(event.data, projectMap);
+      } catch {
+        // error already emitted by executor pool
+      }
+    }
   });
 
   eventBus.on('task_completed', (event) => {
@@ -256,6 +407,15 @@ export async function startCommand(): Promise<void> {
 
   eventBus.on('file_changed', (event) => {
     logger.logFileChanged(event.data.filePath);
+  });
+
+  eventBus.on('llm_chunk', (event) => {
+    wsServer.sendEvent(event as NovaEvent);
+  });
+
+  // Forward all status events from Brain/Executor to overlay
+  eventBus.on('status', (event) => {
+    wsServer.sendEvent(event as NovaEvent);
   });
 
   console.log(
@@ -288,12 +448,44 @@ export async function startCommand(): Promise<void> {
     process.exit(0);
   };
 
-  // Suppress dev server error on intentional shutdown
+  // Suppress dev server error on intentional shutdown; forward to overlay
   devServer.onError((error) => {
     if (!shuttingDown) {
       console.error(chalk.red(`\nDev server error: ${error}`));
+      wsServer.sendEvent({ type: 'status', data: { message: `Dev server error: ${error}` } } as NovaEvent);
     }
   });
+
+  // Listen for terminal input — Enter confirms pending tasks, 'n' cancels
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf-8');
+    process.stdin.on('data', (key: string) => {
+      // Ctrl+C
+      if (key === '\u0003') {
+        shutdown().catch(() => process.exit(1));
+        return;
+      }
+      // Enter or 'y' — confirm
+      if ((key === '\r' || key === '\n' || key.toLowerCase() === 'y') && pendingTasks.length > 0) {
+        console.log(chalk.green(`\nConfirmed ${pendingTasks.length} task(s) from terminal. Executing...`));
+        wsServer.sendEvent({ type: 'status', data: { message: 'Confirmed! Executing tasks...' } } as NovaEvent);
+        for (const task of pendingTasks) {
+          eventBus.emit({ type: 'task_created', data: task });
+        }
+        pendingTasks = [];
+        return;
+      }
+      // 'n' — cancel
+      if (key.toLowerCase() === 'n' && pendingTasks.length > 0) {
+        console.log(chalk.yellow(`\nCancelled ${pendingTasks.length} task(s) from terminal.`));
+        wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } } as NovaEvent);
+        pendingTasks = [];
+        return;
+      }
+    });
+  }
 
   // Handle Ctrl+C — must be registered BEFORE the keep-alive promise
   process.on('SIGINT', () => {

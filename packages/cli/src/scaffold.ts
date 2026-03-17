@@ -15,15 +15,21 @@ export async function promptAndScaffold(projectPath: string): Promise<boolean> {
     ' What would you like to create?\n',
   );
 
-  const selection = await select({
-    message: 'Select a project template:',
-    choices: [
-      ...SCAFFOLD_PRESETS.map((p) => ({ name: p.label, value: p.label })),
-      new Separator(),
-      { name: 'Other (type your own command)', value: '__other__' },
-      { name: 'Empty (I\'ll set up manually)', value: '__empty__' },
-    ],
-  });
+  let selection: string;
+  try {
+    selection = await select({
+      message: 'Select a project template:',
+      choices: [
+        ...SCAFFOLD_PRESETS.map((p) => ({ name: p.label, value: p.label })),
+        new Separator(),
+        { name: 'Other (type your own command)', value: '__other__' },
+        { name: 'Empty (I\'ll set up manually)', value: '__empty__' },
+      ],
+    });
+  } catch {
+    console.log('\nCancelled.');
+    process.exit(0);
+  }
 
   // Empty — just create nova.toml
   if (selection === '__empty__') {
@@ -43,9 +49,15 @@ export async function promptAndScaffold(projectPath: string): Promise<boolean> {
   let label: string;
 
   if (selection === '__other__') {
-    const description = await input({
-      message: 'Describe the project (e.g. "React + Tailwind", "Django REST API", "Go fiber server"):',
-    });
+    let description: string;
+    try {
+      description = await input({
+        message: 'Describe the project (e.g. "React + Tailwind", "Django REST API", "Go fiber server"):',
+      });
+    } catch {
+      console.log('\nCancelled.');
+      process.exit(0);
+    }
 
     if (!description.trim()) {
       console.log(chalk.red('No description provided. Exiting.'));

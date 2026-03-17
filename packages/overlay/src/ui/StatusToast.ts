@@ -34,7 +34,10 @@ export class StatusToast implements IStatusToast {
     let timer: ReturnType<typeof setTimeout> | null = null;
     if (type !== 'error') {
       const duration = durationMs ?? DEFAULT_DURATION_MS;
-      timer = setTimeout(() => this.dismiss(id), duration);
+      // duration of 0 means persistent — do not auto-dismiss
+      if (duration > 0) {
+        timer = setTimeout(() => this.dismiss(id), duration);
+      }
     }
 
     this.toasts.push({ id, element, timer });
@@ -69,6 +72,96 @@ export class StatusToast implements IStatusToast {
     this.clickHandler = handler;
   }
 
+  showConfirmation(
+    message: string,
+    onExecute: () => void,
+    onCancel: () => void,
+  ): string {
+    this.ensureContainer();
+
+    const id = `nova-toast-${++idCounter}`;
+
+    while (this.toasts.length >= MAX_TOASTS) {
+      this.dismiss(this.toasts[0].id);
+    }
+
+    const el = document.createElement('div');
+    el.setAttribute('data-toast-id', id);
+    Object.assign(el.style, {
+      background: COLORS.overlayBg,
+      borderLeft: `4px solid ${COLORS.info}`,
+      color: COLORS.textPrimary,
+      padding: '10px 16px',
+      borderRadius: '6px',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+      fontSize: '13px',
+      maxWidth: '380px',
+      pointerEvents: 'auto',
+      transition: TRANSITION,
+      opacity: '0',
+    });
+
+    const msgEl = document.createElement('div');
+    msgEl.textContent = message;
+    msgEl.style.marginBottom = '8px';
+    el.appendChild(msgEl);
+
+    const btnRow = document.createElement('div');
+    Object.assign(btnRow.style, {
+      display: 'flex',
+      gap: '8px',
+    });
+
+    const execBtn = document.createElement('button');
+    execBtn.textContent = 'Execute';
+    Object.assign(execBtn.style, {
+      background: '#22c55e',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      padding: '4px 12px',
+      fontSize: '12px',
+      cursor: 'pointer',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    });
+    execBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onExecute();
+      this.dismiss(id);
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    Object.assign(cancelBtn.style, {
+      background: '#6b7280',
+      color: '#fff',
+      border: 'none',
+      borderRadius: '4px',
+      padding: '4px 12px',
+      fontSize: '12px',
+      cursor: 'pointer',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    });
+    cancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onCancel();
+      this.dismiss(id);
+    });
+
+    btnRow.appendChild(execBtn);
+    btnRow.appendChild(cancelBtn);
+    el.appendChild(btnRow);
+
+    this.container!.appendChild(el);
+
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+    });
+
+    this.toasts.push({ id, element: el, timer: null });
+    return id;
+  }
+
   private ensureContainer(): void {
     if (this.container) return;
 
@@ -77,7 +170,7 @@ export class StatusToast implements IStatusToast {
     Object.assign(this.container.style, {
       position: 'fixed',
       top: '16px',
-      right: '16px',
+      left: '16px',
       zIndex: String(Z_INDEX.toast),
       display: 'flex',
       flexDirection: 'column',

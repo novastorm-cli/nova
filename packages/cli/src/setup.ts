@@ -20,24 +20,37 @@ export async function runSetup(projectPath?: string): Promise<void> {
 
   console.log('Welcome to Nova Architect setup!\n');
 
-  const provider = await select<Provider>({
-    message: 'Select your AI provider:',
-    choices: [
-      { name: 'OpenRouter (recommended — access to all models)', value: 'openrouter' },
-      { name: 'Anthropic', value: 'anthropic' },
-      { name: 'OpenAI', value: 'openai' },
-      { name: 'Ollama (free, local)', value: 'ollama' },
-    ],
-  });
-
+  let provider: Provider;
   let apiKey: string | undefined;
-  if (provider !== 'ollama') {
-    apiKey = await password({
-      message: `Enter your ${provider} API key:`,
-      mask: '*',
-      validate: (input: string) =>
-        input.trim().length > 0 || 'API key is required.',
+
+  try {
+    provider = await select<Provider>({
+      message: 'Select your AI provider:',
+      choices: [
+        { name: 'Claude CLI (uses your Claude Max/Pro subscription)', value: 'claude-cli' as const },
+        { name: 'OpenRouter (recommended — access to all models)', value: 'openrouter' as const },
+        { name: 'Anthropic', value: 'anthropic' as const },
+        { name: 'OpenAI', value: 'openai' as const },
+        { name: 'Ollama (free, local)', value: 'ollama' as const },
+      ],
     });
+
+    console.log(`Selected provider: ${provider}`);
+
+    if (provider !== 'ollama' && provider !== 'claude-cli') {
+      apiKey = await password({
+        message: `Enter your ${provider} API key:`,
+        mask: '*',
+      });
+      if (!apiKey || apiKey.trim().length === 0) {
+        console.log('No API key provided. You can set it later in .nova/config.toml');
+        apiKey = undefined;
+      }
+    }
+  } catch {
+    // User pressed Ctrl+C during prompts
+    console.log('\nSetup cancelled.');
+    return;
   }
 
   // Ensure .nova directory exists

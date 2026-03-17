@@ -3,3 +3,5 @@ dist
 .nova
 .env
 *.tsbuildinfo
+.turbo/cache/*
+.log

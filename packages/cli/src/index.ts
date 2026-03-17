@@ -15,6 +15,7 @@ export { ConfigReader } from './config.js';
 export { NovaLogger } from './logger.js';
 export { runSetup } from './setup.js';
 export { promptAndScaffold } from './scaffold.js';
+export { ErrorAutoFixer } from './autofix.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -53,7 +54,26 @@ export function createCli(): Command {
   program
     .command('setup')
     .description('Run first-time interactive setup')
-    .action(async () => {
+    .option('-p, --provider <provider>', 'AI provider: claude-cli, anthropic, openrouter, openai, ollama')
+    .option('-k, --key <key>', 'API key')
+    .action(async (opts: { provider?: string; key?: string }) => {
+      if (opts.provider && (opts.key || opts.provider === 'ollama' || opts.provider === 'claude-cli')) {
+        // Non-interactive mode
+        const fs = await import('node:fs/promises');
+        const path = await import('node:path');
+        const TOML = (await import('@iarna/toml')).default;
+        const cwd = process.cwd();
+        const novaDir = path.join(cwd, '.nova');
+        await fs.mkdir(novaDir, { recursive: true });
+        const config = { apiKeys: { provider: opts.provider, key: opts.key } };
+        await fs.writeFile(
+          path.join(novaDir, 'config.toml'),
+          TOML.stringify(config as unknown as import('@iarna/toml').JsonMap),
+          'utf-8',
+        );
+        console.log(`Saved ${opts.provider} config to .nova/config.toml`);
+        return;
+      }
       await runSetup();
     });
 

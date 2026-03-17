@@ -14,6 +14,8 @@ import { CommandInput } from './ui/CommandInput.js';
 import { ElementSelector } from './ui/ElementSelector.js';
 import { StatusToast } from './ui/StatusToast.js';
 import { TranscriptBar } from './ui/TranscriptBar.js';
+import { TaskPanel } from './ui/TaskPanel.js';
+import { ActivityLog } from './ui/ActivityLog.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 
@@ -55,6 +57,8 @@ function boot(): void {
   const elementSelector = new ElementSelector();
   const statusToast = new StatusToast();
   const transcriptBar = new TranscriptBar();
+  const taskPanel = new TaskPanel();
+  const activityLog = new ActivityLog();
 
   // Transport
   const wsClient = new WebSocketClient();
@@ -63,31 +67,212 @@ function boot(): void {
   let selectedElement: HTMLElement | null = null;
   let lastTranscript = '';
   let isProcessing = false;
+  let voiceStarted = false;
+  let awaitingConfirmation = false;
+  let awaitingSendConfirmation = false;
+  let pendingVoiceCommand = '';
+  let autofixInProgress = false;
+  let autofixToastId: string | null = null;
+  let executingToastId: string | null = null;
+  let totalTasks = 0;
+  let completedTasks = 0;
 
   // Install console capture
   consoleCapture.install();
 
-  // Mount UI
-  pill.mount(document.body);
-  transcriptBar.mount(document.body);
-
-  // Try to auto-start voice (may fail without user gesture in Chrome)
-  let voiceStarted = false;
-  try {
-    voiceCapture.start();
-    voiceStarted = true;
-    pill.setState('listening');
-    transcriptBar.setListening(true);
-  } catch {
-    // Browser requires user gesture — will start on first pill click
-    pill.setState('idle');
-    transcriptBar.setListening(false);
-    statusToast.show('Click the mic button to enable voice', 'info', 5000);
+  // Create Nova container outside of React's reach (appended to <html>, not <body>)
+  // This ensures the overlay survives React error boundaries and Next.js error pages
+  let novaRoot = document.getElementById('nova-root');
+  if (!novaRoot) {
+    novaRoot = document.createElement('div');
+    novaRoot.id = 'nova-root';
+    novaRoot.style.position = 'fixed';
+    novaRoot.style.top = '0';
+    novaRoot.style.left = '0';
+    novaRoot.style.width = '0';
+    novaRoot.style.height = '0';
+    novaRoot.style.overflow = 'visible';
+    novaRoot.style.zIndex = '2147483647';
+    novaRoot.style.pointerEvents = 'none';
+    document.documentElement.appendChild(novaRoot);
   }
+
+  // Mount UI into the indestructible nova-root
+  pill.mount(novaRoot);
+  transcriptBar.mount(novaRoot);
+  taskPanel.mount(novaRoot);
+  activityLog.mount(novaRoot);
+
+  // Watch for removal and re-mount if React or error boundaries nuke the elements
+  const overlaySelectors = [
+    { attr: 'data-nova-pill', remount: () => { pill.unmount(); pill.mount(novaRoot!); } },
+    { attr: 'data-nova-transcript', remount: () => { transcriptBar.unmount(); transcriptBar.mount(novaRoot!); } },
+    { attr: 'data-nova-task-panel', remount: () => { taskPanel.unmount(); taskPanel.mount(novaRoot!); } },
+    { attr: 'data-nova-activity-log', remount: () => { activityLog.unmount(); activityLog.mount(novaRoot!); } },
+  ];
+
+  const overlayObserver = new MutationObserver(() => {
+    // Re-create nova-root if it got removed from <html>
+    if (!document.getElementById('nova-root')) {
+      novaRoot = document.createElement('div');
+      novaRoot.id = 'nova-root';
+      novaRoot.style.position = 'fixed';
+      novaRoot.style.top = '0';
+      novaRoot.style.left = '0';
+      novaRoot.style.width = '0';
+      novaRoot.style.height = '0';
+      novaRoot.style.overflow = 'visible';
+      novaRoot.style.zIndex = '2147483647';
+      novaRoot.style.pointerEvents = 'none';
+      document.documentElement.appendChild(novaRoot);
+    }
+
+    for (const item of overlaySelectors) {
+      if (!novaRoot!.querySelector(`[${item.attr}]`)) {
+        try { item.remount(); } catch { /* best-effort */ }
+      }
+    }
+  });
+
+  overlayObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+  // Show console errors in overlay toasts (Fix 2)
+  // Track errors to debounce and avoid sending duplicates
+  let lastSentError = '';
+  let errorDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  consoleCapture.onError((error: string) => {
+    // Skip Nova's own logs to avoid loops
+    if (error.includes('[Nova]')) return;
+    if (error.includes('nova-overlay')) return;
+    if (autofixInProgress) return; // Don't report errors while fixing
+
+    const isWarning = error.startsWith('[warn]');
+    const isImageIssue = /image|src.*prop|hostname.*not configured|unsplash|picsum|placeholder/i.test(error);
+    const isFixableError = /Module not found|Invalid src|Error boundary|SyntaxError|TypeError|Build error|Failed to compile/i.test(error);
+
+    // Show toast for errors (not routine warnings)
+    if (!isWarning || isImageIssue) {
+      const shortError = error.length > 200 ? error.slice(0, 200) + '...' : error;
+      statusToast.show(`Console ${isWarning ? 'warning' : 'error'}: ${shortError}`, isWarning ? 'info' : 'error');
+      activityLog.addEntry(shortError, 'error');
+    }
+
+    // Send fixable errors/warnings to server for auto-fix
+    if (isFixableError || isImageIssue) {
+      const errorKey = error.slice(0, 100);
+      if (errorKey === lastSentError) return;
+      lastSentError = errorKey;
+
+      if (errorDebounce) clearTimeout(errorDebounce);
+      errorDebounce = setTimeout(() => {
+        wsClient.sendRaw({ type: 'browser_error', data: { error: error.slice(0, 1000) } });
+      }, 1500);
+    }
+  });
+
+  // Track if user has been recording (to detect mic-off as command end)
+  let hasRecordedText = false;
+
+  // Mic toggle from TranscriptBar → start/stop VoiceCapture
+  transcriptBar.onMicToggle((active: boolean) => {
+    if (autofixInProgress) {
+      statusToast.show('Build fix in progress — please wait...', 'info', 2000);
+      return;
+    }
+    if (active) {
+      // Start recording
+      hasRecordedText = false;
+      lastTranscript = '';
+      voiceCapture.start();
+      voiceStarted = true;
+      pill.setState('listening');
+    } else {
+      // Stop recording — if there was text, show send confirmation
+      voiceCapture.stop();
+      pill.setState('idle');
+
+      if (hasRecordedText && lastTranscript.trim().length >= 3) {
+        const text = lastTranscript.trim();
+        pendingVoiceCommand = text;
+        awaitingSendConfirmation = true;
+
+        transcriptBar.showConfirmation(`Send: "${text.slice(0, 80)}"?`);
+      }
+      hasRecordedText = false;
+    }
+  });
+
+  // Language change from TranscriptBar → update VoiceCapture
+  transcriptBar.onLanguageChange((lang: string) => {
+    voiceCapture.setLanguage(lang);
+    const label = lang || 'Auto-detect';
+    statusToast.show(`Voice language: ${label}`, 'info', 2000);
+  });
+
+  // Typed command from transcript bar input
+  transcriptBar.onCommandSubmit((text: string) => {
+    pendingVoiceCommand = text;
+    awaitingSendConfirmation = true;
+    transcriptBar.showConfirmation(`Send: "${text.slice(0, 80)}"?`);
+  });
+
+  // Confirmation bar Execute/Cancel handlers (handles both send + task confirm)
+  transcriptBar.onConfirmExecute(() => {
+    if (awaitingSendConfirmation && pendingVoiceCommand) {
+      awaitingSendConfirmation = false;
+      const cmd = pendingVoiceCommand;
+      pendingVoiceCommand = '';
+      void sendObservation(cmd);
+    } else if (awaitingConfirmation) {
+      awaitingConfirmation = false;
+      completedTasks = 0;
+      wsClient.sendRaw({ type: 'confirm' });
+      statusToast.show('Confirmed!', 'success', 2000);
+      pill.setState('processing');
+    }
+  });
+
+  transcriptBar.onConfirmCancel(() => {
+    if (awaitingSendConfirmation) {
+      awaitingSendConfirmation = false;
+      pendingVoiceCommand = '';
+      statusToast.show('Command discarded.', 'info', 2000);
+    } else if (awaitingConfirmation) {
+      awaitingConfirmation = false;
+      wsClient.sendRaw({ type: 'cancel' });
+      statusToast.show('Cancelled.', 'info', 2000);
+      pill.setState('listening');
+    }
+  });
+
+  // Restore saved language on boot
+  const savedLang = transcriptBar.getSelectedLanguage();
+  if (savedLang) {
+    voiceCapture.setLanguage(savedLang);
+  }
+
+  // Start with mic OFF — user clicks mic button to enable
+  pill.setState('idle');
+  transcriptBar.setListening(false);
 
   // Helper: send observation to server
   async function sendObservation(transcript: string): Promise<void> {
     if (isProcessing) return;
+
+    // Block commands during autofix
+    if (autofixInProgress) {
+      statusToast.show('Build fix in progress — please wait...', 'info', 2000);
+      return;
+    }
+
+    // If awaiting confirmation, append to existing request instead of sending new one
+    if (awaitingConfirmation) {
+      wsClient.sendRaw({ type: 'append', data: { text: transcript } });
+      statusToast.show(`Added to request: "${transcript}"`, 'info', 3000);
+      return;
+    }
+
     isProcessing = true;
     pill.setState('processing');
 
@@ -108,6 +293,7 @@ function boot(): void {
         timestamp: Date.now(),
       };
 
+      console.log(`[Nova] Sending observation: screenshot=${screenshotBase64.length} chars, url=${window.location.href}, transcript="${transcript}"`);
       wsClient.send(observation);
       statusToast.show('Command sent to Nova', 'info');
       pill.setState('listening');
@@ -124,24 +310,27 @@ function boot(): void {
     lastTranscript = '';
   }
 
-  // Collect voice transcripts — always update transcript bar
+  // Collect voice transcripts — update transcript bar, track text
   voiceCapture.onTranscript((result) => {
     transcriptBar.setTranscript(result.text, result.isFinal);
 
+    // Track that user has spoken something
+    if (result.text.trim().length > 0) {
+      hasRecordedText = true;
+    }
+
     if (result.isFinal) {
-      lastTranscript = result.text;
+      // Accumulate transcript (speech recognition may fire multiple finals)
+      if (result.text.trim().length > 0) {
+        lastTranscript = lastTranscript
+          ? `${lastTranscript} ${result.text.trim()}`
+          : result.text.trim();
+      }
     }
 
     // Feed into command input if visible
     if (commandInput.isVisible()) {
       commandInput.setTranscript(result.text);
-    }
-
-    // Auto-submit final transcripts of sufficient length
-    if (result.isFinal && result.text.trim().length >= 10) {
-      const text = result.text.trim();
-      statusToast.show(`Voice command: ${text}`, 'info');
-      void sendObservation(text);
     }
   });
 
@@ -190,24 +379,121 @@ function boot(): void {
     await sendObservation(text || lastTranscript);
   });
 
+  // Activity log: reasoning chunk accumulation
+  let lastReasoningEntry: HTMLElement | null = null;
+  let reasoningBuffer = '';
+
   // Handle events from server
   wsClient.onEvent((event: NovaEvent) => {
     switch (event.type) {
       case 'task_completed':
-        pill.setState('listening');
-        statusToast.show('Task completed successfully', 'success');
+        completedTasks++;
+        taskPanel.setTaskCompleted(event.data.taskId, event.data.commitHash);
+        activityLog.addEntry(`Done: ${event.data.taskId}`, 'success');
+        // Only finish when ALL tasks done
+        if (completedTasks >= totalTasks && totalTasks > 0) {
+          if (executingToastId) {
+            statusToast.dismiss(executingToastId);
+            executingToastId = null;
+          }
+          pill.setState('listening');
+          statusToast.show(`All ${totalTasks} task(s) completed!`, 'success');
+          totalTasks = 0;
+          completedTasks = 0;
+        }
         break;
       case 'task_failed':
-        pill.setState('error');
-        statusToast.show(`Task failed: ${event.data.error}`, 'error');
+        completedTasks++;
+        taskPanel.setTaskFailed(event.data.taskId, event.data.error);
+        activityLog.addEntry(`Failed: ${event.data.taskId}${event.data.error ? ' - ' + event.data.error : ''}`, 'error');
+        // Count failed as completed for tracking
+        if (completedTasks >= totalTasks && totalTasks > 0) {
+          if (executingToastId) {
+            statusToast.dismiss(executingToastId);
+            executingToastId = null;
+          }
+          pill.setState('error');
+          statusToast.show('Some tasks failed. Check task panel.', 'error');
+          totalTasks = 0;
+          completedTasks = 0;
+        }
         break;
       case 'task_started':
         pill.setState('processing');
-        statusToast.show('Nova is working...', 'info');
+        taskPanel.setTaskStarted(event.data.taskId);
+        activityLog.addEntry(`Starting: ${event.data.taskId}`, 'info');
         break;
-      case 'status':
-        statusToast.show(event.data.message, 'info');
+      case 'llm_chunk':
+        taskPanel.setStreamingText(
+          event.data.taskId ?? '',
+          event.data.text,
+          event.data.phase,
+        );
+        // Activity log: accumulate reasoning, detect file writes in code
+        if (event.data.phase === 'reasoning') {
+          reasoningBuffer += event.data.text;
+          if (lastReasoningEntry) {
+            activityLog.updateLastEntry(reasoningBuffer.slice(-200));
+          } else {
+            lastReasoningEntry = activityLog.addEntry(event.data.text, 'thinking');
+          }
+        } else {
+          if (reasoningBuffer) {
+            lastReasoningEntry = null;
+            reasoningBuffer = '';
+          }
+          if (event.data.text.includes('=== FILE:')) {
+            const match = event.data.text.match(/=== FILE: (.+?) ===/);
+            if (match) activityLog.addEntry(`Writing: ${match[1]}`, 'code');
+          }
+        }
         break;
+      case 'task_created':
+        statusToast.show(`Task: ${event.data.description} (Lane ${event.data.lane})`, 'info');
+        activityLog.addEntry(`Task: ${event.data.description} (Lane ${event.data.lane})`, 'info');
+        break;
+      case 'status': {
+        const msg = event.data.message;
+        activityLog.addEntry(msg, 'info');
+        // Show confirmation toast with buttons for pending tasks
+        if (msg.startsWith('Pending:')) {
+          awaitingConfirmation = true;
+          pill.setState('idle');
+
+          // Show task panel if structured tasks are included
+          const statusTasks = (event.data as { tasks?: Array<{ id: string; description: string; lane: number }> }).tasks;
+          if (statusTasks && statusTasks.length > 0) {
+            taskPanel.setPendingTasks(statusTasks);
+            totalTasks = statusTasks.length;
+            completedTasks = 0;
+          }
+
+          // Show confirmation above transcript bar (persistent until Execute/Cancel)
+          const taskCount = statusTasks?.length ?? 0;
+          const shortMsg = `${taskCount} task(s) ready. Execute?`;
+          transcriptBar.showConfirmation(shortMsg);
+        } else if (msg === 'autofix_start') {
+          autofixInProgress = true;
+          pill.setState('processing');
+          autofixToastId = statusToast.show('Fixing build errors... please wait', 'info', 0);
+        } else if (msg === 'autofix_end') {
+          autofixInProgress = false;
+          if (autofixToastId) {
+            statusToast.dismiss(autofixToastId);
+            autofixToastId = null;
+          }
+          pill.setState('idle');
+          statusToast.show('Build fix applied! Reloading...', 'success', 3000);
+          // Reload page after short delay to pick up hot-reload changes
+          setTimeout(() => window.location.reload(), 1500);
+        } else if (msg.startsWith('Confirmed!')) {
+          pill.setState('processing');
+          executingToastId = statusToast.show(msg, 'info', 0);
+        } else {
+          statusToast.show(msg, 'info');
+        }
+        break;
+      }
     }
   });
 

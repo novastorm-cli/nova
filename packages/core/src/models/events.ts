@@ -8,7 +8,10 @@ export type NovaEvent =
   | { type: 'task_failed'; data: { taskId: string; error: string } }
   | { type: 'file_changed'; data: { filePath: string; source: 'user' | 'nova' } }
   | { type: 'index_updated'; data: { filesChanged: string[] } }
-  | { type: 'status'; data: { message: string } };
+  | { type: 'status'; data: { message: string; tasks?: Array<{ id: string; description: string; lane: number }> } }
+  | { type: 'confirm'; data: Record<string, never> }
+  | { type: 'cancel'; data: Record<string, never> }
+  | { type: 'llm_chunk'; data: { text: string; phase: 'reasoning' | 'code'; taskId?: string } };
 
 export type NovaEventType = NovaEvent['type'];
 

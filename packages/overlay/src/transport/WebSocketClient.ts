@@ -46,6 +46,14 @@ export class WebSocketClient {
     this.ws.send(message);
   }
 
+  sendRaw(message: Record<string, unknown>): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.warn('[Nova] WebSocket not connected, dropping message');
+      return;
+    }
+    this.ws.send(JSON.stringify(message));
+  }
+
   onEvent(callback: EventCallback): void {
     this.eventCallbacks.push(callback);
   }

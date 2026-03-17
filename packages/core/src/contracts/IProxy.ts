@@ -73,6 +73,9 @@ export interface IDevServerRunner {
   /** Gracefully kills the dev server process (SIGTERM, then SIGKILL after 5s). */
   kill(): Promise<void>;
 
+  /** Register callback for dev server stdout/stderr output. */
+  onOutput(handler: (output: string) => void): void;
+
   /** Returns true if process is running. */
   isRunning(): boolean;
 }

@@ -6,8 +6,13 @@ const PREFIX = '[Nova]';
 export class NovaLogger {
   logObservation(observation: Observation): void {
     const action = observation.transcript ?? 'click';
+    const screenshotSize = observation.screenshot?.length ?? 0;
+    const url = observation.currentUrl || '(unknown)';
     console.log(
-      chalk.yellow(`${PREFIX} \u{1F4E1} Observation: ${action} at ${observation.currentUrl}`),
+      chalk.yellow(`${PREFIX} \u{1F4E1} Observation: "${action}" at ${url}`),
+    );
+    console.log(
+      chalk.dim(`${PREFIX}    Screenshot: ${screenshotSize} bytes, DOM: ${observation.domSnapshot ? 'yes' : 'no'}, Errors: ${observation.consoleErrors?.length ?? 0}`),
     );
   }
 

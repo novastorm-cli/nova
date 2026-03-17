@@ -9,7 +9,7 @@ export interface NovaConfig {
     local: boolean;
   };
   apiKeys: {
-    provider: 'openrouter' | 'anthropic' | 'openai' | 'ollama';
+    provider: 'openrouter' | 'anthropic' | 'openai' | 'ollama' | 'claude-cli';
     key?: string;  // resolved from env or .nova/config.toml
   };
   behavior: {
@@ -25,7 +25,7 @@ export interface NovaConfig {
 
 export const DEFAULT_CONFIG: NovaConfig = {
   project: { devCommand: '', port: 3000 },
-  models: { fast: 'openrouter/qwen-2.5-coder-7b', strong: 'anthropic/claude-sonnet-4', local: false },
+  models: { fast: 'anthropic/claude-haiku-4-5-20251001', strong: 'anthropic/claude-sonnet-4-6', local: false },
   apiKeys: { provider: 'openrouter' },
   behavior: { autoCommit: false, branchPrefix: 'nova/', passiveSuggestions: true },
   voice: { enabled: true, engine: 'web' },

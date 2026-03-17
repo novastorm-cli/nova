@@ -35,11 +35,13 @@ export const COLORS = {
 } as const;
 
 export const Z_INDEX = {
+  activityLog: 2147483635,
+  selector: 2147483636,
+  transcriptBar: 2147483637,
+  taskPanel: 2147483638,
   pill: 2147483640,
   commandInput: 2147483641,
-  selector: 2147483639,
-  toast: 2147483642,
-  transcriptBar: 2147483638,
+  toast: 2147483645,
 } as const;
 
 export const PILL_SIZE = 48;

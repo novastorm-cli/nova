@@ -9,7 +9,6 @@ type Html2CanvasFn = (
 ) => Promise<HTMLCanvasElement>;
 
 async function loadHtml2Canvas(): Promise<Html2CanvasFn> {
-  // Dynamic import to handle CJS/ESM interop under Node16 module resolution.
   const mod: unknown = await import('html2canvas');
   const m = mod as { default?: unknown };
   const fn = typeof m.default === 'function' ? m.default : mod;
@@ -18,17 +17,73 @@ async function loadHtml2Canvas(): Promise<Html2CanvasFn> {
 
 export class ScreenshotCapture implements IScreenshotCapture {
   async captureViewport(): Promise<Blob> {
-    const html2canvas = await loadHtml2Canvas();
-    const canvas = await html2canvas(document.body, {
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-    });
+    // Try html2canvas first, fall back to simple canvas capture
+    try {
+      const html2canvas = await loadHtml2Canvas();
+      const canvas = await html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        ignoreElements: (element: Element) => {
+          // Skip Nova overlay elements
+          return element.hasAttribute('data-nova-transcript') ||
+                 element.hasAttribute('data-nova-pill') ||
+                 element.hasAttribute('data-nova-toast');
+        },
+      });
 
-    const resized = this.resizeIfNeeded(canvas);
+      const resized = this.resizeIfNeeded(canvas);
+      return this.canvasToBlob(resized);
+    } catch {
+      // html2canvas failed (e.g. unsupported CSS like lab() colors)
+      // Fall back to a simple viewport screenshot via canvas
+      return this.fallbackCapture();
+    }
+  }
 
+  private async fallbackCapture(): Promise<Blob> {
+    // Create a simple canvas with the page dimensions and a message
+    // This is a minimal fallback — the screenshot won't be pixel-perfect
+    // but it allows the AI to at least know the viewport size
+    const width = Math.min(window.innerWidth, MAX_WIDTH);
+    const height = Math.min(window.innerHeight, MAX_HEIGHT);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      // Draw a white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      // Try to capture visible text content for context
+      ctx.fillStyle = '#333333';
+      ctx.font = '14px system-ui, sans-serif';
+
+      const lines = [
+        `Page: ${document.title || window.location.pathname}`,
+        `URL: ${window.location.href}`,
+        `Viewport: ${window.innerWidth}x${window.innerHeight}`,
+        '',
+        'Note: Full screenshot unavailable (CSS compatibility issue).',
+        'The page content is described by the DOM snapshot.',
+      ];
+
+      let y = 30;
+      for (const line of lines) {
+        ctx.fillText(line, 20, y);
+        y += 22;
+      }
+    }
+
+    return this.canvasToBlob(canvas);
+  }
+
+  private canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     return new Promise<Blob>((resolve, reject) => {
-      resized.toBlob((blob) => {
+      canvas.toBlob((blob) => {
         if (blob) {
           resolve(blob);
         } else {

@@ -38,24 +38,44 @@ export class VoiceCapture implements IVoiceCapture {
   private recognition: SpeechRecognition | null = null;
   private listening = false;
   private handlers: Array<(result: TranscriptResult) => void> = [];
-  private autoRestart = true;
-  private lastStartTime = 0;
-  private rapidFailCount = 0;
+  private autoRestart = false;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  private lang = '';
+
+  /**
+   * Set the recognition language.
+   * Examples: 'en-US', 'ru-RU', 'de-DE', 'ja-JP'
+   * Empty string = use navigator.language
+   */
+  setLanguage(lang: string): void {
+    this.lang = lang;
+    // Fully restart with new language
+    if (this.recognition) {
+      this.forceStop();
+      this.start();
+    }
+  }
+
+  getLanguage(): string {
+    return this.lang;
+  }
 
   start(): void {
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) return;
 
-    if (this.listening) return;
+    // Clean up any existing recognition
+    this.forceStop();
 
     this.autoRestart = true;
-    this.rapidFailCount = 0;
 
     const recognition = new Ctor();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = navigator.language || 'en-US';
+
+    // Resolve language: explicit > navigator.language > 'en-US'
+    const resolvedLang = this.lang || navigator.language || 'en-US';
+    recognition.lang = resolvedLang;
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -70,58 +90,57 @@ export class VoiceCapture implements IVoiceCapture {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         this.autoRestart = false;
         this.listening = false;
-        this.emit({ text: '', isFinal: true }); // signal to UI that voice failed
       }
-      // For 'no-speech' and 'aborted', let onend handle auto-restart
+      // 'no-speech', 'aborted', 'network' → onend will handle restart
     };
 
     recognition.onend = () => {
-      const wasListening = this.listening;
       this.listening = false;
 
-      if (this.autoRestart && wasListening) {
-        const elapsed = Date.now() - this.lastStartTime;
-        if (elapsed < 100) {
-          this.rapidFailCount++;
-          if (this.rapidFailCount >= 3) {
-            this.autoRestart = false;
-            return;
-          }
-        } else {
-          this.rapidFailCount = 0;
-        }
-
+      if (this.autoRestart) {
+        // Restart after a pause — gives browser time to release mic
         this.restartTimer = setTimeout(() => {
           this.restartTimer = null;
           if (this.autoRestart) {
-            this.doStart();
+            this.start();
           }
-        }, 300);
+        }, 500);
       }
     };
 
     this.recognition = recognition;
-    this.doStart();
+
+    try {
+      recognition.start();
+      this.listening = true;
+    } catch {
+      // start() can throw if called too rapidly
+      this.listening = false;
+    }
   }
 
   stop(): void {
     this.autoRestart = false;
+    this.forceStop();
+  }
+
+  private forceStop(): void {
     if (this.restartTimer) {
       clearTimeout(this.restartTimer);
       this.restartTimer = null;
     }
-    if (this.recognition && this.listening) {
-      this.recognition.stop();
-      this.listening = false;
+    if (this.recognition) {
+      try {
+        this.recognition.abort();
+      } catch {
+        // ignore
+      }
+      this.recognition.onresult = null;
+      this.recognition.onerror = null;
+      this.recognition.onend = null;
       this.recognition = null;
     }
-  }
-
-  private doStart(): void {
-    if (!this.recognition) return;
-    this.listening = true;
-    this.lastStartTime = Date.now();
-    this.recognition.start();
+    this.listening = false;
   }
 
   isListening(): boolean {

@@ -1,5 +1,12 @@
+export { CodeValidator } from './CodeValidator.js';
+export type { ValidationError } from './CodeValidator.js';
 export { DiffApplier } from './DiffApplier.js';
 export { Validator } from './Validator.js';
 export { Lane1Executor } from './Lane1Executor.js';
 export { Lane2Executor } from './Lane2Executor.js';
+export { Lane3Executor } from './Lane3Executor.js';
 export { ExecutorPool } from './ExecutorPool.js';
+export { parseFileBlocks } from './fileBlocks.js';
+export type { FileBlock } from './fileBlocks.js';
+export { CodeFixer } from './CodeFixer.js';
+export type { FixableError, ProjectContext } from './CodeFixer.js';

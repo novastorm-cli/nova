@@ -31,6 +31,14 @@ export class GitManager implements IGitManager {
       await this.run('git', ['add', '-A']);
     }
 
+    // Check if there's anything to commit
+    const { stdout: status } = await this.run('git', ['status', '--porcelain']);
+    if (status.trim().length === 0) {
+      // Nothing to commit — return current HEAD
+      const { stdout: head } = await this.run('git', ['rev-parse', '--short=7', 'HEAD']);
+      return head.trim();
+    }
+
     await this.run('git', ['commit', '-m', message]);
 
     const { stdout } = await this.run('git', ['rev-parse', '--short=7', 'HEAD']);

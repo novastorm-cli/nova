@@ -39,20 +39,12 @@ export class OverlayPill implements IOverlayPill {
 
     this.shadow.appendChild(this.pillEl);
 
-    const savedX = localStorage.getItem(STORAGE_KEY_X);
-    const savedY = localStorage.getItem(STORAGE_KEY_Y);
-
-    if (savedX !== null && savedY !== null) {
-      this.host.style.position = 'fixed';
-      this.host.style.left = `${savedX}px`;
-      this.host.style.top = `${savedY}px`;
-      this.host.style.right = 'auto';
-      this.host.style.bottom = 'auto';
-    } else {
-      this.host.style.position = 'fixed';
-      this.host.style.right = '20px';
-      this.host.style.bottom = '20px';
-    }
+    // Always position at bottom-right of viewport
+    this.host.style.position = 'fixed';
+    this.host.style.right = '20px';
+    this.host.style.bottom = '80px'; // Above transcript bar
+    this.host.style.left = 'auto';
+    this.host.style.top = 'auto';
     this.host.style.zIndex = String(Z_INDEX.pill);
 
     this.pillEl.addEventListener('mousedown', this.handleMouseDown.bind(this));
