@@ -1,5 +1,20 @@
 import { Z_INDEX } from './styles.js';
 
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+}
+
 export class ElementInspector {
   private active = false;
   private popupVisible = false;
@@ -10,6 +25,8 @@ export class ElementInspector {
   private highlightLabel: HTMLElement | null = null;
   private selectedElement: HTMLElement | null = null;
   private submitHandlers: Array<(element: HTMLElement, instruction: string) => void> = [];
+
+  private popupRecognition: SpeechRecognition | null = null;
 
   private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
   private keyupHandler: ((e: KeyboardEvent) => void) | null = null;
@@ -163,6 +180,11 @@ export class ElementInspector {
     this.selectedElement = null;
     document.body.style.cursor = '';
 
+    if (this.popupRecognition) {
+      this.popupRecognition.stop();
+      this.popupRecognition = null;
+    }
+
     if (this.highlightEl) {
       this.highlightEl.style.display = 'none';
     }
@@ -256,11 +278,25 @@ export class ElementInspector {
     question.textContent = 'What do you want to do with this element?';
     this.popupEl.appendChild(question);
 
+    const inputRow = document.createElement('div');
+    inputRow.className = 'popup-input-row';
+
     const input = document.createElement('input');
     input.className = 'popup-input';
     input.type = 'text';
     input.placeholder = 'e.g. "change color to red", "make it bigger"...';
-    this.popupEl.appendChild(input);
+    inputRow.appendChild(input);
+
+    const micBtn = document.createElement('button');
+    micBtn.className = 'popup-mic';
+    micBtn.textContent = '\uD83C\uDFA4';
+    micBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.togglePopupVoice(input, micBtn);
+    });
+    inputRow.appendChild(micBtn);
+
+    this.popupEl.appendChild(inputRow);
 
     const btnRow = document.createElement('div');
     btnRow.className = 'popup-buttons';
@@ -309,6 +345,42 @@ export class ElementInspector {
     }
 
     this.deactivate();
+  }
+
+  private togglePopupVoice(input: HTMLInputElement, micBtn: HTMLButtonElement): void {
+    const win = window as unknown as Record<string, unknown>;
+    const Ctor = win['SpeechRecognition'] ?? win['webkitSpeechRecognition'];
+    if (!Ctor) return;
+
+    if (this.popupRecognition) {
+      this.popupRecognition.stop();
+      this.popupRecognition = null;
+      micBtn.classList.remove('recording');
+      return;
+    }
+
+    const recognition = new (Ctor as new () => SpeechRecognition)();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    const savedLang = localStorage.getItem('nova-voice-lang');
+    if (savedLang) recognition.lang = savedLang;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      input.value = transcript;
+    };
+
+    recognition.onend = () => {
+      this.popupRecognition = null;
+      micBtn.classList.remove('recording');
+    };
+
+    recognition.start();
+    this.popupRecognition = recognition;
+    micBtn.classList.add('recording');
   }
 
   private getStyleSheet(): string {
@@ -382,8 +454,15 @@ export class ElementInspector {
         color: #9ca3af;
       }
 
+      .popup-input-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
       .popup-input {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
         padding: 8px 10px;
         background: #111827;
         border: 1px solid #374151;
@@ -437,6 +516,36 @@ export class ElementInspector {
 
       .popup-btn-execute:hover {
         background: #2563eb;
+      }
+
+      .popup-mic {
+        background: none;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all 0.2s;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .popup-mic:hover {
+        border-color: #3b82f6;
+      }
+
+      .popup-mic.recording {
+        border-color: #22c55e;
+        animation: mic-pulse 1.5s infinite;
+      }
+
+      @keyframes mic-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+        50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
       }
     `;
   }

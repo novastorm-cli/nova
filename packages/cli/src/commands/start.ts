@@ -11,6 +11,7 @@ import {
   ExecutorPool,
   Lane1Executor,
   Lane2Executor,
+  Lane3Executor,
   GitManager,
   type ProjectMap,
   type Observation,
@@ -304,14 +305,19 @@ export async function startCommand(): Promise<void> {
       const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
       const pendingMessage = `Pending: ${tasks.length} task(s) — ${taskDescriptions}. Say "yes"/"execute" to proceed or "no"/"cancel" to discard.`;
       console.log(chalk.yellow(`\n${pendingMessage}`));
-      console.log(chalk.dim('(Waiting for confirmation from overlay... Refresh browser if buttons not visible)\n'));
+      console.log(chalk.dim(`(Waiting for confirmation... ${wsServer.getClientCount()} overlay client(s) connected. Press Y to confirm in terminal)\n`));
       wsServer.sendEvent({ type: 'status', data: { message: pendingMessage, tasks: tasks.map(t => ({ id: t.id, description: t.description, lane: t.lane })) } } as NovaEvent);
 
-      // Re-send pending event after 5s in case overlay missed it (e.g. after hot reload)
-      setTimeout(() => {
+      // Re-send pending event periodically in case overlay missed it
+      const resendPending = () => {
         if (pendingTasks.length > 0) {
           wsServer.sendEvent({ type: 'status', data: { message: pendingMessage, tasks: tasks.map(t => ({ id: t.id, description: t.description, lane: t.lane })) } } as NovaEvent);
         }
+      };
+      setTimeout(resendPending, 3000);
+      setTimeout(resendPending, 8000);
+      setTimeout(() => {
+        resendPending();
       }, 5000);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -408,6 +414,42 @@ export async function startCommand(): Promise<void> {
       logger.logTaskCompleted(task);
     }
     wsServer.sendEvent(event as NovaEvent);
+
+    // After task completes, check site health (wait for hot reload)
+    setTimeout(async () => {
+      // Check dev server logs for errors
+      const logs = devServer.getLogs();
+      const recentLogs = logs.slice(-2000);
+      const hasLogError = /error|Error|failed|Failed|Module not found|SyntaxError|TypeError/i.test(recentLogs)
+        && !/Successfully compiled|Compiled/.test(recentLogs.slice(-500));
+
+      if (hasLogError && autoFixer) {
+        const errorLines = recentLogs.split('\n').filter(l => /error|Error|failed|Module not found/i.test(l)).slice(-5).join('\n');
+        if (errorLines.trim()) {
+          console.log(chalk.yellow(`[Nova] Post-task health check: build errors detected, auto-fixing...`));
+          wsServer.sendEvent({ type: 'status', data: { message: 'Post-task check: fixing build errors...' } } as NovaEvent);
+          autoFixer.forceFixNow(errorLines);
+          return;
+        }
+      }
+
+      // Also HTTP health check
+      try {
+        const http = await import('node:http');
+        const res = await new Promise<{ statusCode?: number }>((resolve) => {
+          const req = http.get(`http://127.0.0.1:${devPort}`, resolve);
+          req.on('error', () => resolve({ statusCode: 0 }));
+          req.setTimeout(5000, () => { req.destroy(); resolve({ statusCode: 0 }); });
+        });
+        if (res.statusCode && res.statusCode >= 500) {
+          console.log(chalk.yellow(`[Nova] Post-task health check: HTTP ${res.statusCode}, auto-fixing...`));
+          wsServer.sendEvent({ type: 'status', data: { message: `Site returned ${res.statusCode}, auto-fixing...` } } as NovaEvent);
+          autoFixer?.forceFixNow(`Dev server returned HTTP ${res.statusCode} after code changes`);
+        }
+      } catch {
+        // Health check failed silently
+      }
+    }, 3000);
   });
 
   eventBus.on('task_failed', (event) => {
@@ -436,6 +478,46 @@ export async function startCommand(): Promise<void> {
     chalk.bold.green('\nReady! Click elements or speak to start building.'),
   );
   console.log(chalk.dim('Press Ctrl+C to stop.\n'));
+
+  // ── Startup health check (after overlay is ready) ─────────────────
+  // Delayed so overlay WebSocket has time to connect
+  setTimeout(async () => {
+    const startupLogs = devServer.getLogs();
+    const startupErrors = startupLogs.split('\n')
+      .filter(l => /error|Error|failed|Module not found|SyntaxError|Cannot find/i.test(l))
+      .filter(l => !/warning|warn|deprecat|DeprecationWarning/i.test(l))
+      .slice(-10)
+      .join('\n')
+      .trim();
+
+    if (!startupErrors || !llmClient) return;
+
+    console.log(chalk.red('\n[Nova] Build errors detected at startup:'));
+    console.log(chalk.dim(startupErrors.slice(0, 500)));
+
+    // Create fix task and put it in pendingTasks — uses same confirm flow as regular tasks
+    const fixTask: TaskItem = {
+      id: crypto.randomUUID(),
+      description: `Fix build errors at startup:\n${startupErrors.slice(0, 500)}`,
+      files: [],
+      type: 'multi_file',
+      lane: 3,
+      status: 'pending',
+    };
+
+    pendingTasks = [fixTask];
+
+    const pendingMessage = `Pending: Build errors detected at startup. Fix them? 1. ${fixTask.description.slice(0, 100)}`;
+    console.log(chalk.yellow(`\n${pendingMessage}`));
+    console.log(chalk.dim('Press Y/Enter to fix, N to skip'));
+    wsServer.sendEvent({
+      type: 'status',
+      data: {
+        message: pendingMessage,
+        tasks: [{ id: fixTask.id, description: 'Fix startup build errors', lane: 3 }],
+      },
+    } as NovaEvent);
+  }, 4000);
 
   // ── 9. Handle Ctrl+C ───────────────────────────────────────────────
   let shuttingDown = false;

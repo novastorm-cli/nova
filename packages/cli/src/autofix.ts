@@ -58,7 +58,10 @@ export class ErrorAutoFixer {
       IMAGE_PATTERNS.some((p) => p.test(output));
 
     if (!hasError) return;
-    if (this.isFixing) return;
+    if (this.isFixing) {
+      console.log(chalk.dim('[Nova] AutoFixer: already fixing, queuing...'));
+      return;
+    }
 
     // Buffer errors (they come in chunks)
     this.errorBuffer += output;
@@ -70,9 +73,26 @@ export class ErrorAutoFixer {
     }, this.DEBOUNCE_MS);
   }
 
+  /** Force an immediate fix attempt, bypassing debounce and pattern check. */
+  forceFixNow(errorOutput: string): void {
+    if (this.isFixing) {
+      console.log(chalk.dim('[Nova] AutoFixer: already fixing, skipping forced fix'));
+      return;
+    }
+    void this.attemptAutoFix(errorOutput);
+  }
+
   private async attemptAutoFix(errorOutput: string): Promise<void> {
     if (this.isFixing) return;
     this.isFixing = true;
+
+    // Safety timeout: reset isFixing after 5 minutes max
+    const safetyTimer = setTimeout(() => {
+      if (this.isFixing) {
+        console.log(chalk.dim('[Nova] AutoFixer: safety timeout, resetting'));
+        this.isFixing = false;
+      }
+    }, 300_000);
 
     try {
       const isImageError = IMAGE_PATTERNS.some((p) => p.test(errorOutput));
@@ -84,6 +104,7 @@ export class ErrorAutoFixer {
 
       await this.fixCompilationError(errorOutput);
     } finally {
+      clearTimeout(safetyTimer);
       this.isFixing = false;
     }
   }

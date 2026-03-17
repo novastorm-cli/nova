@@ -97,6 +97,25 @@ export class TaskPanel {
     this.saveState();
   }
 
+  /** Add a single task without clearing existing ones. */
+  addTask(task: { id: string; description: string; lane: number }): void {
+    if (this.tasks.has(task.id)) return; // Already exists
+
+    this.clearHideTimer();
+    const element = this.createTaskRow(task.description, 'pending');
+    this.listEl?.appendChild(element);
+    this.tasks.set(task.id, {
+      id: task.id,
+      description: task.description,
+      lane: task.lane,
+      status: 'pending',
+      element,
+    });
+
+    this.show();
+    this.saveState();
+  }
+
   setTaskStarted(taskId: string): void {
     const entry = this.tasks.get(taskId);
     if (!entry) return;
@@ -183,7 +202,7 @@ export class TaskPanel {
 
     const icon = document.createElement('span');
     icon.className = 'task-icon';
-    icon.textContent = this.getIcon(status);
+    icon.innerHTML = this.getIcon(status);
 
     const desc = document.createElement('span');
     desc.className = 'task-desc';
@@ -206,7 +225,7 @@ export class TaskPanel {
 
     const icon = row.querySelector('.task-icon');
     if (icon) {
-      icon.textContent = this.getIcon(entry.status);
+      icon.innerHTML = this.getIcon(entry.status);
     }
 
     const meta = row.querySelector('.task-meta');
@@ -225,13 +244,13 @@ export class TaskPanel {
   private getIcon(status: TaskEntry['status']): string {
     switch (status) {
       case 'pending':
-        return '\u23F3';
+        return '<svg class="task-spinner" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="30 14" stroke-linecap="round"/></svg>';
       case 'executing':
-        return '\u23F3';
+        return '<svg class="task-spinner task-spinner-fast" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="30 14" stroke-linecap="round"/></svg>';
       case 'completed':
-        return '\u2705';
+        return '<svg class="task-check" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="#22c55e" opacity="0.15"/><circle cx="9" cy="9" r="8" fill="none" stroke="#22c55e" stroke-width="1.5"/><path class="checkmark" d="M5 9.5L7.5 12L13 6.5" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       case 'failed':
-        return '\u274C';
+        return '<svg class="task-fail" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="#ef4444" opacity="0.15"/><circle cx="9" cy="9" r="8" fill="none" stroke="#ef4444" stroke-width="1.5"/><path d="M6 6L12 12M12 6L6 12" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>';
     }
   }
 
@@ -343,8 +362,9 @@ export class TaskPanel {
       .task-icon {
         flex-shrink: 0;
         width: 20px;
-        text-align: center;
-        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .task-desc {
@@ -361,14 +381,21 @@ export class TaskPanel {
         color: #6b7280;
       }
 
-      /* Pending: pulse animation */
-      .status-pending .task-icon {
-        animation: pulse 2s ease-in-out infinite;
+      /* Pending: spinning loader */
+      .task-spinner {
+        animation: spin 1s linear infinite;
       }
 
-      /* Executing: faster pulse (spin-like) */
-      .status-executing .task-icon {
-        animation: spin-pulse 0.8s ease-in-out infinite;
+      /* Executing: faster spinning loader */
+      .task-spinner.task-spinner-fast {
+        animation: spin 0.6s linear infinite;
+      }
+
+      /* Completed: checkmark draw animation */
+      .task-check .checkmark {
+        stroke-dasharray: 20;
+        stroke-dashoffset: 20;
+        animation: checkmark-draw 0.4s ease forwards;
       }
 
       .status-executing {
@@ -418,14 +445,13 @@ export class TaskPanel {
         font-style: normal;
       }
 
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.4; }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
 
-      @keyframes spin-pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(1.15); }
+      @keyframes checkmark-draw {
+        to { stroke-dashoffset: 0; }
       }
     `;
   }

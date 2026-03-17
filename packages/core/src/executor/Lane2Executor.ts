@@ -3,22 +3,26 @@ import type { ILane2Executor } from '../contracts/IExecutor.js';
 import type { IGitManager } from '../contracts/IGitManager.js';
 import type { TaskItem, ProjectMap, ExecutionResult, LlmClient, MiniContext } from '../models/types.js';
 import { DiffApplier } from './DiffApplier.js';
+import { addLineNumbers } from './fileBlocks.js';
 
-const SYSTEM_PROMPT = `You are a code editor. You receive a file and a modification request.
-Respond with ONLY a unified diff (no explanation, no markdown fences).
-The diff must be valid unified diff format starting with --- and +++ headers.`;
+const SYSTEM_PROMPT = `You are a code editor. You receive a file with line numbers and a modification request.
+The file content has line numbers in the format "N | code" for your reference only.
+Respond with ONLY a valid unified diff (no explanation, no markdown fences).
+The diff must start with --- and +++ headers followed by @@ hunk headers.
+Output ONLY the changed hunks — do NOT repeat unchanged parts of the file.
+Minimal diff = fewer tokens = faster. Keep it tight.`;
 
 function buildUserPrompt(context: MiniContext, taskDescription: string): string {
   return `File: ${context.filePath}
 
-${context.importedTypes ? `Imported types:\n${context.importedTypes}\n\n` : ''}Current content:
+${context.importedTypes ? `Imported types:\n${context.importedTypes}\n\n` : ''}Current content (line numbers for reference only — do NOT include them in the diff):
 \`\`\`
-${context.content}
+${addLineNumbers(context.content)}
 \`\`\`
 
 Modification: ${taskDescription}
 
-Respond with ONLY the unified diff.`;
+Respond with ONLY the unified diff. Output only changed hunks, not the entire file.`;
 }
 
 /**
