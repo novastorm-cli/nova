@@ -16,6 +16,7 @@ import { StatusToast } from './ui/StatusToast.js';
 import { TranscriptBar } from './ui/TranscriptBar.js';
 import { TaskPanel } from './ui/TaskPanel.js';
 import { ActivityLog } from './ui/ActivityLog.js';
+import { ElementInspector } from './ui/ElementInspector.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 
@@ -59,6 +60,7 @@ function boot(): void {
   const transcriptBar = new TranscriptBar();
   const taskPanel = new TaskPanel();
   const activityLog = new ActivityLog();
+  const elementInspector = new ElementInspector();
 
   // Transport
   const wsClient = new WebSocketClient();
@@ -102,6 +104,13 @@ function boot(): void {
   transcriptBar.mount(novaRoot);
   taskPanel.mount(novaRoot);
   activityLog.mount(novaRoot);
+  elementInspector.mount(novaRoot);
+
+  // Element inspector: capture DOM snapshot + instruction and send directly (no double confirmation)
+  elementInspector.onSubmit((element, instruction) => {
+    selectedElement = element;
+    void sendObservation(instruction);
+  });
 
   // Watch for removal and re-mount if React or error boundaries nuke the elements
   const overlaySelectors = [
@@ -109,6 +118,7 @@ function boot(): void {
     { attr: 'data-nova-transcript', remount: () => { transcriptBar.unmount(); transcriptBar.mount(novaRoot!); } },
     { attr: 'data-nova-task-panel', remount: () => { taskPanel.unmount(); taskPanel.mount(novaRoot!); } },
     { attr: 'data-nova-activity-log', remount: () => { activityLog.unmount(); activityLog.mount(novaRoot!); } },
+    { attr: 'data-nova-inspector', remount: () => { elementInspector.unmount(); elementInspector.mount(novaRoot!); } },
   ];
 
   const overlayObserver = new MutationObserver(() => {
@@ -336,22 +346,11 @@ function boot(): void {
 
   // Pill click -> start voice on first click, then toggle element selector
   pill.onActivate(() => {
-    // First click: start voice if not yet started (browser requires user gesture)
-    if (!voiceStarted) {
-      voiceCapture.start();
-      voiceStarted = true;
-      pill.setState('listening');
-      transcriptBar.setListening(true);
-      statusToast.show('Voice enabled! Start speaking.', 'success', 3000);
-      return;
+    // Toggle element inspector mode
+    elementInspector.toggle();
+    if (elementInspector.isActive()) {
+      statusToast.show('Inspector mode ON — click any element (Option+I to cancel)', 'info', 3000);
     }
-
-    // Subsequent clicks: toggle element selector
-    if (elementSelector.isActive()) {
-      elementSelector.deactivate();
-      return;
-    }
-    elementSelector.activate();
   });
 
   // Element selected -> show command input
@@ -397,9 +396,11 @@ function boot(): void {
             executingToastId = null;
           }
           pill.setState('listening');
-          statusToast.show(`All ${totalTasks} task(s) completed!`, 'success');
+          statusToast.show(`All ${totalTasks} task(s) completed! Reloading...`, 'success');
           totalTasks = 0;
           completedTasks = 0;
+          // Reload page to pick up changes via hot reload
+          setTimeout(() => window.location.reload(), 1500);
         }
         break;
       case 'task_failed':

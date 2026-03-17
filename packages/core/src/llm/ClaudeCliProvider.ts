@@ -42,7 +42,7 @@ export class ClaudeCliProvider implements LlmClient {
     writeFileSync(promptFile, finalPrompt, 'utf-8');
 
     try {
-      const proc = spawn('sh', ['-c', `cat "${promptFile}" | claude -p`], {
+      const proc = spawn('sh', ['-c', `cat "${promptFile}" | claude -p --disallowedTools "Edit Write Bash NotebookEdit"`], {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env },
       });

@@ -25,7 +25,7 @@ export interface NovaConfig {
 
 export const DEFAULT_CONFIG: NovaConfig = {
   project: { devCommand: '', port: 3000 },
-  models: { fast: 'anthropic/claude-haiku-4-5-20251001', strong: 'anthropic/claude-sonnet-4-6', local: false },
+  models: { fast: 'claude-haiku-4-5', strong: 'claude-sonnet-4-6', local: false },
   apiKeys: { provider: 'openrouter' },
   behavior: { autoCommit: false, branchPrefix: 'nova/', passiveSuggestions: true },
   voice: { enabled: true, engine: 'web' },

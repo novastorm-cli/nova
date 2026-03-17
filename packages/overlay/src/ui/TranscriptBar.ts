@@ -422,6 +422,9 @@ export class TranscriptBar implements ITranscriptBar {
       .transcript-bar.idle {
         opacity: 0.3;
       }
+      .transcript-bar.idle:focus-within {
+        opacity: 1;
+      }
       .transcript-bar.flash-green {
         background: #1a2a1aee;
         box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);

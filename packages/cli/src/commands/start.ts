@@ -235,7 +235,7 @@ export async function startCommand(): Promise<void> {
   if (llmClient) {
     const lane1 = new Lane1Executor(cwd);
     const lane2 = new Lane2Executor(cwd, llmClient, gitManager);
-    executorPool = new ExecutorPool(lane1, lane2, eventBus, llmClient, gitManager, cwd);
+    executorPool = new ExecutorPool(lane1, lane2, eventBus, llmClient, gitManager, cwd, config.models.fast, config.models.strong);
   }
 
   // Wire dev server output to auto-fixer for error detection

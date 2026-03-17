@@ -95,6 +95,7 @@ export class Lane3Executor {
     private readonly gitManager: IGitManager,
     private readonly eventBus?: EventBus,
     private readonly maxFixIterations: number = 3,
+    private readonly modelName?: string,
   ) {}
 
   async execute(task: TaskItem, projectMap: ProjectMap): Promise<ExecutionResult> {
@@ -111,7 +112,7 @@ export class Lane3Executor {
       const response = await streamWithEvents(
         this.llmClient,
         [{ role: 'user', content: fullPrompt }],
-        { temperature: 0 },
+        { temperature: 0, model: this.modelName },
         this.eventBus,
         task.id,
       );
