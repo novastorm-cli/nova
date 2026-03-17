@@ -46,6 +46,7 @@ export class OverlayPill implements IOverlayPill {
     this.host.style.left = 'auto';
     this.host.style.top = 'auto';
     this.host.style.zIndex = String(Z_INDEX.pill);
+    this.host.style.pointerEvents = 'auto';
 
     this.pillEl.addEventListener('mousedown', this.handleMouseDown.bind(this));
     this.pillEl.addEventListener('click', this.handleClick.bind(this));
