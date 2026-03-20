@@ -1,0 +1,7 @@
+{
+  "name": "my/symfony-app",
+  "require": {
+    "php": "^8.1",
+    "symfony/framework-bundle": "^6.0"
+  }
+}

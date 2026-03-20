@@ -11,6 +11,13 @@ export interface StackInfo {
   typescript: boolean;
 }
 
+export interface DockerServiceInfo {
+  name: string;
+  ports: Array<{ host: number; container: number }>;
+  buildContext?: string;
+  image?: string;
+}
+
 export interface RouteInfo {
   path: string;             // "/dashboard", "/api/users"
   filePath: string;         // "app/dashboard/page.tsx"

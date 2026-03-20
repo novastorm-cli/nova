@@ -1,7 +1,7 @@
 import { readFile, readdir, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { IStackDetector } from '../contracts/IIndexer.js';
-import type { StackInfo } from '../models/types.js';
+import type { StackInfo, DockerServiceInfo } from '../models/types.js';
 
 interface PackageJson {
   dependencies?: Record<string, string>;
@@ -35,6 +35,14 @@ const DEFAULT_PORTS: Record<string, number> = {
   'django': 8000,
   'fastapi': 8000,
   'flask': 5000,
+  'rails': 3000,
+  'sinatra': 4567,
+  'ruby': 3000,
+  'laravel': 8000,
+  'symfony': 8000,
+  'php': 8000,
+  'spring-boot': 8080,
+  'java': 8080,
 };
 
 export class StackDetector implements IStackDetector {
@@ -55,6 +63,24 @@ export class StackDetector implements IStackDetector {
     const pythonFramework = await this.detectPython(projectPath);
     if (pythonFramework) {
       return { framework: pythonFramework, language: 'python', typescript: false };
+    }
+
+    // 3.5. Check Gemfile for Ruby/Rails
+    const rubyFramework = await this.detectRuby(projectPath);
+    if (rubyFramework) {
+      return { framework: rubyFramework, language: 'ruby', typescript: false };
+    }
+
+    // 3.6. Check composer.json for PHP/Laravel
+    const phpFramework = await this.detectPhp(projectPath);
+    if (phpFramework) {
+      return { framework: phpFramework, language: 'php', typescript: false };
+    }
+
+    // 3.7. Check pom.xml/build.gradle for Java/Spring
+    const javaFramework = await this.detectJava(projectPath);
+    if (javaFramework) {
+      return { framework: javaFramework, language: 'java', typescript: false };
     }
 
     // 4. Check go.mod
@@ -100,6 +126,12 @@ export class StackDetector implements IStackDetector {
     if (framework === 'flask') {
       return 'flask run';
     }
+
+    if (framework === 'rails') return 'bin/rails server';
+    if (framework === 'sinatra') return 'ruby app.rb';
+    if (framework === 'laravel') return 'php artisan serve';
+    if (framework === 'symfony') return 'symfony server:start';
+    if (framework === 'spring-boot') return './mvnw spring-boot:run';
 
     return '';
   }
@@ -201,6 +233,18 @@ export class StackDetector implements IStackDetector {
       if (stack.framework === 'dotnet') {
         return await this.readPortFromLaunchSettings(projectPath);
       }
+
+      if (stack.framework === 'rails') {
+        return await this.readPortFromPumaConfig(projectPath);
+      }
+
+      if (stack.framework === 'laravel') {
+        return await this.readPortFromLaravelEnv(projectPath);
+      }
+
+      if (stack.framework === 'spring-boot') {
+        return await this.readPortFromSpringConfig(projectPath);
+      }
     } catch {
       // Fall through to default
     }
@@ -268,5 +312,257 @@ export class StackDetector implements IStackDetector {
     } catch {
       return false;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ruby / Rails detection
+  // ---------------------------------------------------------------------------
+
+  private async detectRuby(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'Gemfile'));
+    if (!content) return null;
+
+    if (/gem\s+['"]rails['"]/.test(content)) return 'rails';
+    if (/gem\s+['"]sinatra['"]/.test(content)) return 'sinatra';
+
+    return 'ruby';
+  }
+
+  // ---------------------------------------------------------------------------
+  // PHP / Laravel detection
+  // ---------------------------------------------------------------------------
+
+  private async detectPhp(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'composer.json'));
+    if (!content) return null;
+
+    try {
+      const composer = JSON.parse(content) as { require?: Record<string, string> };
+      const require = composer.require ?? {};
+
+      if ('laravel/framework' in require) return 'laravel';
+      if ('symfony/symfony' in require || 'symfony/framework-bundle' in require) return 'symfony';
+    } catch {
+      // Malformed JSON — fall through
+    }
+
+    return 'php';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Java / Spring detection
+  // ---------------------------------------------------------------------------
+
+  private async detectJava(projectPath: string): Promise<string | null> {
+    const pomContent = await this.readFileSafe(join(projectPath, 'pom.xml'));
+    if (pomContent) {
+      if (pomContent.includes('spring-boot')) return 'spring-boot';
+      return 'java';
+    }
+
+    for (const name of ['build.gradle', 'build.gradle.kts']) {
+      const gradleContent = await this.readFileSafe(join(projectPath, name));
+      if (gradleContent) {
+        if (gradleContent.includes('spring-boot') || gradleContent.includes('org.springframework.boot')) {
+          return 'spring-boot';
+        }
+        return 'java';
+      }
+    }
+
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Docker Compose detection
+  // ---------------------------------------------------------------------------
+
+  async detectDockerServices(projectPath: string): Promise<DockerServiceInfo[]> {
+    const composeNames = [
+      'docker-compose.yml',
+      'docker-compose.yaml',
+      'compose.yml',
+      'compose.yaml',
+    ];
+
+    let content: string | null = null;
+    for (const name of composeNames) {
+      content = await this.readFileSafe(join(projectPath, name));
+      if (content) break;
+    }
+
+    if (!content) return [];
+
+    return this.parseDockerCompose(content);
+  }
+
+  private parseDockerCompose(content: string): DockerServiceInfo[] {
+    const services: DockerServiceInfo[] = [];
+    const lines = content.split('\n');
+
+    let inServices = false;
+    let currentService: string | null = null;
+    let inPorts = false;
+    let serviceIndent = 0;
+    let portsIndent = 0;
+    let currentBuild: string | undefined;
+    let currentImage: string | undefined;
+    let currentPorts: Array<{ host: number; container: number }> = [];
+
+    const getIndent = (line: string): number => {
+      const match = line.match(/^(\s*)/);
+      return match ? match[1].length : 0;
+    };
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+
+      const indent = getIndent(line);
+
+      // Detect "services:" top-level key
+      if (/^services\s*:/.test(trimmed) && indent === 0) {
+        inServices = true;
+        continue;
+      }
+
+      if (!inServices) continue;
+
+      // If indent is 0, we left the services block
+      if (indent === 0) {
+        // Flush last service
+        if (currentService) {
+          services.push({
+            name: currentService,
+            ports: currentPorts,
+            buildContext: currentBuild,
+            image: currentImage,
+          });
+        }
+        inServices = false;
+        continue;
+      }
+
+      // Detect a new service name (indent level 2, ends with ":")
+      if (indent <= 2 && trimmed.endsWith(':') && !trimmed.startsWith('-')) {
+        // Flush previous service
+        if (currentService) {
+          services.push({
+            name: currentService,
+            ports: currentPorts,
+            buildContext: currentBuild,
+            image: currentImage,
+          });
+        }
+
+        currentService = trimmed.slice(0, -1).trim();
+        serviceIndent = indent;
+        inPorts = false;
+        currentBuild = undefined;
+        currentImage = undefined;
+        currentPorts = [];
+        continue;
+      }
+
+      if (!currentService) continue;
+
+      // Detect "ports:" under a service
+      if (trimmed === 'ports:' && indent > serviceIndent) {
+        inPorts = true;
+        portsIndent = indent;
+        continue;
+      }
+
+      // If we were reading ports, check if we're still in that block
+      if (inPorts) {
+        if (indent <= portsIndent) {
+          inPorts = false;
+        } else if (trimmed.startsWith('-')) {
+          const portStr = trimmed.slice(1).trim().replace(/['"]/g, '');
+          const portMatch = portStr.match(/^(\d+):(\d+)/);
+          if (portMatch) {
+            currentPorts.push({
+              host: parseInt(portMatch[1], 10),
+              container: parseInt(portMatch[2], 10),
+            });
+          }
+          continue;
+        }
+      }
+
+      // Detect "build:" under a service
+      const buildMatch = trimmed.match(/^build\s*:\s*(.+)/);
+      if (buildMatch && indent > serviceIndent) {
+        currentBuild = buildMatch[1].trim();
+        continue;
+      }
+
+      // Detect "image:" under a service
+      const imageMatch = trimmed.match(/^image\s*:\s*(.+)/);
+      if (imageMatch && indent > serviceIndent) {
+        currentImage = imageMatch[1].trim();
+        continue;
+      }
+    }
+
+    // Flush last service
+    if (currentService) {
+      services.push({
+        name: currentService,
+        ports: currentPorts,
+        buildContext: currentBuild,
+        image: currentImage,
+      });
+    }
+
+    return services;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Port reading helpers for new stacks
+  // ---------------------------------------------------------------------------
+
+  private async readPortFromPumaConfig(projectPath: string): Promise<number | null> {
+    const content = await this.readFileSafe(join(projectPath, 'config', 'puma.rb'));
+    if (!content) return null;
+
+    const match = content.match(/port\s+(\d+)/);
+    if (match) return parseInt(match[1], 10);
+    return null;
+  }
+
+  private async readPortFromLaravelEnv(projectPath: string): Promise<number | null> {
+    const content = await this.readFileSafe(join(projectPath, '.env'));
+    if (!content) return null;
+
+    const appPortMatch = content.match(/APP_PORT\s*=\s*(\d+)/);
+    if (appPortMatch) return parseInt(appPortMatch[1], 10);
+
+    const serverPortMatch = content.match(/SERVER_PORT\s*=\s*(\d+)/);
+    if (serverPortMatch) return parseInt(serverPortMatch[1], 10);
+
+    return null;
+  }
+
+  private async readPortFromSpringConfig(projectPath: string): Promise<number | null> {
+    // Check application.properties
+    const propsContent = await this.readFileSafe(
+      join(projectPath, 'src', 'main', 'resources', 'application.properties'),
+    );
+    if (propsContent) {
+      const match = propsContent.match(/server\.port\s*=\s*(\d+)/);
+      if (match) return parseInt(match[1], 10);
+    }
+
+    // Check application.yml
+    const ymlContent = await this.readFileSafe(
+      join(projectPath, 'src', 'main', 'resources', 'application.yml'),
+    );
+    if (ymlContent) {
+      const match = ymlContent.match(/port\s*:\s*(\d+)/);
+      if (match) return parseInt(match[1], 10);
+    }
+
+    return null;
   }
 }

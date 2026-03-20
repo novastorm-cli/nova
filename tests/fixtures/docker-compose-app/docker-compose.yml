@@ -1,0 +1,14 @@
+services:
+  web:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+  api:
+    image: node:18
+    ports:
+      - "8080:8080"
+      - "9229:9229"
+  db:
+    image: postgres:15
+    ports:
+      - "5432:5432"
