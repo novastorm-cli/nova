@@ -43,6 +43,7 @@ export const Z_INDEX = {
   pill: 2147483640,
   commandInput: 2147483641,
   multiSelector: 2147483641,
+  areaSelector: 2147483642,
   toast: 2147483645,
 } as const;
 

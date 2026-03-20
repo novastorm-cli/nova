@@ -7,3 +7,4 @@ export { CursorTracker } from './CursorTracker.js';
 export { GestureRecognizer } from './GestureRecognizer.js';
 export { TemporalCorrelator } from './TemporalCorrelator.js';
 export { buildGestureElement, buildSelector } from './gestureUtils.js';
+export { AreaCapture } from './AreaCapture.js';

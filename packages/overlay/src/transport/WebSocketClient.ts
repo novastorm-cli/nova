@@ -27,6 +27,13 @@ export interface BrowserObservation {
     }>;
     summary: string;
   };
+  selectedArea?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    screenshotBase64?: string;
+  };
 }
 
 type EventCallback = (event: NovaEvent) => void;

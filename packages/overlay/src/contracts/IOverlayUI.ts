@@ -80,6 +80,23 @@ export interface IMultiElementSelector {
   onSubmit(handler: (elements: Array<{number: number; element: HTMLElement}>, instruction: string) => void): void;
 }
 
+export interface IAreaSelector {
+  /**
+   * Marquee selection tool — drag to select a rectangular area on the page.
+   * Option+A (Mac) / Alt+A (Win) toggles activation.
+   *
+   * activate() → full-screen crosshair overlay, drag to draw selection rectangle.
+   * Minimum selection: 10x10px (smaller drags ignored as accidental).
+   * Escape → cancels, calls onCancel.
+   * Must NOT interfere with normal page interaction when not active.
+   */
+  activate(): void;
+  deactivate(): void;
+  isActive(): boolean;
+  onSelect(handler: (area: { x: number; y: number; width: number; height: number }) => void): void;
+  onCancel(handler: () => void): void;
+}
+
 export interface ITranscriptBar {
   mount(container: HTMLElement): void;
   unmount(): void;
