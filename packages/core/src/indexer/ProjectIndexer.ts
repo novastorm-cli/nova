@@ -13,6 +13,8 @@ import { RouteExtractor } from './RouteExtractor.js';
 import { ComponentExtractor } from './ComponentExtractor.js';
 import { EndpointExtractor } from './EndpointExtractor.js';
 import { NovaDir, GraphStore } from '../storage/index.js';
+import { ManifestStore } from '../storage/ManifestStore.js';
+import type { Manifest } from '../models/manifest.js';
 import { ContextDistiller } from './ContextDistiller.js';
 
 const IMPORT_REGEX = /import.*from\s+['"](.+)['"]/g;
@@ -36,6 +38,7 @@ export class ProjectIndexer implements IProjectIndexer {
   private readonly endpointExtractor = new EndpointExtractor();
   private readonly novaDir = new NovaDir();
   private readonly distiller = new ContextDistiller();
+  private readonly manifestStore = new ManifestStore();
 
   private projectPath = '';
   private graphStore: GraphStore | null = null;
@@ -58,9 +61,17 @@ export class ProjectIndexer implements IProjectIndexer {
       this.endpointExtractor.extract(projectPath, stack),
     ]);
 
+    // Load manifest if available
+    const manifest = await this.manifestStore.load(projectPath);
+
     // Build dependency graph and file contexts
     let allFiles: string[];
-    if (config?.frontend || config?.backends) {
+    if (manifest?.services && manifest.services.length > 0) {
+      // Manifest services take priority
+      const dirs = manifest.services.map(s => join(projectPath, s.path));
+      const results = await Promise.all(dirs.map(d => this.readDirRecursive(d)));
+      allFiles = results.flat();
+    } else if (config?.frontend || config?.backends) {
       // Scan only specified directories
       const dirs: string[] = [];
       if (config.frontend) dirs.push(join(projectPath, config.frontend));
@@ -69,6 +80,16 @@ export class ProjectIndexer implements IProjectIndexer {
       allFiles = results.flat();
     } else {
       allFiles = await this.readDirRecursive(projectPath);
+    }
+
+    // Filter out ignored files from manifest boundaries
+    if (manifest?.boundaries?.ignored && manifest.boundaries.ignored.length > 0) {
+      const picomatch = (await import('picomatch')).default;
+      const isIgnored = picomatch(manifest.boundaries.ignored);
+      allFiles = allFiles.filter(f => {
+        const rel = this.toPosix(relative(projectPath, f));
+        return !isIgnored(rel);
+      });
     }
     const scannableFiles = allFiles.filter((f) => {
       const ext = extname(f);
@@ -161,6 +182,7 @@ export class ProjectIndexer implements IProjectIndexer {
       compressedContext: '',
       frontend: config?.frontend,
       backends: config?.backends,
+      manifest: manifest ?? undefined,
     };
 
     // Generate compressed context

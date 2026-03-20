@@ -1,6 +1,7 @@
 import { resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
+import picomatch from 'picomatch';
 import type { IPathGuard } from '../contracts/IPathGuard.js';
 import { PathDeniedError, PathTraversalError } from '../contracts/IPathGuard.js';
 
@@ -9,6 +10,8 @@ export class PathGuard implements IPathGuard {
   private readonly allowed = new Set<string>();
   private readonly denied = new Set<string>();
   private readonly promptFn: (dir: string) => Promise<boolean>;
+  private readonlyPatterns: string[] = [];
+  private ignoredPatterns: string[] = [];
 
   constructor(
     projectPath: string,
@@ -35,8 +38,51 @@ export class PathGuard implements IPathGuard {
     }
   }
 
+  loadBoundaries(boundaries: { writable?: string[]; readonly?: string[]; ignored?: string[] }): void {
+    if (boundaries.writable) {
+      for (const pattern of boundaries.writable) {
+        this.allowed.add(resolve(this.projectRoot, pattern.replace(/\*\*.*/, '')));
+      }
+    }
+    if (boundaries.readonly) {
+      this.readonlyPatterns = boundaries.readonly;
+    }
+    if (boundaries.ignored) {
+      this.ignoredPatterns = boundaries.ignored;
+    }
+  }
+
+  isReadonly(absPath: string): boolean {
+    if (this.readonlyPatterns.length === 0) return false;
+    const rel = this.toProjectRelative(absPath);
+    const matcher = picomatch(this.readonlyPatterns);
+    return matcher(rel);
+  }
+
+  isIgnored(absPath: string): boolean {
+    if (this.ignoredPatterns.length === 0) return false;
+    const rel = this.toProjectRelative(absPath);
+    const matcher = picomatch(this.ignoredPatterns);
+    return matcher(rel);
+  }
+
+  private toProjectRelative(absPath: string): string {
+    const resolved = resolve(absPath);
+    if (resolved.startsWith(this.projectRoot + sep)) {
+      return resolved.slice(this.projectRoot.length + 1).split(sep).join('/');
+    }
+    return resolved;
+  }
+
   async check(absPath: string): Promise<void> {
     this.validate(absPath);
+
+    if (this.isIgnored(absPath)) {
+      throw new PathDeniedError(`Access denied (ignored): "${absPath}"`);
+    }
+    if (this.isReadonly(absPath)) {
+      throw new PathDeniedError(`Access denied (readonly): "${absPath}"`);
+    }
 
     const dirPath = resolve(absPath, '..');
 

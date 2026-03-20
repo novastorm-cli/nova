@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Manifest } from './manifest.js';
 
 const ManifestProjectSchema = z.object({
-  name: z.string().min(1),
+  name: z.string(),
   description: z.string().optional(),
 });
 
@@ -40,7 +40,7 @@ export const ManifestSchema = z.object({
   databases: z.array(ManifestDatabaseSchema).default([]),
   entities: z.array(ManifestEntitySchema).default([]),
   boundaries: ManifestBoundariesSchema.default({}),
-}) satisfies z.ZodType<Manifest>;
+});
 
 export function parseManifest(raw: unknown): Manifest {
   return ManifestSchema.parse(raw);

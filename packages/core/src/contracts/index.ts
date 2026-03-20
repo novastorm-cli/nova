@@ -9,3 +9,4 @@ export * from './IProxy.js';
 export * from './ILicense.js';
 export * from './ITeamDetector.js';
 export * from './IPathGuard.js';
+export * from './IManifestStore.js';

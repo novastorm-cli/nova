@@ -3,7 +3,6 @@ import { join, isAbsolute, normalize } from 'node:path';
 import TOML from '@iarna/toml';
 import type { IManifestStore } from '../contracts/IManifestStore.js';
 import type { Manifest, ManifestService, ManifestDatabase, ManifestEntity, ManifestBoundaries } from '../models/manifest.js';
-import { EMPTY_MANIFEST } from '../models/manifest.js';
 import { parseManifest } from '../models/manifestSchema.js';
 
 const MANIFEST_FILE = 'manifest.toml';
@@ -37,7 +36,7 @@ export class ManifestStore implements IManifestStore {
 
   async addService(projectPath: string, service: ManifestService): Promise<void> {
     this.validatePath(service.path);
-    const manifest = (await this.load(projectPath)) ?? { ...EMPTY_MANIFEST, project: { name: '' } };
+    const manifest = (await this.load(projectPath)) ?? { project: { name: '' }, services: [], databases: [], entities: [], boundaries: {} };
     const idx = manifest.services.findIndex(s => s.name === service.name);
     if (idx >= 0) manifest.services[idx] = service;
     else manifest.services.push(service);
@@ -46,7 +45,7 @@ export class ManifestStore implements IManifestStore {
 
   async addDatabase(projectPath: string, database: ManifestDatabase): Promise<void> {
     if (database.schema_path) this.validatePath(database.schema_path);
-    const manifest = (await this.load(projectPath)) ?? { ...EMPTY_MANIFEST, project: { name: '' } };
+    const manifest = (await this.load(projectPath)) ?? { project: { name: '' }, services: [], databases: [], entities: [], boundaries: {} };
     const idx = manifest.databases.findIndex(d => d.name === database.name);
     if (idx >= 0) manifest.databases[idx] = database;
     else manifest.databases.push(database);
@@ -55,7 +54,7 @@ export class ManifestStore implements IManifestStore {
 
   async addEntity(projectPath: string, entity: ManifestEntity): Promise<void> {
     if (entity.files) entity.files.forEach(f => this.validatePath(f));
-    const manifest = (await this.load(projectPath)) ?? { ...EMPTY_MANIFEST, project: { name: '' } };
+    const manifest = (await this.load(projectPath)) ?? { project: { name: '' }, services: [], databases: [], entities: [], boundaries: {} };
     const idx = manifest.entities.findIndex(e => e.name === entity.name);
     if (idx >= 0) manifest.entities[idx] = entity;
     else manifest.entities.push(entity);
@@ -78,7 +77,7 @@ export class ManifestStore implements IManifestStore {
   }
 
   async setBoundaries(projectPath: string, boundaries: ManifestBoundaries): Promise<void> {
-    const manifest = (await this.load(projectPath)) ?? { ...EMPTY_MANIFEST, project: { name: '' } };
+    const manifest = (await this.load(projectPath)) ?? { project: { name: '' }, services: [], databases: [], entities: [], boundaries: {} };
     manifest.boundaries = boundaries;
     await this.save(projectPath, manifest);
   }

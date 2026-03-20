@@ -10,6 +10,7 @@ import { tasksCommand } from './commands/tasks.js';
 import { reviewCommand } from './commands/review.js';
 import { watchCommand } from './commands/watch.js';
 import { licenseCommand } from './commands/license.js';
+import { entityCommand } from './commands/entity.js';
 import { runSetup } from './setup.js';
 
 export { ConfigReader } from './config.js';
@@ -115,6 +116,13 @@ export function createCli(): Command {
     .description('Manage license: nova license [status|activate <key>]')
     .action(async (subcommand?: string, key?: string) => {
       await licenseCommand(subcommand, key);
+    });
+
+  program
+    .command('entity [subcommand] [name]')
+    .description('Manage manifest entities: nova entity <add|list|remove> [name]')
+    .action(async (subcommand?: string, name?: string) => {
+      await entityCommand(subcommand, name);
     });
 
   return program;

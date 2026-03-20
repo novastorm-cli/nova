@@ -1,5 +1,6 @@
 import type { IContextDistiller } from '../contracts/IIndexer.js';
 import type { ProjectMap } from '../models/types.js';
+import type { Manifest } from '../models/manifest.js';
 
 const MAX_ITEMS = 20;
 
@@ -28,6 +29,12 @@ export class ContextDistiller implements IContextDistiller {
     // Data models
     const modelSection = this.formatModels(projectMap);
     if (modelSection) sections.push(modelSection);
+
+    // Manifest sections
+    if (projectMap.manifest) {
+      const manifestSection = this.formatManifest(projectMap.manifest);
+      if (manifestSection) sections.push(manifestSection);
+    }
 
     return sections.join('\n\n');
   }
@@ -116,5 +123,34 @@ export class ContextDistiller implements IContextDistiller {
       : '';
 
     return `Data models: ${display.join(', ')}${suffix}`;
+  }
+
+  private formatManifest(manifest: Manifest): string | null {
+    const parts: string[] = [];
+
+    if (manifest.services.length > 0) {
+      const svcs = manifest.services.map(s => `${s.name}[${s.type}]@${s.path}`);
+      parts.push(`Services: ${svcs.join(', ')}`);
+    }
+
+    if (manifest.databases.length > 0) {
+      const dbs = manifest.databases.map(d => `${d.name}[${d.engine}]`);
+      parts.push(`Databases: ${dbs.join(', ')}`);
+    }
+
+    if (manifest.entities.length > 0) {
+      const ents = manifest.entities.map(e => `${e.name}[${e.type}]`);
+      parts.push(`External entities: ${ents.join(', ')}`);
+    }
+
+    if (manifest.boundaries.writable?.length) {
+      parts.push(`Writable boundaries: ${manifest.boundaries.writable.join(', ')}`);
+    }
+
+    if (manifest.boundaries.readonly?.length) {
+      parts.push(`Readonly boundaries: ${manifest.boundaries.readonly.join(', ')}`);
+    }
+
+    return parts.length > 0 ? parts.join('\n') : null;
   }
 }

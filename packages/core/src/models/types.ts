@@ -1,3 +1,5 @@
+import type { Manifest } from './manifest.js';
+
 // ============================================================
 // Stack & Indexer
 // ============================================================
@@ -67,6 +69,7 @@ export interface ProjectMap {
   compressedContext: string;
   frontend?: string;
   backends?: string[];
+  manifest?: Manifest;
 }
 
 // ============================================================

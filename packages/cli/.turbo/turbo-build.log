@@ -11,13 +11,13 @@
 [34mCLI[39m Cleaning output folder
 [34mESM[39m Build start
 [32mESM[39m [1mdist/index.js            [22m[32m319.00 B[39m
-[32mESM[39m [1mdist/chunk-B2EYX37M.js   [22m[32m63.55 KB[39m
 [32mESM[39m [1mdist/setup-WNMODRZJ.js   [22m[32m103.00 B[39m
+[32mESM[39m [1mdist/chunk-3RG5ZIWI.js   [22m[32m390.00 B[39m
 [32mESM[39m [1mdist/package-TG2CJSA7.js [22m[32m865.00 B[39m
+[32mESM[39m [1mdist/chunk-PGDWK32I.js   [22m[32m70.34 KB[39m
 [32mESM[39m [1mdist/bin/nova.js         [22m[32m212.00 B[39m
 [32mESM[39m [1mdist/chunk-26MAYSAJ.js   [22m[32m7.08 KB[39m
-[32mESM[39m [1mdist/chunk-3RG5ZIWI.js   [22m[32m390.00 B[39m
-[32mESM[39m ⚡️ Build success in 17ms
+[32mESM[39m ⚡️ Build success in 19ms
 DTS Build start
-DTS ⚡️ Build success in 824ms
+DTS ⚡️ Build success in 1219ms
 DTS dist/index.d.ts 2.40 KB

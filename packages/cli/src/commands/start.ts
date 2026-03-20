@@ -16,6 +16,7 @@ import {
   GitManager,
   AgentPromptLoader,
   PathGuard,
+  ManifestStore,
   type ProjectMap,
   type Observation,
   type NovaEvent,
@@ -380,6 +381,13 @@ export async function startCommand(): Promise<void> {
     const pathGuard = new PathGuard(cwd);
     if (config.project.frontend) pathGuard.allow(resolve(cwd, config.project.frontend));
     for (const b of config.project.backends ?? []) pathGuard.allow(resolve(cwd, b));
+
+    // Load manifest boundaries into PathGuard
+    const manifestStore = new ManifestStore();
+    const manifest = await manifestStore.load(cwd);
+    if (manifest?.boundaries) {
+      pathGuard.loadBoundaries(manifest.boundaries);
+    }
 
     const agentPromptLoader = new AgentPromptLoader();
     const lane1 = new Lane1Executor(cwd, pathGuard);

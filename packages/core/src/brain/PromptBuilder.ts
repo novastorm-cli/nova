@@ -66,6 +66,39 @@ export class PromptBuilder implements IPromptBuilder {
       userParts.push(archParts.join('\n'));
     }
 
+    // Include manifest info if available
+    if (projectMap.manifest) {
+      const m = projectMap.manifest;
+      const manifestParts: string[] = ['Manifest architecture:'];
+
+      if (m.services.length > 0) {
+        for (const s of m.services) {
+          manifestParts.push(`  Service: ${s.name} [${s.type}] at ${s.path}${s.framework ? ` (${s.framework})` : ''}`);
+        }
+      }
+
+      if (m.databases.length > 0) {
+        for (const d of m.databases) {
+          manifestParts.push(`  Database: ${d.name} [${d.engine}]${d.connection_env ? ` env=${d.connection_env}` : ''}`);
+        }
+      }
+
+      if (m.entities.length > 0) {
+        for (const e of m.entities) {
+          manifestParts.push(`  Entity: ${e.name} [${e.type}]${e.description ? ` — ${e.description}` : ''}`);
+        }
+      }
+
+      if (m.boundaries.writable?.length) {
+        manifestParts.push(`  CRITICAL: Only modify files within writable boundaries: ${m.boundaries.writable.join(', ')}`);
+      }
+      if (m.boundaries.readonly?.length) {
+        manifestParts.push(`  Readonly (do NOT modify): ${m.boundaries.readonly.join(', ')}`);
+      }
+
+      userParts.push(manifestParts.join('\n'));
+    }
+
     userParts.push(`Project context:\n${projectMap.compressedContext}`);
 
     if (this.ragSnippets.length > 0) {
