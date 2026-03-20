@@ -99,6 +99,13 @@ export interface Observation {
     }>;
     summary: string;
   };
+  selectedArea?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    screenshot?: Buffer;
+  };
 }
 
 // ============================================================

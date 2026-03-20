@@ -24,4 +24,11 @@ export const BrowserObservationSchema = z.object({
     })),
     summary: z.string(),
   }).optional(),
+  selectedArea: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+    screenshotBase64: z.string().optional(),
+  }).optional(),
 }) satisfies z.ZodType<BrowserObservation>;
