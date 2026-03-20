@@ -10,8 +10,8 @@ export class PathGuard implements IPathGuard {
   private readonly allowed = new Set<string>();
   private readonly denied = new Set<string>();
   private readonly promptFn: (dir: string) => Promise<boolean>;
-  private readonlyPatterns: string[] = [];
-  private ignoredPatterns: string[] = [];
+  private readonlyMatcher: ((path: string) => boolean) | null = null;
+  private ignoredMatcher: ((path: string) => boolean) | null = null;
 
   constructor(
     projectPath: string,
@@ -44,26 +44,24 @@ export class PathGuard implements IPathGuard {
         this.allowed.add(resolve(this.projectRoot, pattern.replace(/\*\*.*/, '')));
       }
     }
-    if (boundaries.readonly) {
-      this.readonlyPatterns = boundaries.readonly;
+    if (boundaries.readonly && boundaries.readonly.length > 0) {
+      this.readonlyMatcher = picomatch(boundaries.readonly);
     }
-    if (boundaries.ignored) {
-      this.ignoredPatterns = boundaries.ignored;
+    if (boundaries.ignored && boundaries.ignored.length > 0) {
+      this.ignoredMatcher = picomatch(boundaries.ignored);
     }
   }
 
   isReadonly(absPath: string): boolean {
-    if (this.readonlyPatterns.length === 0) return false;
+    if (!this.readonlyMatcher) return false;
     const rel = this.toProjectRelative(absPath);
-    const matcher = picomatch(this.readonlyPatterns);
-    return matcher(rel);
+    return this.readonlyMatcher(rel);
   }
 
   isIgnored(absPath: string): boolean {
-    if (this.ignoredPatterns.length === 0) return false;
+    if (!this.ignoredMatcher) return false;
     const rel = this.toProjectRelative(absPath);
-    const matcher = picomatch(this.ignoredPatterns);
-    return matcher(rel);
+    return this.ignoredMatcher(rel);
   }
 
   private toProjectRelative(absPath: string): string {

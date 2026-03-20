@@ -1,15 +1,22 @@
 import chalk from 'chalk';
 import ora from 'ora';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { select, input } from '@inquirer/prompts';
 import { Separator } from '@inquirer/prompts';
 import { ProjectScaffolder, SCAFFOLD_PRESETS } from '@nova-architect/core';
 
+export interface ScaffoldInfo {
+  scaffolded: boolean;
+  frontend?: string;
+  backends?: string[];
+}
+
 /**
  * Prompt the user to select a project template and scaffold it.
- * Returns true if a project was scaffolded (caller should re-detect stack),
- * or false if the user chose 'empty' (manual setup, no re-detect needed).
+ * Returns scaffold info including frontend/backends directories for multi-stack projects.
  */
-export async function promptAndScaffold(projectPath: string): Promise<boolean> {
+export async function promptAndScaffold(projectPath: string): Promise<ScaffoldInfo> {
   console.log(
     chalk.yellow('\nNo project detected.') +
     ' What would you like to create?\n',
@@ -41,12 +48,14 @@ export async function promptAndScaffold(projectPath: string): Promise<boolean> {
       chalk.cyan('nova') +
       ' again.',
     );
-    return false;
+    return { scaffolded: false };
   }
 
   let command: string;
   let needsInstall = false;
   let label: string;
+  let frontend: string | undefined;
+  let backends: string[] | undefined;
 
   if (selection === '__other__') {
     let description: string;
@@ -61,19 +70,21 @@ export async function promptAndScaffold(projectPath: string): Promise<boolean> {
 
     if (!description.trim()) {
       console.log(chalk.red('No description provided. Exiting.'));
-      return false;
+      return { scaffolded: false };
     }
 
     const mapped = mapDescriptionToCommand(description.trim());
     command = mapped.command;
     needsInstall = mapped.needsInstall;
+    frontend = mapped.frontend;
+    backends = mapped.backends;
     label = description.trim();
   } else {
     // Preset selected
     const preset = SCAFFOLD_PRESETS.find((p) => p.label === selection);
     if (!preset) {
       console.log(chalk.red('Unknown template. Exiting.'));
-      return false;
+      return { scaffolded: false };
     }
     command = preset.command;
     needsInstall = preset.needsInstall;
@@ -86,7 +97,33 @@ export async function promptAndScaffold(projectPath: string): Promise<boolean> {
     const scaffolder = new ProjectScaffolder();
     await scaffolder.scaffold(projectPath, command, needsInstall);
     spinner.succeed(`Project scaffolded: ${label}`);
-    return true;
+
+    // Write frontend/backends to nova.toml for multi-stack projects
+    if (frontend || backends) {
+      const tomlPath = join(projectPath, 'nova.toml');
+      let toml = '';
+      try { toml = await readFile(tomlPath, 'utf-8'); } catch { /* file may not exist yet */ }
+
+      const lines: string[] = [];
+      if (frontend && !toml.includes('frontend =')) {
+        lines.push(`frontend = "${frontend}"`);
+      }
+      if (backends && backends.length > 0 && !toml.includes('backends =')) {
+        lines.push(`backends = [${backends.map(b => `"${b}"`).join(', ')}]`);
+      }
+
+      if (lines.length > 0) {
+        if (toml.includes('[project]')) {
+          // Append under [project] section
+          toml = toml.replace('[project]', `[project]\n${lines.join('\n')}`);
+        } else {
+          toml += `\n[project]\n${lines.join('\n')}\n`;
+        }
+        await writeFile(tomlPath, toml, 'utf-8');
+      }
+    }
+
+    return { scaffolded: true, frontend, backends };
   } catch (err) {
     spinner.fail('Failed to scaffold project.');
     const message = err instanceof Error ? err.message : String(err);
@@ -136,7 +173,14 @@ const KNOWN_TECHS: TechEntry[] = [
  * Maps a free-text project description to scaffold commands.
  * Supports multi-tech combos like "Next.js + C#" → frontend in ./ + backend in ./backend/
  */
-function mapDescriptionToCommand(desc: string): { command: string; needsInstall: boolean } {
+export interface ScaffoldResult {
+  command: string;
+  needsInstall: boolean;
+  frontend?: string;
+  backends?: string[];
+}
+
+function mapDescriptionToCommand(desc: string): ScaffoldResult {
   const d = desc.toLowerCase();
 
   // Find all matching techs
@@ -157,7 +201,11 @@ function mapDescriptionToCommand(desc: string): { command: string; needsInstall:
 
   // Single tech
   if (matched.length === 1) {
-    return { command: matched[0].command('.'), needsInstall: matched[0].needsInstall };
+    const result: ScaffoldResult = { command: matched[0].command('.'), needsInstall: matched[0].needsInstall };
+    if (matched[0].type === 'backend') {
+      result.backends = ['.'];
+    }
+    return result;
   }
 
   // Multi-tech: frontend in root, backend in backend/
@@ -185,7 +233,8 @@ function mapDescriptionToCommand(desc: string): { command: string; needsInstall:
     }
   }
 
-  return { command: commands.join(' && '), needsInstall };
-
-  return { command: 'npm init -y', needsInstall: false };
+  const result: ScaffoldResult = { command: commands.join(' && '), needsInstall };
+  if (frontend) result.frontend = '.';
+  if (backend) result.backends = ['backend'];
+  return result;
 }

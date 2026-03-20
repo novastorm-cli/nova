@@ -170,12 +170,16 @@ export async function startCommand(): Promise<void> {
       await novaDir.clean(cwd);
     }
 
-    const scaffolded = await promptAndScaffold(cwd);
+    const scaffoldInfo = await promptAndScaffold(cwd);
 
-    if (!scaffolded) {
+    if (!scaffoldInfo.scaffolded) {
       // User chose 'empty' — nothing more to do
       process.exit(0);
     }
+
+    // Apply frontend/backends from scaffold to config (for multi-stack projects)
+    if (scaffoldInfo.frontend) config.project.frontend = scaffoldInfo.frontend;
+    if (scaffoldInfo.backends) config.project.backends = scaffoldInfo.backends;
 
     // Re-detect stack after scaffolding
     spinner.start('Re-detecting project...');

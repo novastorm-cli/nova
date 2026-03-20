@@ -39,6 +39,10 @@ export class ErrorAutoFixer {
   private errorBuffer = '';
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly DEBOUNCE_MS = 2000;
+  private fixAttempts = 0;
+  private readonly MAX_FIX_ATTEMPTS = 3;
+  private lastErrorSignature = '';
+  private cooldownUntil = 0;
 
   constructor(
     private readonly projectPath: string,
@@ -60,6 +64,10 @@ export class ErrorAutoFixer {
     if (!hasError) return;
     if (this.isFixing) {
       console.log(chalk.dim('[Nova] AutoFixer: already fixing, queuing...'));
+      return;
+    }
+    if (Date.now() < this.cooldownUntil) {
+      console.log(chalk.dim('[Nova] AutoFixer: in cooldown, skipping'));
       return;
     }
 
@@ -84,6 +92,23 @@ export class ErrorAutoFixer {
 
   private async attemptAutoFix(errorOutput: string): Promise<void> {
     if (this.isFixing) return;
+
+    // Deduplicate: if same error keeps appearing, stop after MAX_FIX_ATTEMPTS
+    const errorSig = errorOutput.slice(0, 200);
+    if (errorSig === this.lastErrorSignature) {
+      this.fixAttempts++;
+    } else {
+      this.lastErrorSignature = errorSig;
+      this.fixAttempts = 1;
+    }
+
+    if (this.fixAttempts > this.MAX_FIX_ATTEMPTS) {
+      console.log(chalk.yellow(`[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`));
+      this.cooldownUntil = Date.now() + 60_000; // 1 minute cooldown
+      this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
+      return;
+    }
+
     this.isFixing = true;
 
     // Safety timeout: reset isFixing after 5 minutes max

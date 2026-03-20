@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface ScaffoldOption {
@@ -55,6 +56,15 @@ export class ProjectScaffolder {
    */
   async scaffold(projectPath: string, command: string, needsInstall: boolean = false): Promise<void> {
     await mkdir(projectPath, { recursive: true });
+
+    // Clean up directories that conflict with scaffolders (e.g. .next/ from a previous run)
+    const conflictDirs = ['.next', '.nuxt', 'dist', 'build', 'node_modules'];
+    for (const dir of conflictDirs) {
+      const dirPath = join(projectPath, dir);
+      if (existsSync(dirPath)) {
+        await rm(dirPath, { recursive: true, force: true });
+      }
+    }
 
     execSync(command, {
       cwd: projectPath,
