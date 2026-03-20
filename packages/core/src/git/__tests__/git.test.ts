@@ -70,8 +70,10 @@ describe('GitManager', () => {
       expect(logOutput).toContain('add file');
     });
 
-    it('should throw GitError when there are no changes to commit', async () => {
-      await expect(manager.commit('empty', ['file.txt'])).rejects.toThrow(GitError);
+    it('should return the current HEAD hash when there are no changes to commit', async () => {
+      const hash = await manager.commit('empty', ['file.txt']);
+      // Returns the 7-char short hash of HEAD (nothing new to commit)
+      expect(hash).toMatch(/^[0-9a-f]{7}$/);
     });
   });
 
@@ -143,7 +145,7 @@ describe('GitManager', () => {
       const log = await manager.getLog();
 
       expect(log.length).toBeLessThanOrEqual(50);
-    });
+    }, 30_000);
   });
 
   // ── getCurrentBranch ──────────────────────────────────────

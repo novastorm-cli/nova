@@ -17,6 +17,7 @@ import {
   type Observation,
   type NovaEvent,
   type TaskItem,
+  EnvDetector,
 } from '@nova-architect/core';
 import {
   DevServerRunner,
@@ -246,6 +247,15 @@ export async function startCommand(): Promise<void> {
   }
   devServer.onOutput((output: string) => {
     autoFixer?.handleOutput(output);
+  });
+
+  // Wire secrets submission from overlay
+  const envDetector = new EnvDetector();
+  wsServer.onSecretsSubmit((secrets: Record<string, string>) => {
+    console.log(chalk.cyan(`[Nova] Saving ${Object.keys(secrets).length} secret(s) to .env.local`));
+    envDetector.writeEnvLocal(cwd, secrets);
+    envDetector.ensureGitignored(cwd);
+    wsServer.sendEvent({ type: 'status', data: { message: `Saved ${Object.keys(secrets).length} secret(s) to .env.local` } } as NovaEvent);
   });
 
   // Wire browser errors from overlay to autoFixer
@@ -497,6 +507,11 @@ export async function startCommand(): Promise<void> {
   });
 
   eventBus.on('llm_chunk', (event) => {
+    wsServer.sendEvent(event as NovaEvent);
+  });
+
+  // Forward secrets_required events to overlay
+  eventBus.on('secrets_required', (event) => {
     wsServer.sendEvent(event as NovaEvent);
   });
 

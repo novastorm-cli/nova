@@ -9,4 +9,5 @@ export { ExecutorPool } from './ExecutorPool.js';
 export { parseFileBlocks, parseMixedBlocks, addLineNumbers } from './fileBlocks.js';
 export type { FileBlock, DiffBlock, ParsedBlock } from './fileBlocks.js';
 export { CodeFixer } from './CodeFixer.js';
+export { EnvDetector } from './EnvDetector.js';
 export type { FixableError, ProjectContext } from './CodeFixer.js';

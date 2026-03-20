@@ -11,6 +11,7 @@ import type { ValidationError } from './CodeValidator.js';
 import { CodeFixer } from './CodeFixer.js';
 import { DiffApplier } from './DiffApplier.js';
 import { streamWithEvents } from '../llm/streamWithEvents.js';
+import { EnvDetector } from './EnvDetector.js';
 
 const SYSTEM_PROMPT = `You are a code generation tool. You output ONLY code. No explanations. No questions. No descriptions.
 
@@ -43,7 +44,8 @@ RULES:
 - Use only packages from the project's package.json.
 - Prefer Tailwind CSS classes if the project uses Tailwind.
 - For images use https://picsum.photos/WIDTH/HEIGHT placeholders.
-- Use regular <img> tags for external URLs, not next/image <Image>.`;
+- Use regular <img> tags for external URLs, not next/image <Image>.
+- For API keys, secrets, and credentials: ALWAYS use process.env.VARIABLE_NAME. NEVER hardcode secrets. Use descriptive names like RESEND_API_KEY, STRIPE_SECRET_KEY, DATABASE_URL.`;
 
 function buildPrompt(task: TaskItem, projectMap: ProjectMap, existingFiles: Set<string>): string {
   const parts = [
@@ -200,6 +202,27 @@ export class Lane3Executor {
 
       // Apply blocks: write full files or apply diffs
       const fileBlocks = await this.applyMixedBlocks(mixedBlocks);
+
+      // Detect missing env vars in generated code (both full files and diffs)
+      const envDetector = new EnvDetector();
+      const generatedFileContents: string[] = [];
+      for (const block of mixedBlocks) {
+        if (block.type === 'file') {
+          generatedFileContents.push(block.content);
+        } else {
+          // Extract added lines from diffs (lines starting with +, excluding +++ header)
+          const addedLines = block.diff
+            .split('\n')
+            .filter(line => line.startsWith('+') && !line.startsWith('+++'))
+            .map(line => line.substring(1))
+            .join('\n');
+          if (addedLines) generatedFileContents.push(addedLines);
+        }
+      }
+      const missingVars = envDetector.detectMissing(this.projectPath, generatedFileContents);
+      if (missingVars.length > 0 && this.eventBus) {
+        this.eventBus.emit({ type: 'secrets_required', data: { envVars: missingVars, taskId: task.id } });
+      }
 
       // TESTER/DIRECTOR loop (skip for single-file small changes to save time)
       const skipValidation = fileBlocks.length === 1 && fileBlocks[0].content.length < 3000;

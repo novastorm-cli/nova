@@ -9,6 +9,7 @@ export class WebSocketServer implements IWebSocketServer {
   private cancelHandlers: Array<() => void> = [];
   private appendHandlers: Array<(text: string) => void> = [];
   private browserErrorHandlers: Array<(error: string) => void> = [];
+  private secretsSubmitHandlers: Array<(secrets: Record<string, string>) => void> = [];
 
   start(httpServer: http.Server): void {
     this.wss = new WsServer({
@@ -46,6 +47,13 @@ export class WebSocketServer implements IWebSocketServer {
             const error = parsed.data?.error ?? '';
             for (const handler of this.browserErrorHandlers) {
               handler(error);
+            }
+            return;
+          }
+          if (parsed.type === 'secrets_submit') {
+            const secrets = parsed.data?.secrets ?? {};
+            for (const handler of this.secretsSubmitHandlers) {
+              handler(secrets as Record<string, string>);
             }
             return;
           }
@@ -96,6 +104,10 @@ export class WebSocketServer implements IWebSocketServer {
 
   onBrowserError(handler: (error: string) => void): void {
     this.browserErrorHandlers.push(handler);
+  }
+
+  onSecretsSubmit(handler: (secrets: Record<string, string>) => void): void {
+    this.secretsSubmitHandlers.push(handler);
   }
 
   sendEvent(event: NovaEvent): void {

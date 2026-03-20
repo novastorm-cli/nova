@@ -79,16 +79,21 @@ describe('OverlayPill', () => {
     expect(hasState).toBe(true);
   });
 
-  it('onActivate callback is called on click', () => {
+  it('onQuickEdit callback is called when Quick Edit is selected from dropdown', () => {
     const handler = vi.fn();
-    pill.onActivate(handler);
+    pill.onQuickEdit(handler);
     pill.mount(container);
 
     const hostEl = container.querySelector('*')!;
     const shadow = hostEl.shadowRoot!;
-    // Click the pill element (could be the host or an inner element)
-    const clickTarget = shadow.querySelector('button') ?? shadow.querySelector('div') ?? hostEl;
-    clickTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    // Click the pill button to open the dropdown
+    const pillBtn = shadow.querySelector('button.nova-pill') ?? shadow.querySelector('button');
+    pillBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    // Click the Quick Edit dropdown item
+    const quickEditItem = shadow.querySelector('[data-mode="quickEdit"]') as HTMLElement;
+    expect(quickEditItem).not.toBeNull();
+    quickEditItem.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(handler).toHaveBeenCalledTimes(1);
   });

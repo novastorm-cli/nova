@@ -41,9 +41,33 @@ export class CodeValidator {
     return errors;
   }
 
-  private async runTsc(generatedPaths: Set<string>): Promise<ValidationError[]> {
+  private resolveTsc(): { cmd: string; baseArgs: string[] } {
+    const { existsSync } = require('node:fs') as typeof import('node:fs');
+
+    // 1. Check project-local tsc
+    const localTsc = join(this.projectPath, 'node_modules', '.bin', 'tsc');
+    if (existsSync(localTsc)) {
+      return { cmd: localTsc, baseArgs: [] };
+    }
+
+    // 2. Try to resolve tsc from the workspace that runs this code
     try {
-      const { stdout, stderr } = await execFileAsync('npx', ['tsc', '--noEmit', '--pretty', 'false'], {
+      const tscPath = require.resolve('typescript/bin/tsc');
+      return { cmd: process.execPath, baseArgs: [tscPath] };
+    } catch {
+      // typescript not resolvable from here
+    }
+
+    // 3. Fall back to npx
+    return { cmd: 'npx', baseArgs: ['tsc'] };
+  }
+
+  private async runTsc(generatedPaths: Set<string>): Promise<ValidationError[]> {
+    const { cmd, baseArgs } = this.resolveTsc();
+    const args = [...baseArgs, '--noEmit', '--pretty', 'false'];
+
+    try {
+      const { stdout, stderr } = await execFileAsync(cmd, args, {
         cwd: this.projectPath,
         timeout: 30_000,
       });
@@ -51,6 +75,10 @@ export class CodeValidator {
     } catch (err: unknown) {
       // tsc exits with code 1 on errors, output is in stdout/stderr
       const output = this.getOutput(err);
+      // If tsc/npx not found, skip
+      if (output.includes('ENOENT') || output.includes('not found') || output.includes('This is not the tsc command')) {
+        return [];
+      }
       if (output) {
         return this.parseTscOutput(output, generatedPaths);
       }

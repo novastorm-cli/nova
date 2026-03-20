@@ -11,7 +11,8 @@ export type NovaEvent =
   | { type: 'status'; data: { message: string; tasks?: Array<{ id: string; description: string; lane: number }> } }
   | { type: 'confirm'; data: Record<string, never> }
   | { type: 'cancel'; data: Record<string, never> }
-  | { type: 'llm_chunk'; data: { text: string; phase: 'reasoning' | 'code'; taskId?: string } };
+  | { type: 'llm_chunk'; data: { text: string; phase: 'reasoning' | 'code'; taskId?: string } }
+  | { type: 'secrets_required'; data: { envVars: string[]; taskId: string } };
 
 export type NovaEventType = NovaEvent['type'];
 

@@ -39,6 +39,7 @@ export const Z_INDEX = {
   selector: 2147483636,
   transcriptBar: 2147483637,
   taskPanel: 2147483638,
+  secretConsole: 2147483639,
   pill: 2147483640,
   commandInput: 2147483641,
   multiSelector: 2147483641,

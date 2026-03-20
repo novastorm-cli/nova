@@ -18,6 +18,7 @@ import { TaskPanel } from './ui/TaskPanel.js';
 import { ActivityLog } from './ui/ActivityLog.js';
 import { ElementInspector } from './ui/ElementInspector.js';
 import { MultiElementSelector } from './ui/MultiElementSelector.js';
+import { SecretConsole } from './ui/SecretConsole.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 
@@ -63,6 +64,7 @@ function boot(): void {
   const activityLog = new ActivityLog();
   const elementInspector = new ElementInspector();
   const multiSelector = new MultiElementSelector();
+  const secretConsole = new SecretConsole();
 
   // Transport
   const wsClient = new WebSocketClient();
@@ -109,6 +111,15 @@ function boot(): void {
   activityLog.mount(novaRoot);
   elementInspector.mount(novaRoot);
   multiSelector.mount(novaRoot);
+  secretConsole.mount(novaRoot);
+
+  // Secret console: send secrets to server
+  secretConsole.onSubmit((secrets) => {
+    wsClient.sendRaw({ type: 'secrets_submit', data: { secrets } });
+  });
+  secretConsole.onSkip(() => {
+    // No-op — user chose to skip entering secrets
+  });
 
   // Restore inspector popup state after hot reload
   setTimeout(() => elementInspector.restorePopupState(), 300);
@@ -169,6 +180,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     { attr: 'data-nova-activity-log', remount: () => { activityLog.unmount(); activityLog.mount(novaRoot!); } },
     { attr: 'data-nova-inspector', remount: () => { elementInspector.unmount(); elementInspector.mount(novaRoot!); } },
     { attr: 'data-nova-multi-selector', remount: () => { multiSelector.unmount(); multiSelector.mount(novaRoot!); } },
+    { attr: 'data-nova-secret-console', remount: () => { secretConsole.unmount(); secretConsole.mount(novaRoot!); } },
   ];
 
   const overlayObserver = new MutationObserver(() => {
@@ -551,6 +563,13 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
           totalTasks = Math.max(totalTasks, 1);
         }
         activityLog.addEntry(`Task: ${td.description} (Lane ${td.lane})`, 'info');
+        break;
+      }
+      case 'secrets_required': {
+        const { envVars } = event.data as { envVars: string[] };
+        if (envVars && envVars.length > 0) {
+          secretConsole.show(envVars);
+        }
         break;
       }
       case 'status': {

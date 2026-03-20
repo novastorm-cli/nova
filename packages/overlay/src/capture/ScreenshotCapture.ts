@@ -45,37 +45,39 @@ export class ScreenshotCapture implements IScreenshotCapture {
     // Create a simple canvas with the page dimensions and a message
     // This is a minimal fallback — the screenshot won't be pixel-perfect
     // but it allows the AI to at least know the viewport size
-    const width = Math.min(window.innerWidth, MAX_WIDTH);
-    const height = Math.min(window.innerHeight, MAX_HEIGHT);
+    const width = Math.min(window.innerWidth || 800, MAX_WIDTH);
+    const height = Math.min(window.innerHeight || 600, MAX_HEIGHT);
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
 
-    if (ctx) {
-      // Draw a white background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
+    if (!ctx) {
+      throw new Error('Canvas 2D context not available for fallback screenshot');
+    }
 
-      // Try to capture visible text content for context
-      ctx.fillStyle = '#333333';
-      ctx.font = '14px system-ui, sans-serif';
+    // Draw a white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
 
-      const lines = [
-        `Page: ${document.title || window.location.pathname}`,
-        `URL: ${window.location.href}`,
-        `Viewport: ${window.innerWidth}x${window.innerHeight}`,
-        '',
-        'Note: Full screenshot unavailable (CSS compatibility issue).',
-        'The page content is described by the DOM snapshot.',
-      ];
+    // Try to capture visible text content for context
+    ctx.fillStyle = '#333333';
+    ctx.font = '14px system-ui, sans-serif';
 
-      let y = 30;
-      for (const line of lines) {
-        ctx.fillText(line, 20, y);
-        y += 22;
-      }
+    const lines = [
+      `Page: ${document.title || window.location.pathname}`,
+      `URL: ${window.location.href}`,
+      `Viewport: ${window.innerWidth}x${window.innerHeight}`,
+      '',
+      'Note: Full screenshot unavailable (CSS compatibility issue).',
+      'The page content is described by the DOM snapshot.',
+    ];
+
+    let y = 30;
+    for (const line of lines) {
+      ctx.fillText(line, 20, y);
+      y += 22;
     }
 
     return this.canvasToBlob(canvas);

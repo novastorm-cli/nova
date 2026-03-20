@@ -1,29 +1,32 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { rm } from 'node:fs/promises';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { rm, mkdtemp, cp } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { ProjectIndexer } from '../ProjectIndexer.js';
 
 const fixturesDir = path.resolve(__dirname, '../../../../../tests/fixtures');
 
-function fixturePath(name: string): string {
-  return path.join(fixturesDir, name);
-}
-
 describe('ProjectIndexer', () => {
   const indexer = new ProjectIndexer();
-  const novaCleanupPaths: string[] = [];
+  let tmpDir: string;
+
+  /** Copy fixture to a temp dir so parallel tests don't conflict on .nova/ */
+  async function copyFixture(name: string): Promise<string> {
+    tmpDir = await mkdtemp(path.join(os.tmpdir(), `nova-indexer-test-${name}-`));
+    const src = path.join(fixturesDir, name);
+    await cp(src, tmpDir, { recursive: true });
+    return tmpDir;
+  }
+
+  beforeEach(async () => {
+    tmpDir = '';
+  });
 
   afterEach(async () => {
-    for (const p of novaCleanupPaths) {
-      await rm(path.join(p, '.nova'), { recursive: true, force: true });
-      // Also clean up .gitignore modifications
-      const gitignorePath = path.join(p, '.gitignore');
-      if (existsSync(gitignorePath)) {
-        await rm(gitignorePath, { force: true });
-      }
+    if (tmpDir) {
+      await rm(tmpDir, { recursive: true, force: true });
     }
-    novaCleanupPaths.length = 0;
   });
 
   // ── index() ───────────────────────────────────────────────────

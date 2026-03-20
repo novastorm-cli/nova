@@ -4,35 +4,23 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 /**
- * We mock inquirer so tests never block on interactive prompts.
- * The mock's `prompt` function returns answers configured via `mockAnswers`.
+ * We mock @inquirer/prompts (select, password) so tests never block on interactive prompts.
+ * The setup module imports { select, password } from '@inquirer/prompts'.
  */
-let mockAnswers: Record<string, unknown> = {};
-const promptCalls: Array<Array<{ name: string; type?: string; when?: unknown }>> = [];
+let mockSelectValue: string = 'ollama';
+let mockPasswordValue: string = '';
+let selectCalled = false;
+let passwordCalled = false;
 
-vi.mock('inquirer', () => ({
-  default: {
-    prompt: vi.fn(
-      async (
-        questions: Array<{ name: string; type?: string; when?: unknown }>,
-      ) => {
-        // Evaluate `when` guards -- inquirer skips questions when `when` returns false
-        const filteredQuestions = questions.filter((q) => {
-          if (typeof q.when === 'function') {
-            return q.when(mockAnswers);
-          }
-          return q.when !== false;
-        });
-        promptCalls.push(filteredQuestions);
-
-        const result: Record<string, unknown> = {};
-        for (const q of filteredQuestions) {
-          result[q.name] = mockAnswers[q.name] ?? '';
-        }
-        return result;
-      },
-    ),
-  },
+vi.mock('@inquirer/prompts', () => ({
+  select: vi.fn(async () => {
+    selectCalled = true;
+    return mockSelectValue;
+  }),
+  password: vi.fn(async () => {
+    passwordCalled = true;
+    return mockPasswordValue;
+  }),
 }));
 
 /**
@@ -50,8 +38,10 @@ describe('Setup wizard', () => {
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'nova-setup-test-'));
-    mockAnswers = {};
-    promptCalls.length = 0;
+    mockSelectValue = 'ollama';
+    mockPasswordValue = '';
+    selectCalled = false;
+    passwordCalled = false;
     vi.clearAllMocks();
   });
 
@@ -60,25 +50,20 @@ describe('Setup wizard', () => {
   });
 
   it('setup with provider=ollama does NOT ask for an API key', async () => {
-    mockAnswers = {
-      provider: 'ollama',
-      devCommand: 'npm run dev',
-    };
+    mockSelectValue = 'ollama';
 
     const { runSetup } = await importSetup();
     await runSetup(tmpDir);
 
-    // Flatten all questions that were actually presented to the user
-    const allQuestionNames = promptCalls.flat().map((q) => q.name);
-    expect(allQuestionNames).not.toContain('apiKey');
+    // select should have been called for the provider prompt
+    expect(selectCalled).toBe(true);
+    // password should NOT have been called — ollama doesn't need an API key
+    expect(passwordCalled).toBe(false);
   });
 
   it('setup with provider=anthropic asks for API key and saves to .nova/config.toml', async () => {
-    mockAnswers = {
-      provider: 'anthropic',
-      apiKey: 'sk-ant-test-key-123',
-      devCommand: 'npm run dev',
-    };
+    mockSelectValue = 'anthropic';
+    mockPasswordValue = 'sk-ant-test-key-123';
 
     const { runSetup } = await importSetup();
     await runSetup(tmpDir);
@@ -90,10 +75,7 @@ describe('Setup wizard', () => {
   });
 
   it('setup creates nova.toml if it does not exist', async () => {
-    mockAnswers = {
-      provider: 'ollama',
-      devCommand: '',
-    };
+    mockSelectValue = 'ollama';
 
     const tomlPath = path.join(tmpDir, 'nova.toml');
 

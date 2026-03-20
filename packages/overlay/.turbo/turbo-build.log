@@ -10,15 +10,15 @@ CLI Building entry: src/index.ts
 CLI Using tsconfig: tsconfig.json
 CLI tsup v8.5.1
 CLI Using tsup config: /Users/vladimirpronevic/RiderProjects/site-creator/packages/overlay/tsup.config.ts
-CLI Target: es2022
 CLI Target: es2020
 IIFE Build start
+CLI Target: es2022
 CLI Cleaning output folder
 ESM Build start
-IIFE dist/nova-overlay.global.js 282.73 KB
-IIFE ⚡️ Build success in 69ms
-ESM dist/index.js 117.16 KB
-ESM ⚡️ Build success in 70ms
+ESM dist/index.js 125.01 KB
+ESM ⚡️ Build success in 73ms
+IIFE dist/nova-overlay.global.js 288.70 KB
+IIFE ⚡️ Build success in 82ms
 DTS Build start
-DTS ⚡️ Build success in 1370ms
-DTS dist/index.d.ts 17.50 KB
+DTS ⚡️ Build success in 1692ms
+DTS dist/index.d.ts 18.01 KB

@@ -99,28 +99,93 @@ export async function promptAndScaffold(projectPath: string): Promise<boolean> {
 }
 
 /**
- * Maps a free-text project description to a scaffold command.
+ * Known tech stacks with their scaffold commands.
+ * Frontend techs create in root, backend techs create in backend/ subfolder (if frontend exists).
+ */
+interface TechEntry {
+  keywords: string[];
+  command: (dir: string) => string;
+  needsInstall: boolean;
+  type: 'frontend' | 'backend' | 'fullstack';
+}
+
+const KNOWN_TECHS: TechEntry[] = [
+  // Frontend
+  { keywords: ['next'], command: (d) => `npx create-next-app@latest ${d} --typescript --tailwind --eslint --app --use-npm --no-git --no-src-dir --yes`, needsInstall: false, type: 'frontend' },
+  { keywords: ['remix'], command: (d) => `npx create-remix@latest ${d} --no-git-init --no-install`, needsInstall: true, type: 'frontend' },
+  { keywords: ['react', 'vite'], command: (d) => `npm create vite@latest ${d} -- --template react-ts`, needsInstall: true, type: 'frontend' },
+  { keywords: ['nuxt'], command: (d) => `npx nuxi@latest init ${d} --no-install --gitInit false`, needsInstall: true, type: 'frontend' },
+  { keywords: ['vue'], command: (d) => `npm create vite@latest ${d} -- --template vue-ts`, needsInstall: true, type: 'frontend' },
+  { keywords: ['svelte'], command: (d) => `npx sv create ${d} --template minimal --types ts --no-install --no-add-ons`, needsInstall: true, type: 'frontend' },
+  { keywords: ['astro'], command: (d) => `npm create astro@latest ${d} -- --template basics --install --no-git --typescript strict --yes`, needsInstall: false, type: 'frontend' },
+  { keywords: ['solid'], command: (d) => `npx degit solidjs/templates/ts ${d}`, needsInstall: true, type: 'frontend' },
+  // Backend
+  { keywords: ['.net', 'dotnet', 'c#', 'csharp'], command: (d) => `dotnet new webapi -o ${d}`, needsInstall: false, type: 'backend' },
+  { keywords: ['express'], command: (d) => `mkdir -p ${d} && cd ${d} && npm init -y && npm install express && npm install -D typescript @types/express @types/node tsx`, needsInstall: false, type: 'backend' },
+  { keywords: ['fastify'], command: (d) => `mkdir -p ${d} && cd ${d} && npm init -y && npm install fastify && npm install -D typescript @types/node tsx`, needsInstall: false, type: 'backend' },
+  { keywords: ['hono'], command: (d) => `npm create hono@latest ${d} -- --template nodejs`, needsInstall: true, type: 'backend' },
+  { keywords: ['django'], command: (d) => `pip install django && django-admin startproject app ${d}`, needsInstall: false, type: 'backend' },
+  { keywords: ['fastapi', 'fast api'], command: (d) => `mkdir -p ${d}/app && pip install fastapi uvicorn && echo "from fastapi import FastAPI\\napp = FastAPI()" > ${d}/app/main.py`, needsInstall: false, type: 'backend' },
+  { keywords: ['flask'], command: (d) => `mkdir -p ${d} && pip install flask && echo "from flask import Flask\\napp = Flask(__name__)" > ${d}/app.py`, needsInstall: false, type: 'backend' },
+  { keywords: ['go', 'fiber'], command: (d) => `mkdir -p ${d} && cd ${d} && go mod init app && go get github.com/gofiber/fiber/v2`, needsInstall: false, type: 'backend' },
+  { keywords: ['go', 'gin'], command: (d) => `mkdir -p ${d} && cd ${d} && go mod init app && go get github.com/gin-gonic/gin`, needsInstall: false, type: 'backend' },
+  { keywords: ['go'], command: (d) => `mkdir -p ${d} && cd ${d} && go mod init app`, needsInstall: false, type: 'backend' },
+];
+
+/**
+ * Maps a free-text project description to scaffold commands.
+ * Supports multi-tech combos like "Next.js + C#" → frontend in ./ + backend in ./backend/
  */
 function mapDescriptionToCommand(desc: string): { command: string; needsInstall: boolean } {
   const d = desc.toLowerCase();
 
-  if (d.includes('next')) return { command: 'npx create-next-app@latest . --typescript --tailwind --eslint --app --use-npm --no-git --no-src-dir --yes', needsInstall: false };
-  if (d.includes('remix')) return { command: 'npx create-remix@latest . --no-git-init --no-install', needsInstall: true };
-  if ((d.includes('react') || d.includes('vite')) && !d.includes('vue') && !d.includes('svelte')) return { command: 'npm create vite@latest . -- --template react-ts', needsInstall: true };
-  if (d.includes('vue') && d.includes('nuxt')) return { command: 'npx nuxi@latest init . --no-install --gitInit false', needsInstall: true };
-  if (d.includes('vue')) return { command: 'npm create vite@latest . -- --template vue-ts', needsInstall: true };
-  if (d.includes('svelte')) return { command: 'npx sv create . --template minimal --types ts --no-install --no-add-ons', needsInstall: true };
-  if (d.includes('astro')) return { command: 'npm create astro@latest . -- --template basics --install --no-git --typescript strict --yes', needsInstall: false };
-  if (d.includes('solid')) return { command: 'npx degit solidjs/templates/ts .', needsInstall: true };
-  if (d.includes('express')) return { command: 'npm init -y && npm install express && npm install -D typescript @types/express @types/node tsx', needsInstall: false };
-  if (d.includes('fastify')) return { command: 'npm init -y && npm install fastify && npm install -D typescript @types/node tsx', needsInstall: false };
-  if (d.includes('hono')) return { command: 'npm create hono@latest . -- --template nodejs', needsInstall: true };
-  if (d.includes('django')) return { command: 'pip install django && django-admin startproject app .', needsInstall: false };
-  if (d.includes('fastapi') || d.includes('fast api')) return { command: 'pip install fastapi uvicorn && mkdir app && echo "from fastapi import FastAPI\\napp = FastAPI()" > app/main.py', needsInstall: false };
-  if (d.includes('flask')) return { command: 'pip install flask && echo "from flask import Flask\\napp = Flask(__name__)" > app.py', needsInstall: false };
-  if (d.includes('.net') || d.includes('dotnet') || d.includes('c#') || d.includes('csharp')) return { command: 'dotnet new web', needsInstall: false };
-  if (d.includes('go') && (d.includes('fiber') || d.includes('gin') || d.includes('echo'))) return { command: 'go mod init app && go get github.com/gofiber/fiber/v2', needsInstall: false };
-  if (d.includes('go')) return { command: 'go mod init app', needsInstall: false };
+  // Find all matching techs
+  const matched: TechEntry[] = [];
+  for (const tech of KNOWN_TECHS) {
+    if (tech.keywords.some(kw => d.includes(kw))) {
+      // Don't double-match (e.g. "react" + "vite" both matched by one entry)
+      const alreadyHasType = matched.some(m => m.type === tech.type && m.keywords.some(k => tech.keywords.includes(k)));
+      if (!alreadyHasType) {
+        matched.push(tech);
+      }
+    }
+  }
+
+  if (matched.length === 0) {
+    return { command: 'npm init -y', needsInstall: false };
+  }
+
+  // Single tech
+  if (matched.length === 1) {
+    return { command: matched[0].command('.'), needsInstall: matched[0].needsInstall };
+  }
+
+  // Multi-tech: frontend in root, backend in backend/
+  const frontend = matched.find(m => m.type === 'frontend');
+  const backend = matched.find(m => m.type === 'backend');
+
+  const commands: string[] = [];
+  let needsInstall = false;
+
+  if (frontend) {
+    commands.push(frontend.command('.'));
+    if (frontend.needsInstall) needsInstall = true;
+  }
+
+  if (backend) {
+    commands.push(backend.command('backend'));
+    if (backend.needsInstall) needsInstall = true;
+  }
+
+  // If both are same type (e.g. two backends), just run both
+  if (!frontend && !backend) {
+    for (const m of matched) {
+      commands.push(m.command('.'));
+      if (m.needsInstall) needsInstall = true;
+    }
+  }
+
+  return { command: commands.join(' && '), needsInstall };
 
   return { command: 'npm init -y', needsInstall: false };
 }

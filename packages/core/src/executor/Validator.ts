@@ -35,15 +35,30 @@ export class Validator implements IValidator {
     };
   }
 
+  private resolveTsc(projectPath: string): { cmd: string; baseArgs: string[] } {
+    // 1. Check project-local tsc
+    const localTsc = join(projectPath, 'node_modules', '.bin', 'tsc');
+    if (existsSync(localTsc)) {
+      return { cmd: localTsc, baseArgs: [] };
+    }
+
+    // 2. Try to resolve tsc from the workspace that runs this code
+    try {
+      const tscPath = require.resolve('typescript/bin/tsc');
+      return { cmd: process.execPath, baseArgs: [tscPath] };
+    } catch {
+      // typescript not resolvable from here
+    }
+
+    // 3. Fall back to bare tsc
+    return { cmd: 'tsc', baseArgs: [] };
+  }
+
   private async runTsc(
     projectPath: string,
   ): Promise<ValidationResult['errors']> {
-    // Try local node_modules/.bin/tsc first, then npx
-    const localTsc = join(projectPath, 'node_modules', '.bin', 'tsc');
-    const useLocalTsc = existsSync(localTsc);
-
-    const cmd = useLocalTsc ? localTsc : 'tsc';
-    const args = useLocalTsc ? ['--noEmit'] : ['--noEmit'];
+    const { cmd, baseArgs } = this.resolveTsc(projectPath);
+    const args = [...baseArgs, '--noEmit'];
 
     try {
       await execFileAsync(cmd, args, {
@@ -54,7 +69,7 @@ export class Validator implements IValidator {
     } catch (error: unknown) {
       // If tsc binary is not found at all, skip the check
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('ENOENT') || message.includes('not found')) {
+      if (message.includes('ENOENT') || message.includes('not found') || message.includes('This is not the tsc command')) {
         return [];
       }
       return this.parseTscOutput(this.getStdout(error));

@@ -121,7 +121,14 @@ const BANNER = `\x1b[96m
 \x1b[0m`;
 
 export async function run(argv: string[] = process.argv): Promise<void> {
-  console.log(BANNER);
+  // Suppress banner for --version / --help / -V / -h to keep output machine-parseable
+  const args = argv.slice(2);
+  const suppressBanner = args.includes('--version') || args.includes('-V')
+    || args.includes('--help') || args.includes('-h');
+
+  if (!suppressBanner) {
+    console.log(BANNER);
+  }
   const program = createCli();
   await program.parseAsync(argv);
 }

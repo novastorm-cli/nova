@@ -87,12 +87,18 @@ describe('DevServerRunner', () => {
     const errorHandler = vi.fn();
     runner.onError(errorHandler);
 
-    // Command that exits immediately with an error
+    // Command that exits immediately with an error.
+    // spawn() rejects because pollUntilReady detects the process died,
+    // but the onError callback should also fire from the 'exit' event.
     const crashCommand = `node -e "process.exit(1)"`;
 
-    await runner.spawn(crashCommand, cwd, port);
+    try {
+      await runner.spawn(crashCommand, cwd, port);
+    } catch {
+      // Expected — pollUntilReady rejects when the process exits before becoming ready
+    }
 
-    // Wait for error callback
+    // Wait for error callback (may already have been called synchronously)
     const deadline = Date.now() + 5000;
     while (!errorHandler.mock.calls.length && Date.now() < deadline) {
       await waitFor(200);
