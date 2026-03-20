@@ -8,5 +8,6 @@ export { ActivityLog } from './ActivityLog.js';
 export { ElementInspector } from './ElementInspector.js';
 export { MultiElementSelector } from './MultiElementSelector.js';
 export { SecretConsole } from './SecretConsole.js';
+export { SuggestionPanel } from './SuggestionPanel.js';
 export { toStyleString, applyStyles, COLORS, Z_INDEX, PILL_SIZE, TRANSITION } from './styles.js';
 export type { StyleObject } from './styles.js';

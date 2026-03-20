@@ -86,3 +86,22 @@ export interface ITranscriptBar {
   setTranscript(text: string, isFinal: boolean): void;
   setListening(active: boolean): void;
 }
+
+export interface SuggestionItem {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export interface ISuggestionPanel {
+  /**
+   * Displays passive suggestions from the ambient engine.
+   * Shows pending suggestions with Approve/Reject buttons.
+   * Position: bottom-left, above the pill.
+   */
+  mount(container: HTMLElement): void;
+  unmount(): void;
+  addSuggestion(suggestion: SuggestionItem): void;
+  removeSuggestion(id: string): void;
+  onResponse(handler: (suggestionId: string, approved: boolean) => void): void;
+}

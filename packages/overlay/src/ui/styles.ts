@@ -36,6 +36,7 @@ export const COLORS = {
 
 export const Z_INDEX = {
   activityLog: 2147483635,
+  suggestionPanel: 2147483636,
   selector: 2147483636,
   transcriptBar: 2147483637,
   taskPanel: 2147483638,

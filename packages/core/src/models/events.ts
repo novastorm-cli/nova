@@ -1,4 +1,4 @@
-import type { Observation, TaskItem } from './types.js';
+import type { Observation, TaskItem, BehaviorEvent, BehaviorPattern, PassiveSuggestion } from './types.js';
 
 export type NovaEvent =
   | { type: 'observation'; data: Observation }
@@ -13,7 +13,11 @@ export type NovaEvent =
   | { type: 'cancel'; data: Record<string, never> }
   | { type: 'llm_chunk'; data: { text: string; phase: 'reasoning' | 'code'; taskId?: string } }
   | { type: 'secrets_required'; data: { envVars: string[]; taskId: string } }
-  | { type: 'analysis_complete'; data: { fileCount: number; methodCount: number } };
+  | { type: 'analysis_complete'; data: { fileCount: number; methodCount: number } }
+  | { type: 'passive_behavior'; data: BehaviorEvent }
+  | { type: 'passive_pattern'; data: BehaviorPattern }
+  | { type: 'passive_suggestion'; data: PassiveSuggestion }
+  | { type: 'suggestion_response'; data: { suggestionId: string; approved: boolean } };
 
 export type NovaEventType = NovaEvent['type'];
 

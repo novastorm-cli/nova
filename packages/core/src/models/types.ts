@@ -267,3 +267,44 @@ export interface EmbeddingRecord {
     lineEnd?: number;
   };
 }
+
+// ============================================================
+// Passive Ambient
+// ============================================================
+
+export interface BehaviorEvent {
+  type: 'page_visit' | 'click' | 'scroll' | 'api_call' | 'error' | 'sort' | 'filter';
+  url: string;
+  target?: string;      // CSS selector or element description
+  metadata?: Record<string, string>;
+  timestamp: number;
+  duration?: number;     // time on page in ms
+}
+
+export interface BehaviorPattern {
+  id: string;
+  type: 'frequent_page' | 'repeated_action' | 'slow_api' | 'recurring_error' | 'unused_feature';
+  description: string;
+  confidence: number;    // 0-1
+  occurrences: number;
+  firstSeen: number;
+  lastSeen: number;
+  metadata: Record<string, unknown>;
+}
+
+export type SuggestionStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+
+export interface PassiveSuggestion {
+  id: string;
+  pattern: BehaviorPattern;
+  title: string;
+  description: string;
+  suggestedTasks: Array<{
+    description: string;
+    type: TaskType;
+    estimatedLane: Lane;
+  }>;
+  status: SuggestionStatus;
+  createdAt: number;
+  respondedAt?: number;
+}
