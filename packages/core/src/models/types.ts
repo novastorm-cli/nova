@@ -267,3 +267,56 @@ export interface EmbeddingRecord {
     lineEnd?: number;
   };
 }
+
+// ============================================================
+// History
+// ============================================================
+
+export interface HistoryEntry {
+  id: string;
+  taskId: string;
+  description: string;
+  type: TaskType;
+  lane: Lane;
+  status: TaskStatus;
+  filesChanged: string[];
+  commitHash?: string;
+  diff?: string;
+  error?: string;
+  startedAt: number;
+  completedAt?: number;
+}
+
+// ============================================================
+// Recipes
+// ============================================================
+
+export interface Recipe {
+  id: string;
+  name: string;
+  description: string;
+  category: 'crud_endpoint' | 'form_field' | 'new_page' | 'component' | 'api_route' | 'custom';
+  template: RecipeTemplate;
+  tags: string[];
+  usageCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RecipeTemplate {
+  files: RecipeFileTemplate[];
+  variables: RecipeVariable[];
+}
+
+export interface RecipeFileTemplate {
+  pathPattern: string;   // e.g. "app/api/{name}/route.ts"
+  content: string;       // template with {{variable}} placeholders
+  action: 'create' | 'modify';
+}
+
+export interface RecipeVariable {
+  name: string;
+  description: string;
+  defaultValue?: string;
+  required: boolean;
+}

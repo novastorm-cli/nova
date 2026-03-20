@@ -5,3 +5,6 @@ export { AgentPromptLoader } from './AgentPromptLoader.js';
 export { DEFAULT_AGENT_PROMPTS } from './agentPrompts.js';
 export { VectorStore } from './VectorStore.js';
 export { ManifestStore } from './ManifestStore.js';
+export { HistoryStore } from './HistoryStore.js';
+export { RecipeStore } from './RecipeStore.js';
+export { HistoryRecorder } from './HistoryRecorder.js';

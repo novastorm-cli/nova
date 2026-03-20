@@ -1,4 +1,4 @@
-import type { DependencyNode, SearchResult, EmbeddingRecord, ProjectAnalysis } from '../models/types.js';
+import type { DependencyNode, SearchResult, EmbeddingRecord, ProjectAnalysis, HistoryEntry, Recipe } from '../models/types.js';
 
 export interface INovaDir {
   /**
@@ -96,4 +96,24 @@ export interface IEmbeddingService {
 export interface IProjectAnalyzer {
   analyze(projectPath: string, projectMap?: import('../models/types.js').ProjectMap): Promise<ProjectAnalysis>;
   getAnalysis(projectPath: string): Promise<ProjectAnalysis | null>;
+}
+
+export interface IHistoryStore {
+  append(entry: HistoryEntry): Promise<void>;
+  getAll(): Promise<HistoryEntry[]>;
+  getRecent(limit: number): Promise<HistoryEntry[]>;
+  getSince(timestamp: number): Promise<HistoryEntry[]>;
+  getByTaskId(taskId: string): Promise<HistoryEntry | null>;
+  clear(): Promise<void>;
+}
+
+export interface IRecipeStore {
+  save(recipe: Recipe): Promise<void>;
+  load(id: string): Promise<Recipe | null>;
+  getAll(): Promise<Recipe[]>;
+  findByCategory(category: Recipe['category']): Promise<Recipe[]>;
+  findByTags(tags: string[]): Promise<Recipe[]>;
+  search(query: string): Promise<Recipe[]>;
+  incrementUsage(id: string): Promise<void>;
+  remove(id: string): Promise<void>;
 }
