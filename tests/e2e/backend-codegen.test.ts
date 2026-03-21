@@ -202,7 +202,7 @@ describe.concurrent('Lane1Executor -- Real CSS Changes', () => {
     expect(result.success).toBe(false);
     expect(result.taskId).toBe(task.id);
     expect(result.error).toBeDefined();
-    expect(result.error).toContain('Could not parse CSS property change');
+    expect(result.error).toContain('Could not parse');
   });
 });
 

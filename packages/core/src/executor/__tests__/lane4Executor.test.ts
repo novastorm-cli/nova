@@ -113,8 +113,10 @@ describe('Lane4Executor', () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     executor.stop();
+    // Allow any pending async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 

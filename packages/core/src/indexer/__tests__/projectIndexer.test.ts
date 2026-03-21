@@ -33,8 +33,7 @@ describe('ProjectIndexer', () => {
 
   describe('index()', () => {
     it('should return a ProjectMap with stack, routes, components, and endpoints for nextjs-app', async () => {
-      const projectPath = fixturePath('nextjs-app');
-      novaCleanupPaths.push(projectPath);
+      const projectPath = await copyFixture('nextjs-app');
 
       const map = await indexer.index(projectPath);
 
@@ -64,8 +63,7 @@ describe('ProjectIndexer', () => {
     });
 
     it('should save graph.json in the .nova/ directory', async () => {
-      const projectPath = fixturePath('nextjs-app');
-      novaCleanupPaths.push(projectPath);
+      const projectPath = await copyFixture('nextjs-app');
 
       await indexer.index(projectPath);
 
@@ -79,8 +77,7 @@ describe('ProjectIndexer', () => {
     });
 
     it('should return a non-empty compressedContext string', async () => {
-      const projectPath = fixturePath('nextjs-app');
-      novaCleanupPaths.push(projectPath);
+      const projectPath = await copyFixture('nextjs-app');
 
       const map = await indexer.index(projectPath);
 
@@ -94,8 +91,7 @@ describe('ProjectIndexer', () => {
 
   describe('update()', () => {
     it('should update the graph for a changed file', async () => {
-      const projectPath = fixturePath('nextjs-app');
-      novaCleanupPaths.push(projectPath);
+      const projectPath = await copyFixture('nextjs-app');
 
       // First, do a full index
       await indexer.index(projectPath);

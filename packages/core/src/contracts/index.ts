@@ -10,3 +10,4 @@ export * from './ILicense.js';
 export * from './ITeamDetector.js';
 export * from './IPathGuard.js';
 export * from './IManifestStore.js';
+export * from './ILogger.js';
