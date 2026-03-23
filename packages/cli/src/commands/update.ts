@@ -4,6 +4,16 @@ import ora from 'ora';
 
 const PKG_NAME = '@novastorm-ai/cli';
 
+function isNewer(remote: string, local: string): boolean {
+  const r = remote.split('.').map(Number);
+  const l = local.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((r[i] ?? 0) > (l[i] ?? 0)) return true;
+    if ((r[i] ?? 0) < (l[i] ?? 0)) return false;
+  }
+  return false;
+}
+
 async function getLatestVersion(): Promise<string | null> {
   try {
     const controller = new AbortController();
@@ -46,7 +56,6 @@ export async function updateCommand(): Promise<void> {
     return;
   }
 
-  // Read current version
   const { readFileSync } = await import('node:fs');
   const { dirname, resolve } = await import('node:path');
   const { fileURLToPath } = await import('node:url');
@@ -57,8 +66,8 @@ export async function updateCommand(): Promise<void> {
     currentVersion = pkg.version;
   } catch { /* ignore */ }
 
-  if (currentVersion === latest) {
-    spinner.succeed(`Already on the latest version ${chalk.green(latest)}`);
+  if (!isNewer(latest, currentVersion)) {
+    spinner.succeed(`Already on the latest version ${chalk.green(currentVersion)}`);
     return;
   }
 
@@ -77,16 +86,41 @@ export async function updateCommand(): Promise<void> {
   }
 }
 
+let updateBannerInterval: ReturnType<typeof setInterval> | null = null;
+
 export async function checkForUpdates(currentVersion: string): Promise<void> {
   try {
     const latest = await getLatestVersion();
-    if (latest && latest !== currentVersion) {
-      console.log(
-        chalk.yellow(`  Update available: ${chalk.gray(currentVersion)} → ${chalk.green(latest)}`) +
-        chalk.gray(`  Run ${chalk.cyan('nova update')} to install\n`)
+    if (!latest || !isNewer(latest, currentVersion)) return;
+
+    const msg = chalk.bgYellow.black(` UPDATE `) +
+      chalk.yellow(` ${currentVersion} → ${latest} `) +
+      chalk.gray(`run ${chalk.cyan('nova update')}`);
+
+    const columns = process.stdout.columns || 80;
+    const rows = process.stdout.rows || 24;
+
+    // Strip ANSI for length calculation
+    const plain = msg.replace(/\x1b\[[0-9;]*m/g, '');
+    const x = Math.max(columns - plain.length - 1, 0);
+
+    function renderBanner() {
+      if (!process.stdout.isTTY) return;
+      // Save cursor, move to bottom-right, print, restore cursor
+      process.stdout.write(
+        `\x1b7\x1b[${rows};${x}H${msg}\x1b8`
       );
     }
+
+    // Render immediately and refresh every 5s (in case terminal redraws)
+    renderBanner();
+    updateBannerInterval = setInterval(renderBanner, 5_000);
+
+    // Clean up on exit
+    process.on('exit', () => {
+      if (updateBannerInterval) clearInterval(updateBannerInterval);
+    });
   } catch {
-    // Silent — never block startup
+    // Silent
   }
 }
