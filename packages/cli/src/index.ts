@@ -154,7 +154,8 @@ const BANNER = `\x1b[96m
 ╔═══════════════════════════════════════════════════════════════════════════════════╗
 ║           A M B I E N T   D E V E L O P M E N T   T O O L                      ║
 ╚═══════════════════════════════════════════════════════════════════════════════════╝
-\x1b[0m`;
+\x1b[0m\x1b[90m  https://cli.novastorm.ai\x1b[0m
+`;
 
 export async function run(argv: string[] = process.argv): Promise<void> {
   // Suppress banner for --version / --help / -V / -h to keep output machine-parseable
