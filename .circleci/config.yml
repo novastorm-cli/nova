@@ -50,7 +50,8 @@ jobs:
           name: Publish to npm
           command: |
             echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-            cd packages/cli && pnpm publish --no-git-checks --access public
+            cp ~/.npmrc packages/cli/.npmrc
+            cd packages/cli && npm publish --access public 2>&1 || pnpm publish --no-git-checks --access public 2>&1
 
 workflows:
   test:
