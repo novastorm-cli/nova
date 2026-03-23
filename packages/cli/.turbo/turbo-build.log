@@ -1,5 +1,5 @@
 
-> @novastorm-ai/cli@0.0.7 build /Users/vladimirpronevic/RiderProjects/site-creator/packages/cli
+> @novastorm-ai/cli@0.0.8 build /Users/vladimirpronevic/RiderProjects/site-creator/packages/cli
 > tsup
 
 CLI Building entry: {"index":"src/index.ts","bin/nova":"bin/nova.ts"}
@@ -9,18 +9,18 @@ CLI Using tsup config: /Users/vladimirpronevic/RiderProjects/site-creator/packag
 CLI Target: node22
 CLI Cleaning output folder
 ESM Build start
-ESM dist/bin/nova.js         274.00 B
-ESM dist/dist-6FOBVQ63.js    219.00 B
-ESM dist/chunk-4AQQAQBM.js   14.79 KB
-ESM dist/chunk-T3RKZLVD.js   93.22 KB
 ESM dist/index.js            379.00 B
-ESM dist/dist-EMATXD3M.js    2.60 KB
+ESM dist/package-4SPN5HTE.js 1.05 KB
+ESM dist/chunk-4AQQAQBM.js   14.79 KB
+ESM dist/chunk-MBJLG5CF.js   94.58 KB
 ESM dist/setup-L5TRND4P.js   133.00 B
 ESM dist/chunk-QKD6A4EK.js   7.00 KB
-ESM dist/chunk-3RG5ZIWI.js   390.00 B
-ESM dist/package-MIQKXQDV.js 1.05 KB
+ESM dist/bin/nova.js         274.00 B
+ESM dist/dist-6FOBVQ63.js    219.00 B
 ESM dist/chunk-KKTDQOQX.js   244.78 KB
-ESM ⚡️ Build success in 35ms
+ESM dist/dist-EMATXD3M.js    2.60 KB
+ESM dist/chunk-3RG5ZIWI.js   390.00 B
+ESM ⚡️ Build success in 33ms
 DTS Build start
-DTS ⚡️ Build success in 996ms
+DTS ⚡️ Build success in 963ms
 DTS dist/index.d.ts 2.56 KB

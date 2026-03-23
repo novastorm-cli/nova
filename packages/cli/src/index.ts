@@ -13,6 +13,7 @@ import { licenseCommand } from './commands/license.js';
 import { entityCommand } from './commands/entity.js';
 import { bibleCommand } from './commands/bible.js';
 import { updateCommand, checkForUpdates } from './commands/update.js';
+import { uninstallCommand } from './commands/uninstall.js';
 import { runSetup } from './setup.js';
 
 export { ConfigReader } from './config.js';
@@ -139,6 +140,13 @@ export function createCli(): Command {
     .description('Update Novastorm CLI to the latest version')
     .action(async () => {
       await updateCommand();
+    });
+
+  program
+    .command('uninstall')
+    .description('Uninstall Novastorm CLI from your system')
+    .action(async () => {
+      await uninstallCommand();
     });
 
   return program;

@@ -8,7 +8,7 @@ CLI tsup v8.5.1
 CLI Target: es2022
 ESM Build start
 ESM dist/index.js 6.37 KB
-ESM ⚡️ Build success in 25ms
+ESM ⚡️ Build success in 40ms
 DTS Build start
-DTS ⚡️ Build success in 1109ms
+DTS ⚡️ Build success in 1464ms
 DTS dist/index.d.ts 764.00 B
