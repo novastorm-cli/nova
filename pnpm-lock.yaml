@@ -47,15 +47,6 @@ importers:
       '@inquirer/prompts':
         specifier: ^8.3.2
         version: 8.3.2(@types/node@25.5.0)
-      '@novastorm-ai/core':
-        specifier: workspace:*
-        version: link:../core
-      '@novastorm-ai/licensing':
-        specifier: workspace:*
-        version: link:../licensing
-      '@novastorm-ai/proxy':
-        specifier: workspace:*
-        version: link:../proxy
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -87,6 +78,15 @@ importers:
         specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
+      '@novastorm-ai/core':
+        specifier: workspace:*
+        version: link:../core
+      '@novastorm-ai/licensing':
+        specifier: workspace:*
+        version: link:../licensing
+      '@novastorm-ai/proxy':
+        specifier: workspace:*
+        version: link:../proxy
       tsup:
         specifier: ^8.4.0
         version: 8.5.1(postcss@8.5.8)(typescript@5.9.3)
