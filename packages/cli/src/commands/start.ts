@@ -228,10 +228,14 @@ export async function startCommand(): Promise<void> {
   let detectedDevCommand = await stackDetector.detectDevCommand(stack, cwd);
   let detectedPort = await stackDetector.detectPort(stack, cwd);
 
-  spinner.succeed(`Detecting project... ${chalk.cyan(stack.framework || 'unknown')} + ${chalk.cyan(stack.typescript ? 'TypeScript' : stack.language || 'unknown')}`);
+  const allStacks = [stack.framework, ...(stack.additionalStacks ?? [])];
+  const stackLabel = allStacks.filter(s => s !== 'unknown').join(' + ') || 'unknown';
+  const langLabel = stack.typescript ? 'TypeScript' : stack.language || 'unknown';
+
+  spinner.succeed(`Detecting project... ${chalk.cyan(stackLabel)} (${chalk.dim(langLabel)})`);
 
   if (stack.framework !== 'unknown') {
-    console.log(chalk.green(`  Detected: ${stack.framework} + ${stack.language}`));
+    console.log(chalk.green(`  Detected: ${stackLabel}`));
   } else {
     const dirFiles = readdirSync(cwd).slice(0, 10).join(', ');
     console.log(chalk.yellow(`  Could not detect framework. Files in directory: ${dirFiles}`));
@@ -321,9 +325,8 @@ export async function startCommand(): Promise<void> {
       stack = await stackDetector.detectStack(cwd);
       detectedDevCommand = await stackDetector.detectDevCommand(stack, cwd);
       detectedPort = await stackDetector.detectPort(stack, cwd);
-      spinner.succeed(
-        `Detecting project... ${chalk.cyan(stack.framework || 'unknown')} + ${chalk.cyan(stack.typescript ? 'TypeScript' : stack.language || 'unknown')}`,
-      );
+      const reStacks = [stack.framework, ...(stack.additionalStacks ?? [])].filter(s => s !== 'unknown').join(' + ') || 'unknown';
+      spinner.succeed(`Detecting project... ${chalk.cyan(reStacks)} (${chalk.dim(stack.typescript ? 'TypeScript' : stack.language || 'unknown')})`);
 
       devCommand = config.project.devCommand || detectedDevCommand;
       devPort = config.project.port || detectedPort;
@@ -434,6 +437,23 @@ export async function startCommand(): Promise<void> {
     process.exit(1);
   }
   spinner.succeed('Ports available');
+
+  // ── 4b. Check node_modules for Node.js projects ────────────────────
+  const NODE_FRAMEWORKS = ['node', 'express', 'nest', 'fastify', 'koa', 'hapi', 'next.js', 'nuxt', 'sveltekit', 'astro', 'vite', 'cra'];
+  if (NODE_FRAMEWORKS.includes(stack.framework) && !existsSync(join(cwd, 'node_modules'))) {
+    const pm = stack.packageManager ?? 'npm';
+    const installCmd = pm === 'yarn' ? 'yarn' : `${pm} install`;
+    spinner.stop();
+    console.log(chalk.dim(`  Installing dependencies (${installCmd})...`));
+    try {
+      const { execSync } = await import('node:child_process');
+      execSync(installCmd, { cwd, stdio: 'inherit' });
+      console.log(chalk.green('  Dependencies installed.'));
+    } catch {
+      console.log(chalk.red(`  Failed to install dependencies. Run "${installCmd}" manually.`));
+      process.exit(1);
+    }
+  }
 
   // ── 5. Start dev server ─────────────────────────────────────────────
   spinner.start(`Starting dev server (${chalk.dim(devCommand)})...`);

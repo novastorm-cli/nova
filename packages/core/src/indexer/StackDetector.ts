@@ -16,6 +16,11 @@ const FRAMEWORK_DEPS: ReadonlyArray<{ dep: string; framework: string }> = [
   { dep: 'astro', framework: 'astro' },
   { dep: 'vite', framework: 'vite' },
   { dep: 'react-scripts', framework: 'cra' },
+  { dep: 'express', framework: 'express' },
+  { dep: '@nestjs/core', framework: 'nest' },
+  { dep: 'fastify', framework: 'fastify' },
+  { dep: 'koa', framework: 'koa' },
+  { dep: '@hapi/hapi', framework: 'hapi' },
 ];
 
 const PYTHON_FRAMEWORKS: ReadonlyArray<{ dep: string; framework: string }> = [
@@ -31,6 +36,12 @@ const DEFAULT_PORTS: Record<string, number> = {
   'sveltekit': 5173,
   'astro': 4321,
   'vite': 5173,
+  'express': 3000,
+  'nest': 3000,
+  'fastify': 3000,
+  'koa': 3000,
+  'hapi': 3000,
+  'node': 3000,
   'dotnet': 5000,
   'django': 8000,
   'fastapi': 8000,
@@ -47,53 +58,57 @@ const DEFAULT_PORTS: Record<string, number> = {
 
 export class StackDetector implements IStackDetector {
   async detectStack(projectPath: string): Promise<StackInfo> {
-    // 1. Check package.json
-    const pkgResult = await this.detectFromPackageJson(projectPath);
-    if (pkgResult) {
-      return pkgResult;
-    }
+    const detected: StackInfo[] = [];
 
-    // 2. Check *.csproj for .NET
-    if (await this.hasCsproj(projectPath)) {
+    // Check all sources in parallel
+    const [pkgResult, hasDotnet, pythonFw, rubyFw, phpFw, javaFw, hasGo, hasRust] = await Promise.all([
+      this.detectFromPackageJson(projectPath),
+      this.hasDotnet(projectPath),
+      this.detectPython(projectPath),
+      this.detectRuby(projectPath),
+      this.detectPhp(projectPath),
+      this.detectJava(projectPath),
+      this.fileExists(join(projectPath, 'go.mod')),
+      this.fileExists(join(projectPath, 'Cargo.toml')),
+    ]);
+
+    if (pkgResult) detected.push(pkgResult);
+    if (hasDotnet) {
       const typescript = await this.hasTypescript(projectPath);
-      return { framework: 'dotnet', language: 'csharp', typescript };
+      detected.push({ framework: 'dotnet', language: 'csharp', typescript });
+    }
+    if (pythonFw) detected.push({ framework: pythonFw, language: 'python', typescript: false });
+    if (rubyFw) detected.push({ framework: rubyFw, language: 'ruby', typescript: false });
+    if (phpFw) detected.push({ framework: phpFw, language: 'php', typescript: false });
+    if (javaFw) detected.push({ framework: javaFw, language: 'java', typescript: false });
+    if (hasGo) detected.push({ framework: 'go', language: 'go', typescript: false });
+    if (hasRust) detected.push({ framework: 'rust', language: 'rust', typescript: false });
+
+    if (detected.length === 0) {
+      return { framework: 'unknown', language: 'unknown', typescript: false };
     }
 
-    // 3. Check Python
-    const pythonFramework = await this.detectPython(projectPath);
-    if (pythonFramework) {
-      return { framework: pythonFramework, language: 'python', typescript: false };
+    // Priority: frontend frameworks > backend frameworks > generic
+    const PRIORITY = [
+      'next.js', 'nuxt', 'sveltekit', 'astro', 'vite', 'cra',
+      'dotnet', 'django', 'fastapi', 'flask', 'rails', 'sinatra',
+      'laravel', 'symfony', 'spring-boot',
+      'express', 'nest', 'fastify', 'koa', 'hapi',
+      'node', 'python', 'ruby', 'php', 'java', 'go', 'rust',
+    ];
+
+    detected.sort((a, b) => {
+      const ai = PRIORITY.indexOf(a.framework);
+      const bi = PRIORITY.indexOf(b.framework);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    const primary = detected[0];
+    if (detected.length > 1) {
+      primary.additionalStacks = detected.slice(1).map((s) => s.framework);
     }
 
-    // 3.5. Check Gemfile for Ruby/Rails
-    const rubyFramework = await this.detectRuby(projectPath);
-    if (rubyFramework) {
-      return { framework: rubyFramework, language: 'ruby', typescript: false };
-    }
-
-    // 3.6. Check composer.json for PHP/Laravel
-    const phpFramework = await this.detectPhp(projectPath);
-    if (phpFramework) {
-      return { framework: phpFramework, language: 'php', typescript: false };
-    }
-
-    // 3.7. Check pom.xml/build.gradle for Java/Spring
-    const javaFramework = await this.detectJava(projectPath);
-    if (javaFramework) {
-      return { framework: javaFramework, language: 'java', typescript: false };
-    }
-
-    // 4. Check go.mod
-    if (await this.fileExists(join(projectPath, 'go.mod'))) {
-      return { framework: 'go', language: 'go', typescript: false };
-    }
-
-    // 5. Check Cargo.toml
-    if (await this.fileExists(join(projectPath, 'Cargo.toml'))) {
-      return { framework: 'rust', language: 'rust', typescript: false };
-    }
-
-    return { framework: 'unknown', language: 'unknown', typescript: false };
+    return primary;
   }
 
   async detectDevCommand(stack: StackInfo, projectPath: string): Promise<string> {
@@ -159,23 +174,23 @@ export class StackDetector implements IStackDetector {
     };
 
     const framework = FRAMEWORK_DEPS.find((f) => f.dep in allDeps);
-    if (!framework) return null;
 
     const typescript = await this.hasTypescript(projectPath);
     const packageManager = await this.detectPackageManager(projectPath);
 
+    // Fallback: if package.json exists but no known framework, detect as generic node
     return {
-      framework: framework.framework,
+      framework: framework?.framework ?? 'node',
       language: typescript ? 'typescript' : 'javascript',
       packageManager,
       typescript,
     };
   }
 
-  private async hasCsproj(projectPath: string): Promise<boolean> {
+  private async hasDotnet(projectPath: string): Promise<boolean> {
     try {
       const entries = await readdir(projectPath);
-      return entries.some((e) => e.endsWith('.csproj'));
+      return entries.some((e) => e.endsWith('.csproj') || e.endsWith('.sln'));
     } catch {
       return false;
     }

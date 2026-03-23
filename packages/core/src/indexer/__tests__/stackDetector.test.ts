@@ -121,6 +121,25 @@ describe('StackDetector', () => {
       expect(stack.language).toBe('java');
       expect(stack.typescript).toBe(false);
     });
+
+    // ── Multi-stack ──
+
+    it('should detect both dotnet and express in a multi-stack project', async () => {
+      const stack = await detector.detectStack(fixturePath('dotnet-express-app'));
+
+      // dotnet has higher priority than express
+      expect(stack.framework).toBe('dotnet');
+      expect(stack.language).toBe('csharp');
+      expect(stack.additionalStacks).toBeDefined();
+      expect(stack.additionalStacks).toContain('express');
+    });
+
+    it('should not have additionalStacks for single-stack projects', async () => {
+      const stack = await detector.detectStack(fixturePath('dotnet-app'));
+
+      expect(stack.framework).toBe('dotnet');
+      expect(stack.additionalStacks).toBeUndefined();
+    });
   });
 
   // ── detectDevCommand ────────────────────────────────────────

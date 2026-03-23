@@ -9,6 +9,7 @@ export interface StackInfo {
   language: string;         // "typescript", "javascript", "csharp", "python"
   packageManager?: string;  // "npm", "yarn", "pnpm", "bun"
   typescript: boolean;
+  additionalStacks?: string[];  // other detected frameworks e.g. ["dotnet", "express"]
 }
 
 export interface DockerServiceInfo {
