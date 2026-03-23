@@ -6,7 +6,7 @@ import {
   ConfigError,
   type NovaConfig,
   DEFAULT_CONFIG,
-} from '@nova-architect/core';
+} from '@novastorm-ai/core';
 
 const NOVA_TOML = 'nova.toml';
 const LOCAL_CONFIG_PATH = path.join('.nova', 'config.toml');

@@ -24,11 +24,11 @@ Browser (Overlay)          CLI (Terminal)           Core (Engine)
 
 | Package | Role | Platform |
 |---------|------|----------|
-| `@nova-architect/cli` | Commands, orchestration, terminal chat | Node.js |
-| `@nova-architect/core` | AI pipeline, indexing, execution, git | Node.js |
-| `@nova-architect/overlay` | Browser UI, capture, voice, gestures | Browser (IIFE) |
-| `@nova-architect/proxy` | HTTP proxy + WebSocket server | Node.js |
-| `@nova-architect/licensing` | License validation, telemetry | Node.js |
+| `@novastorm-ai/cli` | Commands, orchestration, terminal chat | Node.js |
+| `@novastorm-ai/core` | AI pipeline, indexing, execution, git | Node.js |
+| `@novastorm-ai/overlay` | Browser UI, capture, voice, gestures | Browser (IIFE) |
+| `@novastorm-ai/proxy` | HTTP proxy + WebSocket server | Node.js |
+| `@novastorm-ai/licensing` | License validation, telemetry | Node.js |
 
 ---
 

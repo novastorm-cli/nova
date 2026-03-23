@@ -1,8 +1,8 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import chalk from 'chalk';
-import { ManifestStore, type ManifestService, type ManifestDatabase, type ManifestEntity, type ServiceType, type EntityType } from '@nova-architect/core';
-import { NovaDir } from '@nova-architect/core';
+import { ManifestStore, type ManifestService, type ManifestDatabase, type ManifestEntity, type ServiceType, type EntityType } from '@novastorm-ai/core';
+import { NovaDir } from '@novastorm-ai/core';
 
 const SERVICE_TYPES: ServiceType[] = ['frontend', 'backend', 'worker', 'gateway'];
 const ENTITY_TYPES: EntityType[] = ['module', 'external-service', 'library', 'shared-package'];

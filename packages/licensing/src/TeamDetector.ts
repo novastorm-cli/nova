@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
-import type { ITeamDetector } from '@nova-architect/core';
-import type { TeamInfo, TeamDetectOptions } from '@nova-architect/core';
+import type { ITeamDetector } from '@novastorm-ai/core';
+import type { TeamInfo, TeamDetectOptions } from '@novastorm-ai/core';
 
 const DEFAULT_WINDOW_DAYS = 90;
 

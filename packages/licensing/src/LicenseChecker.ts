@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { ILicenseChecker } from '@nova-architect/core';
-import type { LicenseStatus, NovaConfig } from '@nova-architect/core';
+import type { ILicenseChecker } from '@novastorm-ai/core';
+import type { LicenseStatus, NovaConfig } from '@novastorm-ai/core';
 import { TeamDetector } from './TeamDetector.js';
 
 const FREE_DEV_LIMIT = 3;

@@ -1,4 +1,4 @@
-import type { NovaEvent } from '@nova-architect/core';
+import type { NovaEvent } from '@novastorm-ai/core';
 
 /**
  * Browser Observation payload sent over WebSocket.

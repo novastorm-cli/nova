@@ -4,7 +4,7 @@ import zlib from 'node:zlib';
 import { pipeline } from 'node:stream';
 import fs from 'node:fs';
 import httpProxy from 'http-proxy';
-import type { IProxyServer } from '@nova-architect/core';
+import type { IProxyServer } from '@novastorm-ai/core';
 
 const SCRIPT_TAG = '<script src="/nova-overlay.js"></script>';
 

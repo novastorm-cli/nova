@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { Observation, TaskItem } from '@nova-architect/core';
+import type { Observation, TaskItem } from '@novastorm-ai/core';
 
 const PREFIX = '[Nova]';
 

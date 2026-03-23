@@ -5,9 +5,9 @@ import type {
   TaskItem,
   IGitManager,
   EventBus,
-} from '@nova-architect/core';
-import { Lane3Executor } from '@nova-architect/core';
-import type { WebSocketServer } from '@nova-architect/proxy';
+} from '@novastorm-ai/core';
+import { Lane3Executor } from '@novastorm-ai/core';
+import type { WebSocketServer } from '@novastorm-ai/proxy';
 
 // Patterns that indicate fixable compilation errors
 const ERROR_PATTERNS = [

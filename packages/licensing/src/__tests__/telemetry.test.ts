@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Telemetry } from '../Telemetry.js';
-import type { TelemetryPayload } from '@nova-architect/core';
+import type { TelemetryPayload } from '@novastorm-ai/core';
 
 function makePayload(overrides: Partial<TelemetryPayload> = {}): TelemetryPayload {
   return {

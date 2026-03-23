@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { ConfigReader } from '../config.js';
-import { DEFAULT_CONFIG, type NovaConfig } from '@nova-architect/core';
+import { DEFAULT_CONFIG, type NovaConfig } from '@novastorm-ai/core';
 
 export async function initCommand(): Promise<void> {
   const cwd = process.cwd();

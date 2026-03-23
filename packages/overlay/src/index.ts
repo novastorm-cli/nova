@@ -4,7 +4,7 @@ export * from './ui/index.js';
 export { WebSocketClient } from './transport/WebSocketClient.js';
 export type { BrowserObservation } from './transport/WebSocketClient.js';
 
-import type { NovaEvent } from '@nova-architect/core';
+import type { NovaEvent } from '@novastorm-ai/core';
 import { ScreenshotCapture } from './capture/ScreenshotCapture.js';
 import { DomCapture } from './capture/DomCapture.js';
 import { VoiceCapture } from './capture/VoiceCapture.js';

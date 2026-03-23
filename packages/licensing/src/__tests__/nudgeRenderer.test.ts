@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { NudgeRenderer } from '../NudgeRenderer.js';
-import type { NudgeContext } from '@nova-architect/core';
+import type { NudgeContext } from '@novastorm-ai/core';
 
 describe('NudgeRenderer', () => {
   const renderer = new NudgeRenderer();

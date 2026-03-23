@@ -8,8 +8,8 @@ import { TeamDetector } from '../TeamDetector.js';
 import { LicenseChecker } from '../LicenseChecker.js';
 import { Telemetry } from '../Telemetry.js';
 import { NudgeRenderer } from '../NudgeRenderer.js';
-import { DEFAULT_CONFIG } from '@nova-architect/core';
-import type { NovaConfig, NudgeContext, NudgeLevel, TelemetryPayload } from '@nova-architect/core';
+import { DEFAULT_CONFIG } from '@novastorm-ai/core';
+import type { NovaConfig, NudgeContext, NudgeLevel, TelemetryPayload } from '@novastorm-ai/core';
 
 // ── Helpers ────────────────────────────────────────────────
 

@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { LicenseChecker } from '../LicenseChecker.js';
-import { DEFAULT_CONFIG } from '@nova-architect/core';
-import type { NovaConfig } from '@nova-architect/core';
+import { DEFAULT_CONFIG } from '@novastorm-ai/core';
+import type { NovaConfig } from '@novastorm-ai/core';
 
 // ── Helpers ────────────────────────────────────────────────
 

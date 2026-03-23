@@ -1,4 +1,4 @@
-import type { NudgeContext } from '@nova-architect/core';
+import type { NudgeContext } from '@novastorm-ai/core';
 
 export class NudgeRenderer {
   render(context: NudgeContext): string | null {

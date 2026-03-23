@@ -469,7 +469,7 @@ Source-available, двухуровневая лицензия (модель Remo
 - Создавать конкурирующий продукт на базе этого кода
 - Убирать телеметрию лицензирования
 
-### Enforcement — пакет `@nova-architect/licensing`
+### Enforcement — пакет `@novastorm-ai/licensing`
 
 Аналог `@remotion/licensing`. При запуске `nova`:
 - Проверяет количество уникальных разработчиков в git-истории проекта

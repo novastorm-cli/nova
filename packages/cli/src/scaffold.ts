@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { select, input } from '@inquirer/prompts';
 import { Separator } from '@inquirer/prompts';
-import { ProjectScaffolder, SCAFFOLD_PRESETS } from '@nova-architect/core';
+import { ProjectScaffolder, SCAFFOLD_PRESETS } from '@novastorm-ai/core';
 
 export interface ScaffoldInfo {
   scaffolded: boolean;

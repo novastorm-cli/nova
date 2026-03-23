@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { LicenseChecker, TeamDetector } from '@nova-architect/licensing';
+import { LicenseChecker, TeamDetector } from '@novastorm-ai/licensing';
 import { ConfigReader } from '../config.js';
 
 const KEY_PATTERN = /^NOVA-([A-Z2-7]+)-([a-f0-9]{4})$/;
@@ -31,7 +31,7 @@ export async function licenseCommand(
 
 async function showStatus(
   cwd: string,
-  config: import('@nova-architect/core').NovaConfig,
+  config: import('@novastorm-ai/core').NovaConfig,
 ): Promise<void> {
   const licenseChecker = new LicenseChecker();
   const teamDetector = new TeamDetector();

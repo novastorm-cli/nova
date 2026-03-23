@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import http from 'node:http';
-import type { IDevServerRunner } from '@nova-architect/core';
+import type { IDevServerRunner } from '@novastorm-ai/core';
 
 const POLL_INTERVAL_MS = 500;
 const MAX_WAIT_MS = 30_000;

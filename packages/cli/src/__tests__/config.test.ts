@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { ConfigReader } from '../config.js';
-import { type NovaConfig, DEFAULT_CONFIG, ConfigError } from '@nova-architect/core';
+import { type NovaConfig, DEFAULT_CONFIG, ConfigError } from '@novastorm-ai/core';
 
 describe('ConfigReader', () => {
   let tmpDir: string;

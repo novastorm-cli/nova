@@ -1,5 +1,5 @@
 {
-  "name": "@nova-architect/overlay",
+  "name": "@novastorm-ai/overlay",
   "version": "0.0.1",
   "private": true,
   "license": "SEE LICENSE IN LICENSE.md",
@@ -17,7 +17,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@nova-architect/core": "workspace:*",
+    "@novastorm-ai/core": "workspace:*",
     "html2canvas": "^1.4.1"
   },
   "devDependencies": {

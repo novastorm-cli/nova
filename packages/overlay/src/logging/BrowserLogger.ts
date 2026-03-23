@@ -1,4 +1,4 @@
-import type { ILogger } from '@nova-architect/core';
+import type { ILogger } from '@novastorm-ai/core';
 
 export class BrowserLogger implements ILogger {
   private readonly baseContext: Record<string, unknown>;

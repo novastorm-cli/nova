@@ -3,7 +3,7 @@ import http from 'node:http';
 import net from 'node:net';
 import WebSocket from 'ws';
 import { WebSocketServer as NovaWsServer } from '../WebSocketServer.js';
-import type { Observation, NovaEvent } from '@nova-architect/core';
+import type { Observation, NovaEvent } from '@novastorm-ai/core';
 
 function getRandomPort(): Promise<number> {
   return new Promise((resolve, reject) => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ProjectMapApi } from '../ProjectMapApi.js';
-import type { IGraphStore, ISearchRouter } from '@nova-architect/core';
-import type { DependencyNode } from '@nova-architect/core';
+import type { IGraphStore, ISearchRouter } from '@novastorm-ai/core';
+import type { DependencyNode } from '@novastorm-ai/core';
 import type http from 'node:http';
 
 function makeRequest(url: string, method = 'GET'): http.IncomingMessage {

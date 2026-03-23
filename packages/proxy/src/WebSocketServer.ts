@@ -1,6 +1,6 @@
 import { WebSocketServer as WsServer, type WebSocket } from 'ws';
 import type http from 'node:http';
-import type { IWebSocketServer, Observation, NovaEvent } from '@nova-architect/core';
+import type { IWebSocketServer, Observation, NovaEvent } from '@novastorm-ai/core';
 
 export class WebSocketServer implements IWebSocketServer {
   private wss: WsServer | null = null;

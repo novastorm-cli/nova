@@ -22,13 +22,13 @@ import {
   type NovaEvent,
   type TaskItem,
   EnvDetector,
-} from '@nova-architect/core';
+} from '@novastorm-ai/core';
 import {
   DevServerRunner,
   ProxyServer,
   WebSocketServer,
-} from '@nova-architect/proxy';
-import { LicenseChecker, Telemetry, NudgeRenderer } from '@nova-architect/licensing';
+} from '@novastorm-ai/proxy';
+import { LicenseChecker, Telemetry, NudgeRenderer } from '@novastorm-ai/licensing';
 import { ConfigReader } from '../config.js';
 import { NovaLogger } from '../logger.js';
 import { promptAndScaffold } from '../scaffold.js';
@@ -151,7 +151,7 @@ export async function startCommand(): Promise<void> {
   spinner.start('Detecting project...');
 
   // Quick stack detection without full indexing
-  const { StackDetector } = await import('@nova-architect/core');
+  const { StackDetector } = await import('@novastorm-ai/core');
   const stackDetector = new StackDetector();
   let stack = await stackDetector.detectStack(cwd);
   let detectedDevCommand = await stackDetector.detectDevCommand(stack, cwd);
@@ -217,8 +217,8 @@ export async function startCommand(): Promise<void> {
   spinner.succeed('Project indexed.');
 
   // ── 4b. Analyze project structure ─────────────────────────────────
-  const { ProjectAnalyzer, RagIndexer, createEmbeddingService } = await import('@nova-architect/core');
-  const { ProjectMapApi } = await import('@nova-architect/proxy');
+  const { ProjectAnalyzer, RagIndexer, createEmbeddingService } = await import('@novastorm-ai/core');
+  const { ProjectMapApi } = await import('@novastorm-ai/proxy');
 
   const projectAnalyzer = new ProjectAnalyzer();
   spinner.start('Analyzing project structure...');
@@ -228,7 +228,7 @@ export async function startCommand(): Promise<void> {
   // ── 4c. RAG indexing ──────────────────────────────────────────────
   let ragIndexer: InstanceType<typeof RagIndexer> | null = null;
   try {
-    const { VectorStore } = await import('@nova-architect/core');
+    const { VectorStore } = await import('@novastorm-ai/core');
 
     let embeddingProvider: 'openai' | 'ollama' | 'tfidf' = 'tfidf';
     let embeddingApiKey: string | undefined;
@@ -309,7 +309,7 @@ export async function startCommand(): Promise<void> {
 
   // ── 6c. Wire project map API to proxy ─────────────────────────────
   proxyServer.setProjectMapApi(projectMapApi);
-  const { GraphStore: GS, SearchRouter: SR } = await import('@nova-architect/core');
+  const { GraphStore: GS, SearchRouter: SR } = await import('@novastorm-ai/core');
   const novaPath = novaDir.getPath(cwd);
   const graphStoreForApi = new GS(novaPath);
   const searchRouterForApi = new SR(graphStoreForApi);

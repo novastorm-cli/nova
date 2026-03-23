@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { NovaConfig } from '@nova-architect/core';
+import type { NovaConfig } from '@novastorm-ai/core';
 import type { ConfigReader } from './config.js';
 
 type SettablePath = {

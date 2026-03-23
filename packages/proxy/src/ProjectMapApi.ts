@@ -1,7 +1,7 @@
 import type http from 'node:http';
 import { URL } from 'node:url';
-import type { IGraphStore, ISearchRouter } from '@nova-architect/core';
-import type { ProjectAnalysis, DependencyNode } from '@nova-architect/core';
+import type { IGraphStore, ISearchRouter } from '@novastorm-ai/core';
+import type { ProjectAnalysis, DependencyNode } from '@novastorm-ai/core';
 
 export interface ProjectMapNode {
   id: string;

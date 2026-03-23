@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { select, password } from '@inquirer/prompts';
 import TOML from '@iarna/toml';
 import { ConfigReader } from './config.js';
-import { DEFAULT_CONFIG, type NovaConfig } from '@nova-architect/core';
+import { DEFAULT_CONFIG, type NovaConfig } from '@novastorm-ai/core';
 
 const NOVA_DIR = '.nova';
 const LOCAL_CONFIG = 'config.toml';
