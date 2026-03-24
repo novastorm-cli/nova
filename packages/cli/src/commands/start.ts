@@ -312,9 +312,14 @@ export async function startCommand(): Promise<void> {
       }
     } else {
       // Empty directory — scaffold as before
-      // Clean up .nova/ if it was created prematurely (scaffolders like create-next-app complain about non-empty dirs)
+      // Clean up .nova/ and nova.toml if created prematurely (scaffolders complain about non-empty dirs)
       if (novaDir.exists(cwd)) {
         await novaDir.clean(cwd);
+      }
+      const novaTomlForClean = join(cwd, 'nova.toml');
+      if (existsSync(novaTomlForClean)) {
+        const { unlinkSync } = await import('node:fs');
+        unlinkSync(novaTomlForClean);
       }
 
       const scaffoldInfo = await promptAndScaffold(cwd);

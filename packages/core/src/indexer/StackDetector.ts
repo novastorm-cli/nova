@@ -197,6 +197,15 @@ export class StackDetector implements IStackDetector {
     if (ocamlFw) detected.push({ framework: 'ocaml', language: 'ocaml', typescript: false });
     if (erlangFw) detected.push({ framework: 'erlang', language: 'erlang', typescript: false });
 
+    // Last resort: detect framework from directory structure (e.g. .next/, .nuxt/)
+    if (detected.length === 0) {
+      const dirFw = await this.detectFrameworkFromDirs(projectPath);
+      if (dirFw) {
+        const typescript = await this.hasTypescript(projectPath);
+        detected.push({ framework: dirFw, language: typescript ? 'typescript' : 'javascript', typescript });
+      }
+    }
+
     if (detected.length === 0) {
       return { framework: 'unknown', language: 'unknown', typescript: false };
     }
