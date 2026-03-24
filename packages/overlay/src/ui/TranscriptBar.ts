@@ -45,7 +45,7 @@ export class TranscriptBar implements ITranscriptBar {
   private micToggleHandlers: Array<(active: boolean) => void> = [];
   private commandSubmitHandlers: Array<(text: string) => void> = [];
   private confirmBar: HTMLElement | null = null;
-  private confirmExecuteHandlers: Array<() => void> = [];
+  private confirmExecuteHandlers: Array<(userInput: string) => void> = [];
   private confirmCancelHandlers: Array<() => void> = [];
 
   private static readonly LANG_STORAGE_KEY = 'nova-voice-lang';
@@ -268,9 +268,9 @@ export class TranscriptBar implements ITranscriptBar {
     this.commandSubmitHandlers.push(handler);
   }
 
-  /** Show confirmation bar above input with message + Execute/Cancel buttons.
-   *  When `showInput` is true, an input field is shown for the user to type an answer. */
-  showConfirmation(message: string, options?: { showInput?: boolean }): void {
+  /** Show confirmation bar above input with message + input field + Go/Cancel.
+   *  When `showInput` is true with a custom placeholder, uses that placeholder. */
+  showConfirmation(message: string, options?: { showInput?: boolean; placeholder?: string }): void {
     if (!this.confirmBar) return;
     this.confirmBar.innerHTML = '';
 
@@ -280,40 +280,39 @@ export class TranscriptBar implements ITranscriptBar {
     text.title = message;
     this.confirmBar.appendChild(text);
 
-    // Optional input field for clarifying questions
-    let answerInput: HTMLInputElement | null = null;
-    if (options?.showInput) {
-      answerInput = document.createElement('input');
-      this.answerInputEl = answerInput;
-      answerInput.className = 'confirm-answer-input';
-      answerInput.type = 'text';
-      answerInput.placeholder = 'Введите ответ...';
-      answerInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          // Copy value to main inputEl so handlers can read it
-          if (this.inputEl && answerInput) {
-            this.inputEl.value = answerInput.value;
-          }
-          this.hideConfirmation();
-          for (const h of this.confirmExecuteHandlers) h();
-        }
-      });
-      this.confirmBar.appendChild(answerInput);
-    }
+    // Input field for user to describe what to add or refine
+    const answerInput = document.createElement('input');
+    this.answerInputEl = answerInput;
+    answerInput.className = 'confirm-answer-input';
+    answerInput.type = 'text';
+    answerInput.placeholder = options?.placeholder ?? 'Describe what to add...';
+    answerInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        const userInput = answerInput.value.trim();
+        this.hideConfirmation();
+        for (const h of this.confirmExecuteHandlers) h(userInput);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideConfirmation();
+        for (const h of this.confirmCancelHandlers) h();
+      }
+    });
+    this.confirmBar.appendChild(answerInput);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'confirm-btn-row';
 
     const execBtn = document.createElement('button');
     execBtn.className = 'confirm-exec-btn';
-    execBtn.textContent = options?.showInput ? 'Send' : 'Execute';
+    execBtn.textContent = 'Go';
     execBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      // Copy answer value to main inputEl so handlers can read it
-      if (options?.showInput && this.inputEl && answerInput) {
-        this.inputEl.value = answerInput.value;
-      }
+      const userInput = answerInput.value.trim();
       this.hideConfirmation();
-      for (const h of this.confirmExecuteHandlers) h();
+      for (const h of this.confirmExecuteHandlers) h(userInput);
     });
 
     const cancelBtn = document.createElement('button');
@@ -325,14 +324,13 @@ export class TranscriptBar implements ITranscriptBar {
       for (const h of this.confirmCancelHandlers) h();
     });
 
-    this.confirmBar.appendChild(execBtn);
-    this.confirmBar.appendChild(cancelBtn);
+    btnRow.appendChild(execBtn);
+    btnRow.appendChild(cancelBtn);
+    this.confirmBar.appendChild(btnRow);
     this.confirmBar.classList.remove('hidden');
 
-    // Focus the answer input after showing
-    if (answerInput) {
-      requestAnimationFrame(() => answerInput?.focus());
-    }
+    // Auto-focus the input field
+    requestAnimationFrame(() => answerInput.focus());
   }
 
   /** Hide confirmation bar */
@@ -341,8 +339,8 @@ export class TranscriptBar implements ITranscriptBar {
     this.answerInputEl = null;
   }
 
-  /** Register handler for Execute click */
-  onConfirmExecute(handler: () => void): void {
+  /** Register handler for Go/Execute click — receives user input text (empty string if none) */
+  onConfirmExecute(handler: (userInput: string) => void): void {
     this.confirmExecuteHandlers.push(handler);
   }
 
@@ -354,7 +352,7 @@ export class TranscriptBar implements ITranscriptBar {
   /** Show a question with an input field and return the user's answer (or null if cancelled). */
   askQuestion(question: string): Promise<string | null> {
     return new Promise((resolve) => {
-      this.showConfirmation(question, { showInput: true });
+      this.showConfirmation(question, { placeholder: 'Type your answer...' });
 
       const origExecHandlers = [...this.confirmExecuteHandlers];
       const origCancelHandlers = [...this.confirmCancelHandlers];
@@ -364,11 +362,10 @@ export class TranscriptBar implements ITranscriptBar {
         this.confirmCancelHandlers = origCancelHandlers;
       };
 
-      this.confirmExecuteHandlers = [() => {
-        const answer = this.answerInputEl?.value?.trim() ?? '';
+      this.confirmExecuteHandlers = [(userInput: string) => {
         this.hideConfirmation();
         cleanup();
-        resolve(answer || null);
+        resolve(userInput || null);
       }];
 
       this.confirmCancelHandlers = [() => {
@@ -565,15 +562,21 @@ export class TranscriptBar implements ITranscriptBar {
       }
       .confirm-bar {
         display: flex;
-        align-items: center;
+        flex-direction: column;
         gap: 8px;
         background: #1a1a1aee;
         border-radius: 12px;
-        padding: 10px 16px;
+        padding: 12px 16px;
         margin-bottom: 8px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         pointer-events: auto;
         animation: slideUp 0.2s ease;
+        min-width: 320px;
+      }
+      .confirm-btn-row {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
       }
       .confirm-bar.hidden {
         display: none;
@@ -583,10 +586,10 @@ export class TranscriptBar implements ITranscriptBar {
         to { opacity: 1; transform: translateY(0); }
       }
       .confirm-text {
-        flex: 1;
         color: #e5e7eb;
         font-size: 13px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.4;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

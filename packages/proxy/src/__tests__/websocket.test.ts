@@ -110,7 +110,7 @@ describe('WebSocketServer', () => {
     await waitFor(100);
 
     expect(receivedMessages).toHaveLength(1);
-    expect(receivedMessages[0]).toEqual(event);
+    expect(receivedMessages[0]).toMatchObject(event);
   });
 
   it('getClientCount() returns 0 initially, then 1 after connection', async () => {

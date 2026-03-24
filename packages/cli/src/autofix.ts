@@ -53,6 +53,7 @@ export class ErrorAutoFixer {
     private readonly wsServer: WebSocketServer,
     private readonly projectMap: ProjectMap,
     private readonly commitQueue?: CommitQueue,
+    private readonly microModel?: string,
   ) {}
 
   isAutofixTask(taskId: string): boolean {
@@ -185,7 +186,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.gitManager,
       this.eventBus,
       1,  // maxFixIterations — single pass for auto-fix
-      undefined, // modelName
+      this.microModel,
       undefined, // agentPromptLoader
       undefined, // pathGuard
       this.commitQueue,
@@ -255,6 +256,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.gitManager,
       undefined, // pathGuard
       this.commitQueue,
+      this.microModel,
     );
 
     console.log(chalk.cyan(`[Nova] Auto-fixing compilation error via Lane 2 (${targetFile})...`));
@@ -300,7 +302,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.gitManager,
       this.eventBus,
       1,  // maxFixIterations — single pass for auto-fix
-      undefined, // modelName
+      this.microModel,
       undefined, // agentPromptLoader
       undefined, // pathGuard
       this.commitQueue,

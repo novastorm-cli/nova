@@ -35,6 +35,7 @@ export class CodeFixer {
   constructor(
     private readonly llmClient: LlmClient,
     private readonly eventBus?: EventBus,
+    private readonly modelName?: string,
   ) {}
 
   async fixErrors(
@@ -56,7 +57,7 @@ export class CodeFixer {
     const response = await streamWithEvents(
       this.llmClient,
       messages,
-      { temperature: 0, maxTokens: 8192 },
+      { temperature: 0, maxTokens: 8192, model: this.modelName },
       this.eventBus,
     );
 

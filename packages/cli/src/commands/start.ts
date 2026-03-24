@@ -226,7 +226,7 @@ export async function startCommand(): Promise<void> {
     console.log(chalk.dim('Run "nova setup" to configure your API key.\n'));
     llmClient = null;
   }
-  const brain = llmClient ? new Brain(llmClient, eventBus) : null;
+  const brain = llmClient ? new Brain(llmClient, eventBus, config.models.micro) : null;
 
   // ── 3. Detect stack first (before creating .nova/) ─────────────────
   spinner.start('Detecting project...');
@@ -844,13 +844,13 @@ export async function startCommand(): Promise<void> {
     const agentPromptLoader = new AgentPromptLoader();
     const lane1 = new Lane1Executor(cwd, pathGuard);
     const lane2 = new Lane2Executor(cwd, llmClient, gitManager, pathGuard, commitQueue);
-    executorPool = new ExecutorPool(lane1, lane2, eventBus, llmClient, gitManager, cwd, config.models.fast, config.models.strong, agentPromptLoader, pathGuard, undefined, commitQueue);
+    executorPool = new ExecutorPool(lane1, lane2, eventBus, llmClient, gitManager, cwd, config.models.micro, config.models.standard, config.models.strong, agentPromptLoader, pathGuard, undefined, commitQueue);
   }
 
   // Wire dev server output to auto-fixer for error detection
   let autoFixer: ErrorAutoFixer | null = null;
   if (llmClient) {
-    autoFixer = new ErrorAutoFixer(cwd, llmClient, gitManager, eventBus, wsServer, projectMap, commitQueue);
+    autoFixer = new ErrorAutoFixer(cwd, llmClient, gitManager, eventBus, wsServer, projectMap, commitQueue, config.models.micro);
   }
   devServer.onOutput((output: string) => {
     autoFixer?.handleOutput(output);

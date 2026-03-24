@@ -9,7 +9,8 @@ import { Lane3Executor } from './Lane3Executor.js';
 import { CommitQueue } from '../git/CommitQueue.js';
 
 export class ExecutorPool implements IExecutorPool {
-  private readonly lane3Fast: Lane3Executor | null;
+  private readonly lane3Micro: Lane3Executor | null;
+  private readonly lane3Standard: Lane3Executor | null;
   private readonly lane3Strong: Lane3Executor | null;
 
   constructor(
@@ -19,17 +20,21 @@ export class ExecutorPool implements IExecutorPool {
     private readonly llm?: LlmClient,
     gitManager?: IGitManager,
     projectPath?: string,
-    fastModel?: string,
+    microModel?: string,
+    standardModel?: string,
     strongModel?: string,
     agentPromptLoader?: IAgentPromptLoader,
     pathGuard?: IPathGuard,
     private readonly lane4?: Lane4Executor,
     commitQueue?: CommitQueue,
   ) {
-    // Lane 1-2 fallbacks use fast model, Lane 3-4 use strong model
+    // Lane 1 fallback uses micro, Lane 2 fallback uses standard, Lane 3-4 use strong
     const sharedQueue = commitQueue ?? (gitManager ? new CommitQueue(gitManager) : undefined);
-    this.lane3Fast = (llm && gitManager && projectPath)
-      ? new Lane3Executor(projectPath, llm, gitManager, this.eventBus, 3, fastModel, agentPromptLoader, pathGuard, sharedQueue)
+    this.lane3Micro = (llm && gitManager && projectPath)
+      ? new Lane3Executor(projectPath, llm, gitManager, this.eventBus, 3, microModel, agentPromptLoader, pathGuard, sharedQueue)
+      : null;
+    this.lane3Standard = (llm && gitManager && projectPath)
+      ? new Lane3Executor(projectPath, llm, gitManager, this.eventBus, 3, standardModel, agentPromptLoader, pathGuard, sharedQueue)
       : null;
     this.lane3Strong = (llm && gitManager && projectPath)
       ? new Lane3Executor(projectPath, llm, gitManager, this.eventBus, 3, strongModel, agentPromptLoader, pathGuard, sharedQueue)
@@ -44,20 +49,20 @@ export class ExecutorPool implements IExecutorPool {
     try {
       switch (task.lane) {
         case 1: {
-          // Try Lane 1 (CSS/regex), fallback to fast Lane 3 if it can't handle it
+          // Try Lane 1 (CSS/regex), fallback to micro Lane 3 if it can't handle it
           result = await this.lane1.execute(task, projectMap);
-          if (!result.success && this.lane3Fast) {
-            console.log(`[Nova] Lane 1 failed, falling back to fast model`);
-            result = await this.lane3Fast.execute(task, projectMap);
+          if (!result.success && this.lane3Micro) {
+            console.log(`[Nova] Lane 1 failed, falling back to micro model`);
+            result = await this.lane3Micro.execute(task, projectMap);
           }
           break;
         }
         case 2: {
-          // Try Lane 2 (diff-based), fallback to fast Lane 3 if diff fails
+          // Try Lane 2 (diff-based), fallback to standard Lane 3 if diff fails
           result = await this.lane2.execute(task, projectMap);
-          if (!result.success && this.lane3Fast) {
-            console.log(`[Nova] Lane 2 failed, falling back to fast model`);
-            result = await this.lane3Fast.execute(task, projectMap);
+          if (!result.success && this.lane3Standard) {
+            console.log(`[Nova] Lane 2 failed, falling back to standard model`);
+            result = await this.lane3Standard.execute(task, projectMap);
           }
           break;
         }

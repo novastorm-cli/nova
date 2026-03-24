@@ -6,7 +6,8 @@ export interface NovaConfig {
     backends?: string[];
   };
   models: {
-    fast: string;
+    micro: string;
+    standard: string;
     strong: string;
     local: boolean;
   };
@@ -33,7 +34,7 @@ export interface NovaConfig {
 
 export const DEFAULT_CONFIG: NovaConfig = {
   project: { devCommand: '', port: 3000 },
-  models: { fast: 'claude-sonnet-4-6', strong: 'claude-opus-4-6', local: false },
+  models: { micro: 'claude-haiku-4-5-20251001', standard: 'claude-sonnet-4-6', strong: 'claude-opus-4-6', local: false },
   apiKeys: { provider: 'openrouter' },
   behavior: { autoCommit: false, branchPrefix: 'nova/', passiveSuggestions: true },
   voice: { enabled: true, engine: 'web' },

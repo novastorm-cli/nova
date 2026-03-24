@@ -38,7 +38,8 @@ devCommand = "npm run dev"
 port = 4000
 
 [models]
-fast = "openai/gpt-4o-mini"
+micro = "openai/gpt-4o-mini"
+standard = "openai/gpt-4o"
 strong = "anthropic/claude-sonnet-4"
 local = true
 
@@ -61,7 +62,8 @@ engine = "whisper"
 
       expect(config.project.devCommand).toBe('npm run dev');
       expect(config.project.port).toBe(4000);
-      expect(config.models.fast).toBe('openai/gpt-4o-mini');
+      expect(config.models.micro).toBe('openai/gpt-4o-mini');
+      expect(config.models.standard).toBe('openai/gpt-4o');
       expect(config.models.strong).toBe('anthropic/claude-sonnet-4');
       expect(config.models.local).toBe(true);
       expect(config.apiKeys.provider).toBe('anthropic');
@@ -78,7 +80,8 @@ engine = "whisper"
 
       expect(config.project.devCommand).toBe(DEFAULT_CONFIG.project.devCommand);
       expect(config.project.port).toBe(DEFAULT_CONFIG.project.port);
-      expect(config.models.fast).toBe(DEFAULT_CONFIG.models.fast);
+      expect(config.models.micro).toBe(DEFAULT_CONFIG.models.micro);
+      expect(config.models.standard).toBe(DEFAULT_CONFIG.models.standard);
       expect(config.models.strong).toBe(DEFAULT_CONFIG.models.strong);
       expect(config.models.local).toBe(DEFAULT_CONFIG.models.local);
       expect(config.apiKeys.provider).toBe(DEFAULT_CONFIG.apiKeys.provider);

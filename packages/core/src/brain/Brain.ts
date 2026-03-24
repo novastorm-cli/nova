@@ -27,9 +27,12 @@ export class Brain implements IBrain {
 
   private readonly eventBus?: EventBus;
 
-  constructor(llm: LlmClient, eventBus?: EventBus) {
+  private readonly modelName?: string;
+
+  constructor(llm: LlmClient, eventBus?: EventBus, modelName?: string) {
     this.llm = llm;
     this.eventBus = eventBus;
+    this.modelName = modelName;
     this.promptBuilder = new PromptBuilder();
     this.laneClassifier = new LaneClassifier();
   }
@@ -58,8 +61,8 @@ export class Brain implements IBrain {
         this.status(`Sending to AI${attemptLabel}...`);
 
         const response = images.length > 0
-          ? await this.llm.chatWithVision(messages, images, { responseFormat: 'json' })
-          : await this.llm.chat(messages, { responseFormat: 'json' });
+          ? await this.llm.chatWithVision(messages, images, { responseFormat: 'json', model: this.modelName })
+          : await this.llm.chat(messages, { responseFormat: 'json', model: this.modelName });
 
         console.log(`[Nova] Brain: response (${response.length} chars)`);
 

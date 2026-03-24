@@ -16,7 +16,7 @@ export async function statusCommand(): Promise<void> {
 
   console.log('--- Nova Architect Status ---');
   console.log('');
-  console.log(`Stack:    provider=${config.apiKeys.provider}, fast=${config.models.fast}, strong=${config.models.strong}`);
+  console.log(`Stack:    provider=${config.apiKeys.provider}, micro=${config.models.micro}, standard=${config.models.standard}, strong=${config.models.strong}`);
   console.log(`Port:     ${config.project.port}`);
   console.log(`Dev cmd:  ${config.project.devCommand || '(not set)'}`);
   console.log('');

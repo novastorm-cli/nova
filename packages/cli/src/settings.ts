@@ -13,8 +13,9 @@ type SettablePath = {
 const SETTABLE_FIELDS: SettablePath[] = [
   { path: 'apiKeys.provider', description: 'LLM provider', type: 'string', options: ['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli'] },
   { path: 'apiKeys.key', description: 'API key (saved to .nova/config.toml)', type: 'string', secret: true },
-  { path: 'models.fast', description: 'Fast model', type: 'string' },
-  { path: 'models.strong', description: 'Strong model', type: 'string' },
+  { path: 'models.micro', description: 'Micro model (cheapest/fastest)', type: 'string' },
+  { path: 'models.standard', description: 'Standard model (balanced)', type: 'string' },
+  { path: 'models.strong', description: 'Strong model (most capable)', type: 'string' },
   { path: 'models.local', description: 'Use local models', type: 'boolean' },
   { path: 'project.devCommand', description: 'Dev command', type: 'string' },
   { path: 'project.port', description: 'Dev server port', type: 'number' },
@@ -77,7 +78,7 @@ export function formatSettings(config: NovaConfig): string {
   lines.push('');
   lines.push(chalk.dim('  Usage: /settings <key> <value>'));
   lines.push(chalk.dim('  Example: /settings apiKeys.provider ollama'));
-  lines.push(chalk.dim('  Example: /settings models.fast claude-sonnet-4-6'));
+  lines.push(chalk.dim('  Example: /settings models.standard claude-sonnet-4-6'));
   lines.push('');
 
   return lines.join('\n');

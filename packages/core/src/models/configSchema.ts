@@ -9,7 +9,8 @@ export const NovaConfigSchema = z.object({
     backends: z.array(z.string()).optional(),
   }),
   models: z.object({
-    fast: z.string(),
+    micro: z.string(),
+    standard: z.string(),
     strong: z.string(),
     local: z.boolean(),
   }),

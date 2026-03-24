@@ -446,12 +446,16 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     transcriptBar.showConfirmation(`Send: "${text.slice(0, 80)}"?`);
   });
 
-  // Confirmation bar Execute/Cancel handlers (handles both send + task confirm)
-  transcriptBar.onConfirmExecute(() => {
+  // Confirmation bar Go/Cancel handlers (handles both send + task confirm)
+  transcriptBar.onConfirmExecute((userInput: string) => {
     if (awaitingSendConfirmation && pendingVoiceCommand) {
       awaitingSendConfirmation = false;
-      const cmd = pendingVoiceCommand;
+      let cmd = pendingVoiceCommand;
       pendingVoiceCommand = '';
+      // Append user's additional description if provided
+      if (userInput) {
+        cmd += `\n\nAdditional user instructions: ${userInput}`;
+      }
       // Dead click confirmation: set element context and auto-execute
       if (deadClickElement) {
         selectedElement = deadClickElement;
@@ -462,7 +466,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     } else if (awaitingConfirmation) {
       awaitingConfirmation = false;
       completedTasks = 0;
-      wsClient.sendRaw({ type: 'confirm' });
+      // Send confirm with optional user refinement
+      if (userInput) {
+        wsClient.sendRaw({ type: 'confirm', data: { userInput } });
+      } else {
+        wsClient.sendRaw({ type: 'confirm' });
+      }
       statusToast.show('Confirmed!', 'success', 2000);
       pill.setState('processing');
     }

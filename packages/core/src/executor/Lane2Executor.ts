@@ -63,6 +63,7 @@ export class Lane2Executor implements ILane2Executor {
     private readonly gitManager: IGitManager,
     private readonly pathGuard?: IPathGuard,
     commitQueue?: CommitQueue,
+    private readonly modelName?: string,
   ) {
     this.diffApplier = new DiffApplier();
     this.commitQueue = commitQueue ?? new CommitQueue(this.gitManager);
@@ -98,6 +99,7 @@ export class Lane2Executor implements ILane2Executor {
         {
           temperature: 0,
           maxTokens: 4096,
+          model: this.modelName,
         },
       );
 

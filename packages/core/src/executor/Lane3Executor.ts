@@ -263,7 +263,7 @@ export class Lane3Executor {
       const skipValidation = this.forceSkipValidation || (fileBlocks.length === 1 && fileBlocks[0].content.length < 3000);
       const tscSkip = this.shouldSkipTsc(fileBlocks);
       const validator = new CodeValidator(this.projectPath);
-      const fixer = new CodeFixer(this.llmClient, this.eventBus);
+      const fixer = new CodeFixer(this.llmClient, this.eventBus, this.modelName);
       let currentBlocks: FileBlock[] = [...fileBlocks];
       let errors: ValidationError[] = [];
 
