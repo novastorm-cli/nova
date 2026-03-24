@@ -447,18 +447,24 @@ export async function startCommand(): Promise<void> {
     console.log(chalk.dim(`  Installing dependencies (${installCmd})...`));
     try {
       const { execSync } = await import('node:child_process');
-      execSync(installCmd, { cwd, stdio: 'inherit' });
+      execSync(installCmd, { cwd, stdio: 'pipe' });
       console.log(chalk.green('  Dependencies installed.'));
     } catch (installErr) {
-      const errMsg = installErr instanceof Error ? installErr.message : String(installErr);
-      console.log(chalk.red(`\n  Failed to install dependencies.\n`));
+      const stderr = (installErr as { stderr?: Buffer })?.stderr?.toString() ?? '';
+      const errMsg = stderr || (installErr instanceof Error ? installErr.message : String(installErr));
+      const errorLines = errMsg.split('\n').filter(l => /error/i.test(l)).slice(0, 5);
+      console.log(chalk.red(`\n  Failed to install dependencies.`));
+      if (errorLines.length) {
+        console.log(chalk.dim(errorLines.map(l => `  ${l.trim()}`).join('\n')));
+      }
+      console.log();
 
       const choices: Array<{ name: string; value: string }> = [];
 
       if (/EJSONPARSE|JSON/.test(errMsg)) {
         console.log(chalk.yellow('  Cause: package.json contains invalid JSON.\n'));
         choices.push(
-          { name: '🔧 Fix package.json automatically (remove syntax errors)', value: 'fix-json' },
+          { name: 'Fix package.json automatically (remove syntax errors)', value: 'fix-json' },
         );
       }
       if (/ENOENT|not found|Cannot find/.test(errMsg)) {
@@ -466,10 +472,10 @@ export async function startCommand(): Promise<void> {
       }
 
       choices.push(
-        { name: '🔄 Retry install', value: 'retry' },
-        { name: '📝 Enter a different install command', value: 'custom' },
-        { name: '⏭️  Skip install and continue', value: 'skip' },
-        { name: '❌ Exit', value: 'exit' },
+        { name: 'Retry install', value: 'retry' },
+        { name: 'Enter a different install command', value: 'custom' },
+        { name: 'Skip install and continue', value: 'skip' },
+        { name: 'Exit', value: 'exit' },
       );
 
       let resolved = false;
@@ -541,27 +547,27 @@ export async function startCommand(): Promise<void> {
     if (/EADDRINUSE|address already in use/i.test(msg)) {
       console.log(chalk.yellow(`\n  Port ${devPort} is already in use.\n`));
       choices.push(
-        { name: `🔪 Kill process on port ${devPort} and retry`, value: 'kill-retry' },
-        { name: '🔢 Use a different port', value: 'change-port' },
+        { name: `Kill process on port ${devPort} and retry`, value: 'kill-retry' },
+        { name: 'Use a different port', value: 'change-port' },
       );
     }
     if (/Cannot find module|MODULE_NOT_FOUND/i.test(msg)) {
       console.log(chalk.yellow('\n  Missing dependencies.\n'));
       choices.push(
-        { name: '📦 Run npm install and retry', value: 'install-retry' },
+        { name: 'Run npm install and retry', value: 'install-retry' },
       );
     }
     if (/EJSONPARSE|JSON/.test(msg)) {
       console.log(chalk.yellow('\n  package.json has invalid JSON.\n'));
       choices.push(
-        { name: '🔧 Fix package.json and retry', value: 'fix-json-retry' },
+        { name: 'Fix package.json and retry', value: 'fix-json-retry' },
       );
     }
 
     choices.push(
-      { name: '📝 Enter a different dev command', value: 'custom-cmd' },
-      { name: '🔄 Retry with same command', value: 'retry' },
-      { name: '❌ Exit', value: 'exit' },
+      { name: 'Enter a different dev command', value: 'custom-cmd' },
+      { name: 'Retry with same command', value: 'retry' },
+      { name: 'Exit', value: 'exit' },
     );
 
     let serverResolved = false;
