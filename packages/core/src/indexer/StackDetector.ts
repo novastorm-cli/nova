@@ -10,23 +10,43 @@ interface PackageJson {
 }
 
 const FRAMEWORK_DEPS: ReadonlyArray<{ dep: string; framework: string }> = [
+  // Specific frameworks first — order matters for first-match semantics
   { dep: 'next', framework: 'next.js' },
   { dep: 'nuxt', framework: 'nuxt' },
   { dep: '@sveltejs/kit', framework: 'sveltekit' },
+  { dep: '@angular/core', framework: 'angular' },
+  { dep: 'gatsby', framework: 'gatsby' },
+  { dep: '@remix-run/node', framework: 'remix' },
+  { dep: 'remix', framework: 'remix' },
   { dep: 'astro', framework: 'astro' },
   { dep: 'vite', framework: 'vite' },
   { dep: 'react-scripts', framework: 'cra' },
+  { dep: 'solid-js', framework: 'solid' },
+  { dep: 'svelte', framework: 'svelte' },
+  { dep: 'vue', framework: 'vue' },
+  { dep: 'react', framework: 'react' },
+  { dep: 'electron', framework: 'electron' },
   { dep: 'express', framework: 'express' },
   { dep: '@nestjs/core', framework: 'nest' },
   { dep: 'fastify', framework: 'fastify' },
   { dep: 'koa', framework: 'koa' },
   { dep: '@hapi/hapi', framework: 'hapi' },
+  { dep: 'socket.io', framework: 'socketio' },
+  { dep: '@trpc/server', framework: 'trpc' },
 ];
 
 const PYTHON_FRAMEWORKS: ReadonlyArray<{ dep: string; framework: string }> = [
   { dep: 'django', framework: 'django' },
   { dep: 'fastapi', framework: 'fastapi' },
   { dep: 'flask', framework: 'flask' },
+  { dep: 'starlette', framework: 'starlette' },
+  { dep: 'streamlit', framework: 'streamlit' },
+  { dep: 'gradio', framework: 'gradio' },
+  { dep: 'tornado', framework: 'tornado' },
+  { dep: 'sanic', framework: 'sanic' },
+  { dep: 'aiohttp', framework: 'aiohttp' },
+  { dep: 'litestar', framework: 'litestar' },
+  { dep: 'uvicorn', framework: 'uvicorn' },
 ];
 
 const DEFAULT_PORTS: Record<string, number> = {
@@ -54,6 +74,63 @@ const DEFAULT_PORTS: Record<string, number> = {
   'php': 8000,
   'spring-boot': 8080,
   'java': 8080,
+  'angular': 4200,
+  'gatsby': 8000,
+  'remix': 3000,
+  'solid': 3000,
+  'svelte': 5173,
+  'vue': 5173,
+  'react': 3000,
+  'electron': 3000,
+  'socketio': 3000,
+  'trpc': 3000,
+  'gin': 8080,
+  'echo': 8080,
+  'fiber': 3000,
+  'gorilla': 8080,
+  'beego': 8080,
+  'go': 8080,
+  'actix': 8080,
+  'axum': 3000,
+  'rocket': 8000,
+  'warp': 3030,
+  'tauri': 1420,
+  'rust': 8080,
+  'phoenix': 4000,
+  'elixir': 4000,
+  'deno': 8000,
+  'starlette': 8000,
+  'streamlit': 8501,
+  'gradio': 7860,
+  'tornado': 8888,
+  'sanic': 8000,
+  'aiohttp': 8080,
+  'litestar': 8000,
+  'uvicorn': 8000,
+  'scala': 9000,
+  'play': 9000,
+  'akka': 8080,
+  'kotlin': 8080,
+  'ktor': 8080,
+  'swift': 8080,
+  'vapor': 8080,
+  'flutter': 3000,
+  'dart': 8080,
+  'zig': 8080,
+  'haskell': 3000,
+  'clojure': 3000,
+  'cpp': 8080,
+  'c': 8080,
+  'nim': 8080,
+  'perl': 3000,
+  'mojolicious': 3000,
+  'r': 3838,
+  'shiny': 3838,
+  'plumber': 8000,
+  'julia': 8000,
+  'genie': 8000,
+  'ocaml': 8080,
+  'erlang': 8080,
 };
 
 export class StackDetector implements IStackDetector {
@@ -61,15 +138,35 @@ export class StackDetector implements IStackDetector {
     const detected: StackInfo[] = [];
 
     // Check all sources in parallel
-    const [pkgResult, hasDotnet, pythonFw, rubyFw, phpFw, javaFw, hasGo, hasRust] = await Promise.all([
+    const [
+      pkgResult, hasDotnet, pythonFw, rubyFw, phpFw, javaFw, goFw, rustFw, elixirFw, hasDeno,
+      scalaFw, kotlinFw, swiftFw, dartFw, zigFw, haskellFw, clojureFw, cppFw, nimFw, perlFw,
+      rFw, juliaFw, ocamlFw, erlangFw,
+    ] = await Promise.all([
       this.detectFromPackageJson(projectPath),
       this.hasDotnet(projectPath),
       this.detectPython(projectPath),
       this.detectRuby(projectPath),
       this.detectPhp(projectPath),
       this.detectJava(projectPath),
-      this.fileExists(join(projectPath, 'go.mod')),
-      this.fileExists(join(projectPath, 'Cargo.toml')),
+      this.detectGo(projectPath),
+      this.detectRust(projectPath),
+      this.detectElixir(projectPath),
+      this.detectDeno(projectPath),
+      this.detectScala(projectPath),
+      this.detectKotlin(projectPath),
+      this.detectSwift(projectPath),
+      this.detectDart(projectPath),
+      this.detectZig(projectPath),
+      this.detectHaskell(projectPath),
+      this.detectClojure(projectPath),
+      this.detectCpp(projectPath),
+      this.detectNim(projectPath),
+      this.detectPerl(projectPath),
+      this.detectR(projectPath),
+      this.detectJulia(projectPath),
+      this.detectOcaml(projectPath),
+      this.detectErlang(projectPath),
     ]);
 
     if (pkgResult) detected.push(pkgResult);
@@ -81,8 +178,24 @@ export class StackDetector implements IStackDetector {
     if (rubyFw) detected.push({ framework: rubyFw, language: 'ruby', typescript: false });
     if (phpFw) detected.push({ framework: phpFw, language: 'php', typescript: false });
     if (javaFw) detected.push({ framework: javaFw, language: 'java', typescript: false });
-    if (hasGo) detected.push({ framework: 'go', language: 'go', typescript: false });
-    if (hasRust) detected.push({ framework: 'rust', language: 'rust', typescript: false });
+    if (goFw) detected.push({ framework: goFw, language: 'go', typescript: false });
+    if (rustFw) detected.push({ framework: rustFw, language: 'rust', typescript: false });
+    if (elixirFw) detected.push({ framework: elixirFw, language: 'elixir', typescript: false });
+    if (hasDeno) detected.push({ framework: 'deno', language: 'typescript', typescript: true });
+    if (scalaFw) detected.push({ framework: scalaFw, language: 'scala', typescript: false });
+    if (kotlinFw) detected.push({ framework: kotlinFw, language: 'kotlin', typescript: false });
+    if (swiftFw) detected.push({ framework: swiftFw, language: 'swift', typescript: false });
+    if (dartFw) detected.push({ framework: dartFw, language: 'dart', typescript: false });
+    if (zigFw) detected.push({ framework: 'zig', language: 'zig', typescript: false });
+    if (haskellFw) detected.push({ framework: 'haskell', language: 'haskell', typescript: false });
+    if (clojureFw) detected.push({ framework: clojureFw, language: 'clojure', typescript: false });
+    if (cppFw) detected.push({ framework: cppFw, language: cppFw === 'c' ? 'c' : 'cpp', typescript: false });
+    if (nimFw) detected.push({ framework: 'nim', language: 'nim', typescript: false });
+    if (perlFw) detected.push({ framework: perlFw, language: 'perl', typescript: false });
+    if (rFw) detected.push({ framework: rFw, language: 'r', typescript: false });
+    if (juliaFw) detected.push({ framework: juliaFw, language: 'julia', typescript: false });
+    if (ocamlFw) detected.push({ framework: 'ocaml', language: 'ocaml', typescript: false });
+    if (erlangFw) detected.push({ framework: 'erlang', language: 'erlang', typescript: false });
 
     if (detected.length === 0) {
       return { framework: 'unknown', language: 'unknown', typescript: false };
@@ -90,11 +203,24 @@ export class StackDetector implements IStackDetector {
 
     // Priority: frontend frameworks > backend frameworks > generic
     const PRIORITY = [
-      'next.js', 'nuxt', 'sveltekit', 'astro', 'vite', 'cra',
-      'dotnet', 'django', 'fastapi', 'flask', 'rails', 'sinatra',
-      'laravel', 'symfony', 'spring-boot',
-      'express', 'nest', 'fastify', 'koa', 'hapi',
-      'node', 'python', 'ruby', 'php', 'java', 'go', 'rust',
+      // Frontend frameworks
+      'next.js', 'nuxt', 'sveltekit', 'angular', 'gatsby', 'remix',
+      'astro', 'vite', 'cra', 'solid', 'svelte', 'vue', 'react',
+      'electron', 'tauri',
+      // Backend frameworks
+      'dotnet', 'django', 'fastapi', 'flask', 'starlette', 'streamlit',
+      'gradio', 'tornado', 'sanic', 'aiohttp', 'litestar', 'uvicorn',
+      'rails', 'sinatra', 'laravel', 'symfony', 'spring-boot',
+      'phoenix', 'gin', 'echo', 'fiber', 'gorilla', 'beego',
+      'actix', 'axum', 'rocket', 'warp',
+      'express', 'nest', 'fastify', 'koa', 'hapi', 'socketio', 'trpc',
+      'deno',
+      'play', 'akka', 'ktor', 'vapor',
+      'flutter', 'mojolicious', 'shiny', 'plumber', 'genie',
+      // Generic language fallbacks
+      'node', 'python', 'ruby', 'php', 'java', 'go', 'rust', 'elixir',
+      'scala', 'kotlin', 'swift', 'dart', 'zig', 'haskell', 'clojure',
+      'cpp', 'c', 'nim', 'perl', 'r', 'julia', 'ocaml', 'erlang',
     ];
 
     detected.sort((a, b) => {
@@ -147,6 +273,78 @@ export class StackDetector implements IStackDetector {
     if (framework === 'laravel') return 'php artisan serve';
     if (framework === 'symfony') return 'symfony server:start';
     if (framework === 'spring-boot') return './mvnw spring-boot:run';
+
+    // Go frameworks
+    if (framework === 'go' || framework === 'gin' || framework === 'echo' || framework === 'fiber' || framework === 'gorilla' || framework === 'beego') {
+      return 'go run .';
+    }
+
+    // Rust frameworks
+    if (framework === 'tauri') return 'cargo tauri dev';
+    if (framework === 'rust' || framework === 'actix' || framework === 'axum' || framework === 'rocket' || framework === 'warp') {
+      return 'cargo run';
+    }
+
+    // Elixir
+    if (framework === 'phoenix') return 'mix phx.server';
+    if (framework === 'elixir') return 'mix run';
+
+    // Deno
+    if (framework === 'deno') return 'deno task dev';
+
+    // Python frameworks with specific commands
+    if (framework === 'streamlit') return 'streamlit run app.py';
+    if (framework === 'gradio') return 'python app.py';
+
+    // Generic python fallback
+    if (framework === 'python' || framework === 'starlette' || framework === 'tornado' || framework === 'sanic' || framework === 'aiohttp' || framework === 'litestar' || framework === 'uvicorn') {
+      return 'python main.py';
+    }
+
+    // Scala
+    if (framework === 'scala' || framework === 'play' || framework === 'akka') return 'sbt run';
+
+    // Kotlin (non-Spring)
+    if (framework === 'ktor' || framework === 'kotlin') return './gradlew run';
+
+    // Swift
+    if (framework === 'swift' || framework === 'vapor') return 'swift run';
+
+    // Dart / Flutter
+    if (framework === 'flutter') return 'flutter run -d web-server --web-port 3000';
+    if (framework === 'dart') return 'dart run';
+
+    // Zig
+    if (framework === 'zig') return 'zig build run';
+
+    // Haskell
+    if (framework === 'haskell') return 'stack run';
+
+    // Clojure
+    if (framework === 'clojure') return 'clj -M:dev';
+
+    // C/C++
+    if (framework === 'cpp' || framework === 'c') return 'make && ./build/main';
+
+    // Nim
+    if (framework === 'nim') return 'nimble run';
+
+    // Perl
+    if (framework === 'perl' || framework === 'mojolicious') return 'perl app.pl daemon';
+
+    // R
+    if (framework === 'shiny') return 'Rscript -e "shiny::runApp()"';
+    if (framework === 'plumber') return 'Rscript -e "plumber::plumb()$run()"';
+    if (framework === 'r') return 'Rscript -e "shiny::runApp()"';
+
+    // Julia
+    if (framework === 'julia' || framework === 'genie') return 'julia --project=. -e "using Genie; up()"';
+
+    // OCaml
+    if (framework === 'ocaml') return 'dune exec';
+
+    // Erlang
+    if (framework === 'erlang') return 'rebar3 shell';
 
     return '';
   }
@@ -241,18 +439,204 @@ export class StackDetector implements IStackDetector {
   }
 
   private async detectPython(projectPath: string): Promise<string | null> {
-    const requirementsContent = await this.readFileSafe(join(projectPath, 'requirements.txt'));
-    const pyprojectContent = await this.readFileSafe(join(projectPath, 'pyproject.toml'));
+    const files = ['requirements.txt', 'pyproject.toml', 'setup.py', 'setup.cfg', 'Pipfile'];
+    const contents: string[] = [];
 
-    const content = `${requirementsContent}\n${pyprojectContent}`.toLowerCase();
-    if (!requirementsContent && !pyprojectContent) return null;
+    for (const f of files) {
+      const c = await this.readFileSafe(join(projectPath, f));
+      if (c) contents.push(c);
+    }
+
+    // Also check uv.lock as indicator
+    if (await this.fileExists(join(projectPath, 'uv.lock'))) {
+      contents.push('uv'); // just to trigger detection
+    }
+
+    if (contents.length === 0) return null;
+
+    const combined = contents.join('\n').toLowerCase();
 
     for (const { dep, framework } of PYTHON_FRAMEWORKS) {
-      if (content.includes(dep)) return framework;
+      if (combined.includes(dep)) return framework;
     }
 
     // Has Python config files but no known framework
     return 'python';
+  }
+
+  private async detectGo(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'go.mod'));
+    if (!content) return null;
+
+    if (content.includes('github.com/gin-gonic/gin')) return 'gin';
+    if (content.includes('github.com/labstack/echo')) return 'echo';
+    if (content.includes('github.com/gofiber/fiber')) return 'fiber';
+    if (content.includes('github.com/gorilla/mux')) return 'gorilla';
+    if (content.includes('github.com/beego/beego')) return 'beego';
+
+    return 'go';
+  }
+
+  private async detectRust(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'Cargo.toml'));
+    if (!content) return null;
+
+    if (content.includes('actix-web')) return 'actix';
+    if (content.includes('axum')) return 'axum';
+    if (content.includes('rocket')) return 'rocket';
+    if (content.includes('warp')) return 'warp';
+    if (content.includes('tauri')) return 'tauri';
+
+    return 'rust';
+  }
+
+  private async detectElixir(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'mix.exs'));
+    if (!content) return null;
+
+    if (content.includes(':phoenix')) return 'phoenix';
+    return 'elixir';
+  }
+
+  private async detectDeno(projectPath: string): Promise<boolean> {
+    if (await this.fileExists(join(projectPath, 'deno.json'))) return true;
+    if (await this.fileExists(join(projectPath, 'deno.jsonc'))) return true;
+    return false;
+  }
+
+  private async detectScala(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'build.sbt'));
+    if (!content) return null;
+
+    if (/addSbtPlugin.*play/.test(content) || content.includes('com.typesafe.play')) return 'play';
+    if (content.includes('akka-http')) return 'akka';
+    return 'scala';
+  }
+
+  private async detectKotlin(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'build.gradle.kts'));
+    if (!content) return null;
+
+    // Skip if Spring Boot is detected (handled by detectJava)
+    if (content.includes('spring-boot') || content.includes('org.springframework.boot')) return null;
+
+    // Must have Kotlin indicators
+    if (!content.includes('kotlin')) return null;
+
+    if (content.includes('io.ktor')) return 'ktor';
+    return 'kotlin';
+  }
+
+  private async detectSwift(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'Package.swift'));
+    if (!content) return null;
+
+    if (content.includes('vapor')) return 'vapor';
+    return 'swift';
+  }
+
+  private async detectDart(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'pubspec.yaml'));
+    if (!content) return null;
+
+    if (content.includes('flutter:')) return 'flutter';
+    return 'dart';
+  }
+
+  private async detectZig(projectPath: string): Promise<boolean> {
+    return this.fileExists(join(projectPath, 'build.zig'));
+  }
+
+  private async detectHaskell(projectPath: string): Promise<boolean> {
+    if (await this.fileExists(join(projectPath, 'stack.yaml'))) return true;
+    if (await this.fileExists(join(projectPath, 'cabal.project'))) return true;
+
+    try {
+      const entries = await readdir(projectPath);
+      return entries.some((e) => e.endsWith('.cabal'));
+    } catch {
+      return false;
+    }
+  }
+
+  private async detectClojure(projectPath: string): Promise<string | null> {
+    const clj = await this.readFileSafe(join(projectPath, 'project.clj'));
+    if (clj) {
+      if (clj.includes('luminus') || clj.includes('ring')) return 'clojure';
+      return 'clojure';
+    }
+
+    if (await this.fileExists(join(projectPath, 'deps.edn'))) return 'clojure';
+    return null;
+  }
+
+  private async detectCpp(projectPath: string): Promise<string | null> {
+    if (await this.fileExists(join(projectPath, 'CMakeLists.txt'))) return 'cpp';
+    if (await this.fileExists(join(projectPath, 'meson.build'))) return 'cpp';
+
+    const makefile = await this.readFileSafe(join(projectPath, 'Makefile'));
+    if (makefile) {
+      // Only detect as C/C++ if Makefile contains compilation patterns
+      if (/\b(gcc|g\+\+|clang|clang\+\+|cc|c\+\+)\b/.test(makefile)) {
+        if (/\bg\+\+\b/.test(makefile) || /\bclang\+\+\b/.test(makefile) || /\bc\+\+\b/.test(makefile)) {
+          return 'cpp';
+        }
+        return 'c';
+      }
+    }
+
+    return null;
+  }
+
+  private async detectNim(projectPath: string): Promise<boolean> {
+    try {
+      const entries = await readdir(projectPath);
+      return entries.some((e) => e.endsWith('.nimble'));
+    } catch {
+      return false;
+    }
+  }
+
+  private async detectPerl(projectPath: string): Promise<string | null> {
+    if (await this.fileExists(join(projectPath, 'cpanfile'))) {
+      const content = await this.readFileSafe(join(projectPath, 'cpanfile'));
+      if (content && content.includes('Mojolicious')) return 'mojolicious';
+      return 'perl';
+    }
+
+    if (await this.fileExists(join(projectPath, 'Makefile.PL'))) return 'perl';
+    return null;
+  }
+
+  private async detectR(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'DESCRIPTION'));
+    if (!content) return null;
+
+    // Must look like an R package DESCRIPTION
+    if (!/Type:\s*(Package|Shiny)/i.test(content)) return null;
+
+    if (/shiny/i.test(content)) return 'shiny';
+    if (/plumber/i.test(content)) return 'plumber';
+    return 'r';
+  }
+
+  private async detectJulia(projectPath: string): Promise<string | null> {
+    const content = await this.readFileSafe(join(projectPath, 'Project.toml'));
+    if (!content) return null;
+
+    // Must have [deps] section to distinguish from other TOML files
+    if (!content.includes('[deps]')) return null;
+
+    if (content.includes('Genie')) return 'genie';
+    return 'julia';
+  }
+
+  private async detectOcaml(projectPath: string): Promise<boolean> {
+    return this.fileExists(join(projectPath, 'dune-project'));
+  }
+
+  private async detectErlang(projectPath: string): Promise<boolean> {
+    return this.fileExists(join(projectPath, 'rebar.config'));
   }
 
   private async detectPackageManager(projectPath: string): Promise<string> {
@@ -424,6 +808,10 @@ export class StackDetector implements IStackDetector {
       if (gradleContent) {
         if (gradleContent.includes('spring-boot') || gradleContent.includes('org.springframework.boot')) {
           return 'spring-boot';
+        }
+        // Skip pure Kotlin projects (handled by detectKotlin)
+        if (name === 'build.gradle.kts' && gradleContent.includes('kotlin') && !gradleContent.includes('java')) {
+          return null;
         }
         return 'java';
       }
