@@ -702,11 +702,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
   // Handle events from server
   wsClient.onEvent((event: NovaEvent) => {
+    const ts = (event as NovaEvent & { _ts?: number })._ts;
     switch (event.type) {
       case 'task_completed':
         completedTasks++;
         taskPanel.setTaskCompleted(event.data.taskId, event.data.commitHash);
-        activityLog.addEntry(`Done: ${event.data.taskId}`, 'success');
+        activityLog.addEntry(`Done: ${event.data.taskId}`, 'success', false, ts);
         // Only finish when ALL tasks done
         if (completedTasks >= totalTasks && totalTasks > 0) {
           if (executingToastId) {
@@ -724,7 +725,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'task_failed':
         completedTasks++;
         taskPanel.setTaskFailed(event.data.taskId, event.data.error);
-        activityLog.addEntry(`Failed: ${event.data.taskId}${event.data.error ? ' - ' + event.data.error : ''}`, 'error');
+        activityLog.addEntry(`Failed: ${event.data.taskId}${event.data.error ? ' - ' + event.data.error : ''}`, 'error', false, ts);
         // Count failed as completed for tracking
         if (completedTasks >= totalTasks && totalTasks > 0) {
           if (executingToastId) {
@@ -740,7 +741,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'task_started':
         pill.setState('processing');
         taskPanel.setTaskStarted(event.data.taskId);
-        activityLog.addEntry(`Starting: ${event.data.taskId}`, 'info');
+        activityLog.addEntry(`Starting: ${event.data.taskId}`, 'info', false, ts);
         break;
       case 'llm_chunk':
         // Show brief phase status instead of raw code in task panel
@@ -754,7 +755,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           if (lastReasoningEntry) {
             activityLog.updateLastEntry(reasoningBuffer.slice(-200));
           } else {
-            lastReasoningEntry = activityLog.addEntry(event.data.text, 'thinking');
+            lastReasoningEntry = activityLog.addEntry(event.data.text, 'thinking', false, ts);
           }
         } else {
           if (reasoningBuffer) {
@@ -763,7 +764,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           }
           if (event.data.text.includes('=== FILE:')) {
             const match = event.data.text.match(/=== FILE: (.+?) ===/);
-            if (match) activityLog.addEntry(`Writing: ${match[1]}`, 'code');
+            if (match) activityLog.addEntry(`Writing: ${match[1]}`, 'code', false, ts);
           }
         }
         break;
@@ -775,7 +776,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           taskPanel.addTask({ id: td.id, description: td.description, lane: td.lane ?? 3 });
           totalTasks = Math.max(totalTasks, 1);
         }
-        activityLog.addEntry(`Task: ${td.description} (Lane ${td.lane})`, 'info');
+        activityLog.addEntry(`Task: ${td.description} (Lane ${td.lane})`, 'info', false, ts);
         break;
       }
       case 'secrets_required': {
@@ -788,19 +789,19 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'analysis_complete': {
         const { fileCount, methodCount } = event.data as { fileCount: number; methodCount: number };
         statusToast.show(`Project analyzed: ${fileCount} files, ${methodCount} methods`, 'success', 4000);
-        activityLog.addEntry(`Project analyzed: ${fileCount} files, ${methodCount} methods`, 'success');
+        activityLog.addEntry(`Project analyzed: ${fileCount} files, ${methodCount} methods`, 'success', false, ts);
         break;
       }
       case 'status': {
         const msg = event.data.message;
-        activityLog.addEntry(msg, 'info');
+        activityLog.addEntry(msg, 'info', false, ts);
         // Show confirmation toast with buttons for pending tasks
         if (msg.startsWith('question:')) {
           // AI is asking a clarifying question — show it with input for answer
           if (executingToastId) { statusToast.dismiss(executingToastId); executingToastId = null; }
           pill.setState('idle');
           const question = msg.slice('question:'.length).trim();
-          activityLog.addEntry(`🤔 AI asks: ${question}`, 'thinking');
+          activityLog.addEntry(`AI asks: ${question}`, 'thinking', false, ts);
 
           // Show question in transcript bar and await the user's answer
           awaitingSendConfirmation = true;

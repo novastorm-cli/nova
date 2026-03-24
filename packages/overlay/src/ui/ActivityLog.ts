@@ -75,7 +75,7 @@ export class ActivityLog {
     this.restoreState();
   }
 
-  addEntry(message: string, type: EntryType, skipSave = false): HTMLElement | null {
+  addEntry(message: string, type: EntryType, skipSave = false, serverTimestamp?: number): HTMLElement | null {
     if (!this.logEl || !this.panelEl) return null;
 
     // Show panel on first entry
@@ -89,7 +89,7 @@ export class ActivityLog {
       this.uncollapse();
     }
 
-    const now = new Date();
+    const now = serverTimestamp ? new Date(serverTimestamp) : new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
     const entry = document.createElement('div');

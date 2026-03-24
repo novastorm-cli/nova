@@ -198,7 +198,7 @@ Error: ${errorOutput.slice(0, 300)}`;
     this.wsServer.sendEvent({ type: 'task_created', data: task });
 
     const result = await executor.execute(task, this.projectMap);
-    this.autofixTaskIds.delete(task.id);
+    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
 
     if (result.success) {
       console.log(chalk.green('[Nova] Image errors fixed automatically'));
@@ -263,7 +263,7 @@ Error: ${errorOutput.slice(0, 300)}`;
     this.wsServer.sendEvent({ type: 'task_created', data: task });
 
     const result = await executor.execute(task, this.projectMap);
-    this.autofixTaskIds.delete(task.id);
+    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
 
     if (result.success) {
       console.log(chalk.green('[Nova] Compilation error fixed automatically (Lane 2)'));
@@ -313,7 +313,7 @@ Error: ${errorOutput.slice(0, 300)}`;
     this.wsServer.sendEvent({ type: 'task_created', data: task });
 
     const result = await executor.execute(task, this.projectMap);
-    this.autofixTaskIds.delete(task.id);
+    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
 
     if (result.success) {
       console.log(chalk.green('[Nova] Compilation error fixed automatically'));

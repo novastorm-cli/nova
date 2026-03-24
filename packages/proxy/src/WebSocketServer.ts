@@ -114,7 +114,7 @@ export class WebSocketServer implements IWebSocketServer {
   sendEvent(event: NovaEvent): void {
     if (!this.wss) return;
 
-    const payload = JSON.stringify(event);
+    const payload = JSON.stringify({ ...event, _ts: Date.now() });
     for (const client of this.wss.clients) {
       if (client.readyState === 1 /* WebSocket.OPEN */) {
         client.send(payload);
