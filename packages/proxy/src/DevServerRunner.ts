@@ -3,7 +3,7 @@ import http from 'node:http';
 import type { IDevServerRunner } from '@novastorm-ai/core';
 
 const POLL_INTERVAL_MS = 500;
-const MAX_WAIT_MS = 30_000;
+const MAX_WAIT_MS = 120_000;
 
 // Patterns that indicate the dev server failed to start
 const ERROR_PATTERNS = [

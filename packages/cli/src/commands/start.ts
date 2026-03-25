@@ -595,10 +595,17 @@ export async function startCommand(): Promise<void> {
 
   // ── 5. Start dev server ─────────────────────────────────────────────
   spinner.start(`Starting dev server (${chalk.dim(devCommand)})...`);
+  const devStartTime = Date.now();
+  const spinnerTimer = setInterval(() => {
+    const elapsed = Math.round((Date.now() - devStartTime) / 1000);
+    spinner.text = `Starting dev server (${chalk.dim(devCommand)})... ${chalk.dim(`${elapsed}s`)}`;
+  }, 3000);
 
   try {
     await devServer.spawn(devCommand, cwd, devPort);
+    clearInterval(spinnerTimer);
   } catch (err) {
+    clearInterval(spinnerTimer);
     spinner.fail('Dev server failed to start.');
     const msg = err instanceof Error ? err.message : String(err);
     console.log(chalk.red(`\n${msg}`));
