@@ -182,6 +182,12 @@ export class ProxyServer implements IProxyServer {
       this.proxy!.web(req, res);
     });
 
+    // Proxy WebSocket upgrades (HMR, dev server WS) — skip Nova's own /nova-ws
+    this.server.on('upgrade', (req, socket, head) => {
+      if (req.url === '/nova-ws') return; // Let Nova's WS server handle this
+      this.proxy!.ws(req, socket, head);
+    });
+
     await new Promise<void>((resolve, reject) => {
       this.server!.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
