@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import httpProxy from 'http-proxy';
 import type { IProxyServer } from '@novastorm-ai/core';
 
-const SCRIPT_TAG = '<script src="/nova-overlay.js"></script>';
+// Use suppressHydrationWarning-safe injection: load overlay AFTER hydration
+const SCRIPT_TAG = '<script>window.addEventListener("load",function(){var s=document.createElement("script");s.src="/nova-overlay.js";document.body.appendChild(s)})</script>';
 
 export class ProxyServer implements IProxyServer {
   private server: http.Server | null = null;
