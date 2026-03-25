@@ -19,6 +19,7 @@ import { StatusToast } from './ui/StatusToast.js';
 import { TranscriptBar } from './ui/TranscriptBar.js';
 import { TaskPanel } from './ui/TaskPanel.js';
 import { ActivityLog } from './ui/ActivityLog.js';
+import { DiffModal } from './ui/DiffModal.js';
 import { ElementInspector } from './ui/ElementInspector.js';
 import { MultiElementSelector } from './ui/MultiElementSelector.js';
 import { SecretConsole } from './ui/SecretConsole.js';
@@ -65,6 +66,7 @@ function boot(): void {
   const transcriptBar = new TranscriptBar();
   const taskPanel = new TaskPanel();
   const activityLog = new ActivityLog();
+  const diffModal = new DiffModal();
   const elementInspector = new ElementInspector();
   const multiSelector = new MultiElementSelector();
   const secretConsole = new SecretConsole();
@@ -142,7 +144,13 @@ function boot(): void {
   transcriptBar.mount(novaRoot);
   taskPanel.mount(novaRoot);
   activityLog.mount(novaRoot);
+  diffModal.mount(novaRoot);
   elementInspector.mount(novaRoot);
+
+  // Wire diff modal to activity log
+  activityLog.onDiffClick((filePath, diff) => {
+    diffModal.show(filePath, diff);
+  });
   multiSelector.mount(novaRoot);
   secretConsole.mount(novaRoot);
 
@@ -302,6 +310,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     { attr: 'data-nova-transcript', remount: () => { transcriptBar.unmount(); transcriptBar.mount(novaRoot!); } },
     { attr: 'data-nova-task-panel', remount: () => { taskPanel.unmount(); taskPanel.mount(novaRoot!); } },
     { attr: 'data-nova-activity-log', remount: () => { activityLog.unmount(); activityLog.mount(novaRoot!); } },
+    { attr: 'data-nova-diff-modal', remount: () => { diffModal.unmount(); diffModal.mount(novaRoot!); } },
     { attr: 'data-nova-inspector', remount: () => { elementInspector.unmount(); elementInspector.mount(novaRoot!); } },
     { attr: 'data-nova-multi-selector', remount: () => { multiSelector.unmount(); multiSelector.mount(novaRoot!); } },
     { attr: 'data-nova-secret-console', remount: () => { secretConsole.unmount(); secretConsole.mount(novaRoot!); } },
@@ -784,7 +793,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             const content = blockMatch[2].trim();
             const isDiff = codeBuffer.slice(blockMatch.index, blockMatch.index + 8).includes('DIFF');
             const label = isDiff ? `Modified: ${filePath}` : `Created: ${filePath}`;
-            activityLog.addCollapsibleEntry(label, content, 'code', ts);
+            activityLog.addDiffEntry(filePath, content, 'code', ts);
           }
           // Keep only unmatched tail in buffer
           const lastEnd = codeBuffer.lastIndexOf('=== END');

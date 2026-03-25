@@ -259,7 +259,29 @@ export class Lane3Executor {
         this.eventBus.emit({ type: 'secrets_required', data: { envVars: missingVars, taskId: task.id } });
       }
 
-      // TESTER/DIRECTOR loop (skip for single-file small changes to save time)
+      // TESTER/DIRECTOR loop
+      // Quick syntax check: verify brackets are balanced in generated files
+      for (const fb of fileBlocks) {
+        if (fb.path.match(/\.[tj]sx?$/) && !this.hasBalancedBrackets(fb.content)) {
+          console.log(`[Nova] Syntax check failed for ${fb.path} — unbalanced brackets, marking for retry`);
+          // Re-ask LLM for the full file
+          try {
+            const response = await this.llmClient.chat([
+              { role: 'user', content: `The file ${fb.path} has broken syntax (unbalanced brackets). Output the COMPLETE corrected file content. No diff, no explanation.\n\n=== FILE: ${fb.path} ===\n${fb.content}\n=== END FILE ===` },
+            ], { temperature: 0, maxTokens: 4096, model: this.modelName });
+            const fileMatch = response.match(/=== FILE: .+? ===\n([\s\S]*?)=== END FILE ===/);
+            if (fileMatch) {
+              fb.content = fileMatch[1].trimEnd();
+              const absPath = join(this.projectPath, fb.path);
+              await writeFile(absPath, fb.content, 'utf-8');
+              console.log(`[Nova] Syntax fix applied for ${fb.path}`);
+            }
+          } catch {
+            console.log(`[Nova] Syntax fix failed for ${fb.path}`);
+          }
+        }
+      }
+
       const skipValidation = this.forceSkipValidation || (fileBlocks.length === 1 && fileBlocks[0].content.length < 3000);
       const tscSkip = this.shouldSkipTsc(fileBlocks);
       const validator = new CodeValidator(this.projectPath);

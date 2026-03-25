@@ -5,6 +5,7 @@ export { StatusToast } from './StatusToast.js';
 export { TranscriptBar } from './TranscriptBar.js';
 export { TaskPanel } from './TaskPanel.js';
 export { ActivityLog } from './ActivityLog.js';
+export { DiffModal } from './DiffModal.js';
 export { ElementInspector } from './ElementInspector.js';
 export { MultiElementSelector } from './MultiElementSelector.js';
 export { SecretConsole } from './SecretConsole.js';

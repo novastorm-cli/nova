@@ -22,6 +22,7 @@ export class ActivityLog {
   private entryCount = 0;
   private collapsed = false;
   private storedEntries: StoredEntry[] = [];
+  private diffClickHandler: ((filePath: string, diff: string) => void) | null = null;
 
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
@@ -172,6 +173,58 @@ export class ActivityLog {
     contentWrap.appendChild(summaryEl);
     contentWrap.appendChild(detailsEl);
     entry.appendChild(contentWrap);
+    this.logEl.appendChild(entry);
+
+    this.lastEntry = entry;
+
+    while (this.logEl.children.length > this.maxEntries) {
+      this.logEl.removeChild(this.logEl.children[0]);
+    }
+    this.logEl.scrollTop = this.logEl.scrollHeight;
+    return entry;
+  }
+
+  /** Register a handler for diff entry clicks. */
+  onDiffClick(handler: (filePath: string, diff: string) => void): void {
+    this.diffClickHandler = handler;
+  }
+
+  /** Add a clickable entry that opens a diff modal when clicked. */
+  addDiffEntry(filePath: string, diffContent: string, type: EntryType, serverTimestamp?: number): HTMLElement | null {
+    if (!this.logEl || !this.panelEl) return null;
+
+    if (this.entryCount === 0) {
+      this.panelEl.classList.remove('hidden');
+    }
+    this.entryCount++;
+    if (this.collapsed) this.uncollapse();
+
+    const now = serverTimestamp ? new Date(serverTimestamp) : new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+    const entry = document.createElement('div');
+    entry.className = `entry entry-${type}`;
+
+    const timestamp = document.createElement('span');
+    timestamp.className = 'timestamp';
+    timestamp.textContent = timeStr;
+
+    const prefix = this.getPrefix(type);
+    const isDiff = diffContent.includes('-') || diffContent.includes('+');
+    const label = isDiff ? `Modified: ${filePath}` : `Created: ${filePath}`;
+
+    const msg = document.createElement('span');
+    msg.className = 'message diff-link';
+    msg.textContent = prefix ? `${prefix} ${label}` : label;
+    msg.title = 'Click to view diff';
+    msg.addEventListener('click', () => {
+      if (this.diffClickHandler) {
+        this.diffClickHandler(filePath, diffContent);
+      }
+    });
+
+    entry.appendChild(timestamp);
+    entry.appendChild(msg);
     this.logEl.appendChild(entry);
 
     this.lastEntry = entry;
@@ -380,6 +433,16 @@ export class ActivityLog {
       .entry-success .message { color: #34d399; }
       .entry-error .message { color: #f87171; }
       .entry-code .message { color: #9ca3af; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+
+      .diff-link {
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 2px;
+      }
+      .diff-link:hover {
+        color: #fff;
+      }
 
       .collapsible-wrap {
         display: flex;
