@@ -468,22 +468,27 @@ export class TranscriptBar implements ITranscriptBar {
       .transcript-bar {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         background: #1a1a1aee;
-        border-radius: 12px;
-        padding: 8px 16px;
-        min-width: 200px;
-        max-width: 600px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-        transition: ${TRANSITION}, opacity 0.5s ease;
+        border: 1px solid #333;
+        border-radius: 14px;
+        padding: 10px 20px;
+        min-width: 300px;
+        width: 700px;
+        max-width: 90vw;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        transition: ${TRANSITION}, opacity 0.5s ease, border-color 0.3s ease;
         opacity: 1;
         pointer-events: auto;
       }
       .transcript-bar.idle {
-        opacity: 0.3;
+        opacity: 0.6;
+        border-color: #222;
       }
+      .transcript-bar.idle:hover,
       .transcript-bar.idle:focus-within {
         opacity: 1;
+        border-color: #444;
       }
       .transcript-bar.flash-green {
         background: #1a2a1aee;
@@ -522,7 +527,7 @@ export class TranscriptBar implements ITranscriptBar {
       }
       .transcript-input {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
+        font-size: 15px;
         line-height: 1.4;
         flex: 1;
         min-width: 0;
@@ -530,11 +535,11 @@ export class TranscriptBar implements ITranscriptBar {
         border: none;
         outline: none;
         color: #ffffff;
-        padding: 4px 0;
+        padding: 6px 0;
         pointer-events: auto;
       }
       .transcript-input::placeholder {
-        color: #666;
+        color: #888;
       }
       .transcript-input:focus {
         color: #ffffff;
@@ -563,15 +568,17 @@ export class TranscriptBar implements ITranscriptBar {
       .confirm-bar {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
         background: #1a1a1aee;
-        border-radius: 12px;
-        padding: 12px 16px;
+        border: 1px solid #333;
+        border-radius: 14px;
+        padding: 14px 20px;
         margin-bottom: 8px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
         pointer-events: auto;
         animation: slideUp 0.2s ease;
-        min-width: 320px;
+        width: 700px;
+        max-width: 90vw;
       }
       .confirm-btn-row {
         display: flex;
