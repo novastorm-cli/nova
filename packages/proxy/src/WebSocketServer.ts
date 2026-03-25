@@ -111,10 +111,17 @@ export class WebSocketServer implements IWebSocketServer {
     this.secretsSubmitHandlers.push(handler);
   }
 
+  private lastTs = 0;
+
   sendEvent(event: NovaEvent): void {
     if (!this.wss) return;
 
-    const payload = JSON.stringify({ ...event, _ts: Date.now() });
+    // Monotonic timestamp: ensure each event gets a unique _ts even in same tick
+    let ts = Date.now();
+    if (ts <= this.lastTs) ts = this.lastTs + 1;
+    this.lastTs = ts;
+
+    const payload = JSON.stringify({ ...event, _ts: ts });
     for (const client of this.wss.clients) {
       if (client.readyState === 1 /* WebSocket.OPEN */) {
         client.send(payload);
