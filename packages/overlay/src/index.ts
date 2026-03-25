@@ -292,7 +292,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       // Piggyback on existing confirmation flow via pendingVoiceCommand
       pendingVoiceCommand = instruction;
       awaitingSendConfirmation = true;
-      transcriptBar.showConfirmation('Кнопка не работает. Хотите добавить функционал?');
+      transcriptBar.showConfirmation('Кнопка не работает. Хотите добавить функционал?', { showInput: true });
     }, DEAD_CLICK_DELAY_MS);
   }, true);
 

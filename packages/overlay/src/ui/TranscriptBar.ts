@@ -268,8 +268,8 @@ export class TranscriptBar implements ITranscriptBar {
     this.commandSubmitHandlers.push(handler);
   }
 
-  /** Show confirmation bar above input with message + input field + Go/Cancel.
-   *  When `showInput` is true with a custom placeholder, uses that placeholder. */
+  /** Show confirmation bar above input with message + optional input field + Go/Cancel.
+   *  showInput defaults to false — only shown for dead clicks and questions. */
   showConfirmation(message: string, options?: { showInput?: boolean; placeholder?: string }): void {
     if (!this.confirmBar) return;
     this.confirmBar.innerHTML = '';
@@ -280,37 +280,41 @@ export class TranscriptBar implements ITranscriptBar {
     text.title = message;
     this.confirmBar.appendChild(text);
 
-    // Input field for user to describe what to add or refine
-    const answerInput = document.createElement('input');
-    this.answerInputEl = answerInput;
-    answerInput.className = 'confirm-answer-input';
-    answerInput.type = 'text';
-    answerInput.placeholder = options?.placeholder ?? 'Describe what to add...';
-    answerInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        const userInput = answerInput.value.trim();
-        this.hideConfirmation();
-        for (const h of this.confirmExecuteHandlers) h(userInput);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        this.hideConfirmation();
-        for (const h of this.confirmCancelHandlers) h();
-      }
-    });
-    this.confirmBar.appendChild(answerInput);
+    const hasInput = options?.showInput === true;
+    let answerInput: HTMLInputElement | null = null;
+
+    if (hasInput) {
+      answerInput = document.createElement('input');
+      this.answerInputEl = answerInput;
+      answerInput.className = 'confirm-answer-input';
+      answerInput.type = 'text';
+      answerInput.placeholder = options?.placeholder ?? 'Describe what to add...';
+      answerInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          const userInput = answerInput?.value.trim() ?? '';
+          this.hideConfirmation();
+          for (const h of this.confirmExecuteHandlers) h(userInput);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          this.hideConfirmation();
+          for (const h of this.confirmCancelHandlers) h();
+        }
+      });
+      this.confirmBar.appendChild(answerInput);
+    }
 
     const btnRow = document.createElement('div');
     btnRow.className = 'confirm-btn-row';
 
     const execBtn = document.createElement('button');
     execBtn.className = 'confirm-exec-btn';
-    execBtn.textContent = 'Go';
+    execBtn.textContent = hasInput ? 'Go' : 'Send';
     execBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const userInput = answerInput.value.trim();
+      const userInput = answerInput?.value.trim() ?? '';
       this.hideConfirmation();
       for (const h of this.confirmExecuteHandlers) h(userInput);
     });
@@ -329,8 +333,9 @@ export class TranscriptBar implements ITranscriptBar {
     this.confirmBar.appendChild(btnRow);
     this.confirmBar.classList.remove('hidden');
 
-    // Auto-focus the input field
-    requestAnimationFrame(() => answerInput.focus());
+    if (hasInput && answerInput) {
+      requestAnimationFrame(() => answerInput!.focus());
+    }
   }
 
   /** Hide confirmation bar */
@@ -352,7 +357,7 @@ export class TranscriptBar implements ITranscriptBar {
   /** Show a question with an input field and return the user's answer (or null if cancelled). */
   askQuestion(question: string): Promise<string | null> {
     return new Promise((resolve) => {
-      this.showConfirmation(question, { placeholder: 'Type your answer...' });
+      this.showConfirmation(question, { showInput: true, placeholder: 'Type your answer...' });
 
       const origExecHandlers = [...this.confirmExecuteHandlers];
       const origCancelHandlers = [...this.confirmCancelHandlers];
