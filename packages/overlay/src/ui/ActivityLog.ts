@@ -131,11 +131,63 @@ export class ActivityLog {
     return entry;
   }
 
+  /** Add an entry with a summary line and collapsible details (click to expand). */
+  addCollapsibleEntry(summary: string, details: string, type: EntryType, serverTimestamp?: number): HTMLElement | null {
+    if (!this.logEl || !this.panelEl) return null;
+
+    if (this.entryCount === 0) {
+      this.panelEl.classList.remove('hidden');
+    }
+    this.entryCount++;
+    if (this.collapsed) this.uncollapse();
+
+    const now = serverTimestamp ? new Date(serverTimestamp) : new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+    const entry = document.createElement('div');
+    entry.className = `entry entry-${type} collapsible`;
+
+    const timestamp = document.createElement('span');
+    timestamp.className = 'timestamp';
+    timestamp.textContent = timeStr;
+
+    const prefix = this.getPrefix(type);
+    const summaryEl = document.createElement('span');
+    summaryEl.className = 'message collapsible-summary';
+    summaryEl.textContent = prefix ? `${prefix} ${summary}` : summary;
+    summaryEl.title = 'Click to expand';
+
+    const detailsEl = document.createElement('pre');
+    detailsEl.className = 'collapsible-details hidden';
+    detailsEl.textContent = details;
+
+    summaryEl.addEventListener('click', () => {
+      detailsEl.classList.toggle('hidden');
+      if (this.logEl) this.logEl.scrollTop = this.logEl.scrollHeight;
+    });
+
+    entry.appendChild(timestamp);
+    const contentWrap = document.createElement('div');
+    contentWrap.className = 'collapsible-wrap';
+    contentWrap.appendChild(summaryEl);
+    contentWrap.appendChild(detailsEl);
+    entry.appendChild(contentWrap);
+    this.logEl.appendChild(entry);
+
+    this.lastEntry = entry;
+
+    while (this.logEl.children.length > this.maxEntries) {
+      this.logEl.removeChild(this.logEl.children[0]);
+    }
+    this.logEl.scrollTop = this.logEl.scrollHeight;
+    return entry;
+  }
+
   updateLastEntry(text: string): void {
     if (!this.lastEntry) return;
     const msg = this.lastEntry.querySelector('.message');
     if (msg) {
-      msg.textContent = `\u{1F9E0} ${text}`;
+      msg.textContent = text;
     }
     if (this.logEl) {
       this.logEl.scrollTop = this.logEl.scrollHeight;
@@ -328,6 +380,38 @@ export class ActivityLog {
       .entry-success .message { color: #34d399; }
       .entry-error .message { color: #f87171; }
       .entry-code .message { color: #9ca3af; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+
+      .collapsible-wrap {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .collapsible-summary {
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 2px;
+      }
+      .collapsible-summary:hover {
+        color: #fff;
+      }
+      .collapsible-details {
+        margin-top: 4px;
+        padding: 6px 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+        font-size: 10px;
+        line-height: 1.3;
+        color: #9ca3af;
+        font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .collapsible-details.hidden {
+        display: none;
+      }
     `;
   }
 }

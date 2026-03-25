@@ -708,6 +708,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   // Activity log: reasoning chunk accumulation
   let lastReasoningEntry: HTMLElement | null = null;
   let reasoningBuffer = '';
+  let codeBuffer = '';
 
   // Handle events from server
   wsClient.onEvent((event: NovaEvent) => {
@@ -751,6 +752,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         pill.setState('processing');
         taskPanel.setTaskStarted(event.data.taskId);
         activityLog.addEntry(`Starting: ${event.data.taskId}`, 'info', false, ts);
+        codeBuffer = '';
         break;
       case 'llm_chunk':
         // Show brief phase status instead of raw code in task panel
@@ -771,9 +773,26 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             lastReasoningEntry = null;
             reasoningBuffer = '';
           }
-          if (event.data.text.includes('=== FILE:')) {
-            const match = event.data.text.match(/=== FILE: (.+?) ===/);
-            if (match) activityLog.addEntry(`Writing: ${match[1]}`, 'code', false, ts);
+          // Accumulate code blocks and show as collapsible entries
+          codeBuffer += event.data.text;
+
+          // Check for completed FILE or DIFF blocks
+          const blockRegex = /=== (?:FILE|DIFF): (.+?) ===\n([\s\S]*?)(?:=== END (?:FILE|DIFF) ===)/g;
+          let blockMatch;
+          while ((blockMatch = blockRegex.exec(codeBuffer)) !== null) {
+            const filePath = blockMatch[1].trim();
+            const content = blockMatch[2].trim();
+            const isDiff = codeBuffer.slice(blockMatch.index, blockMatch.index + 8).includes('DIFF');
+            const label = isDiff ? `Modified: ${filePath}` : `Created: ${filePath}`;
+            activityLog.addCollapsibleEntry(label, content, 'code', ts);
+          }
+          // Keep only unmatched tail in buffer
+          const lastEnd = codeBuffer.lastIndexOf('=== END');
+          if (lastEnd !== -1) {
+            const endOfBlock = codeBuffer.indexOf('===', lastEnd + 7);
+            if (endOfBlock !== -1) {
+              codeBuffer = codeBuffer.slice(endOfBlock + 3);
+            }
           }
         }
         break;
