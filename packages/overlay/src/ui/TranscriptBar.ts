@@ -276,8 +276,7 @@ export class TranscriptBar implements ITranscriptBar {
 
     const text = document.createElement('span');
     text.className = 'confirm-text';
-    text.textContent = message.length > 120 ? message.slice(0, 120) + '...' : message;
-    text.title = message;
+    text.textContent = message;
     this.confirmBar.appendChild(text);
 
     const hasInput = options?.showInput === true;
@@ -602,9 +601,7 @@ export class TranscriptBar implements ITranscriptBar {
         font-size: 13px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.4;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        word-break: break-word;
       }
       .confirm-exec-btn {
         background: #22c55e;

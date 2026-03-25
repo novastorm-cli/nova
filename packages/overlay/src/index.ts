@@ -403,7 +403,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       pendingVoiceCommand = text;
       awaitingSendConfirmation = true;
 
-      transcriptBar.showConfirmation(`Send: "${text.slice(0, 80)}"?`);
+      transcriptBar.showConfirmation(`Send: "${text}"?`);
     }
     hasRecordedText = false;
   }
@@ -452,7 +452,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   transcriptBar.onCommandSubmit((text: string) => {
     pendingVoiceCommand = text;
     awaitingSendConfirmation = true;
-    transcriptBar.showConfirmation(`Send: "${text.slice(0, 80)}"?`);
+    transcriptBar.showConfirmation(`Send: "${text}"?`);
   });
 
   // Confirmation bar Go/Cancel handlers (handles both send + task confirm)
