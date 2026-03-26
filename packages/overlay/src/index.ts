@@ -211,7 +211,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
       // Activate inspector and auto-select this element
       elementInspector.showPopupForElement(target, e.clientX, e.clientY);
     }
-  }, true);
+  }); // bubble phase — not capture, to avoid interfering with React
 
   // Dead click detection: suggest adding functionality when interactive elements do nothing
   const deadClickSuggested = new WeakMap<HTMLElement, number>();
@@ -264,10 +264,13 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     const lastSuggested = deadClickSuggested.get(interactive);
     if (lastSuggested && Date.now() - lastSuggested < DEAD_CLICK_COOLDOWN_MS) return;
 
-    // Snapshot current state
+    const clickedElement = interactive;
+
+    // Use requestAnimationFrame to avoid blocking the current event cycle
+    // This ensures React processes the click BEFORE we snapshot DOM state
+    requestAnimationFrame(() => {
     const snapshotUrl = window.location.href;
     const snapshotDomLength = document.body.innerHTML.length;
-    const clickedElement = interactive;
 
     setTimeout(() => {
       // Re-check state — user may have started processing in the meantime
@@ -316,7 +319,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       awaitingSendConfirmation = true;
       transcriptBar.showConfirmation('Кнопка не работает. Хотите добавить функционал?', { showInput: true });
     }, DEAD_CLICK_DELAY_MS);
-  }, true);
+    }); // end requestAnimationFrame
+  });
 
   // Watch for removal and re-mount if React or error boundaries nuke the elements
   const overlaySelectors = [

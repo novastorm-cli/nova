@@ -9,7 +9,7 @@
     "build": "turbo run build",
     "test": "vitest run",
     "lint": "turbo run lint",
-    "link": "rm -rf .turbo packages/*/.turbo && pnpm build && cd packages/cli && pnpm link --global",
+    "link": "rm -rf .turbo packages/*/.turbo packages/*/dist && pnpm build && cd packages/cli && pnpm link --global",
     "eval": "turbo run eval --filter=@novastorm-ai/eval"
   },
   "devDependencies": {
