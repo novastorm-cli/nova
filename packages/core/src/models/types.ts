@@ -5,11 +5,11 @@ import type { Manifest } from './manifest.js';
 // ============================================================
 
 export interface StackInfo {
-  framework: string;        // "next.js", "vite", "dotnet", "django", etc.
-  language: string;         // "typescript", "javascript", "csharp", "python"
-  packageManager?: string;  // "npm", "yarn", "pnpm", "bun"
+  framework: string; // "next.js", "vite", "dotnet", "django", etc.
+  language: string; // "typescript", "javascript", "csharp", "python"
+  packageManager?: string; // "npm", "yarn", "pnpm", "bun"
   typescript: boolean;
-  additionalStacks?: string[];  // other detected frameworks e.g. ["dotnet", "express"]
+  additionalStacks?: string[]; // other detected frameworks e.g. ["dotnet", "express"]
 }
 
 export interface DockerServiceInfo {
@@ -20,29 +20,29 @@ export interface DockerServiceInfo {
 }
 
 export interface RouteInfo {
-  path: string;             // "/dashboard", "/api/users"
-  filePath: string;         // "app/dashboard/page.tsx"
+  path: string; // "/dashboard", "/api/users"
+  filePath: string; // "app/dashboard/page.tsx"
   type: 'page' | 'api' | 'layout';
-  methods?: string[];       // for API: ["GET", "POST"]
+  methods?: string[]; // for API: ["GET", "POST"]
 }
 
 export interface ComponentInfo {
-  name: string;             // "CustomerTable"
-  filePath: string;         // "components/CustomerTable.tsx"
+  name: string; // "CustomerTable"
+  filePath: string; // "components/CustomerTable.tsx"
   type: 'component' | 'page' | 'layout' | 'hook';
-  exports: string[];        // exported symbol names
-  props?: string[];         // prop names if detectable
+  exports: string[]; // exported symbol names
+  props?: string[]; // prop names if detectable
 }
 
 export interface EndpointInfo {
-  method: string;           // "GET", "POST", etc.
-  path: string;             // "/api/users"
+  method: string; // "GET", "POST", etc.
+  path: string; // "/api/users"
   filePath: string;
-  handler?: string;         // function/method name
+  handler?: string; // function/method name
 }
 
 export interface ModelInfo {
-  name: string;             // "User", "Transaction"
+  name: string; // "User", "Transaction"
   filePath: string;
   fields?: string[];
 }
@@ -61,7 +61,7 @@ export type DependencyGraph = Map<string, DependencyNode>;
 export interface MiniContext {
   filePath: string;
   content: string;
-  importedTypes: string;    // concatenated type definitions from imports
+  importedTypes: string; // concatenated type definitions from imports
 }
 
 export interface ProjectMap {
@@ -171,6 +171,20 @@ export interface LlmClient {
   stream(messages: Message[], options?: LlmOptions): AsyncIterable<string>;
 }
 
+/** Normalized response from a provider chat call. */
+export interface ChatResponse {
+  content: string;
+  /** Optional chain-of-thought / reasoning content (e.g., DeepSeek reasoning_content). */
+  reasoningContent?: string;
+}
+
+/** Normalized stream chunk from a provider streaming call. */
+export interface StreamChunk {
+  content: string;
+  /** Optional chain-of-thought / reasoning content (e.g., DeepSeek delta.reasoning_content). */
+  reasoningContent?: string;
+}
+
 // ============================================================
 // Git
 // ============================================================
@@ -270,17 +284,23 @@ export interface ProjectAnalysis {
 // Fullstack Graph
 // ============================================================
 
-export type FullstackNodeType = 'component' | 'page' | 'api_endpoint' | 'db_model' | 'middleware' | 'hook';
+export type FullstackNodeType =
+  | 'component'
+  | 'page'
+  | 'api_endpoint'
+  | 'db_model'
+  | 'middleware'
+  | 'hook';
 
 export interface FullstackEdge {
-  from: string;         // source node ID (filePath:name)
-  to: string;           // target node ID
+  from: string; // source node ID (filePath:name)
+  to: string; // target node ID
   type: 'fetches' | 'imports' | 'queries' | 'middleware' | 'renders';
   metadata?: Record<string, string>;
 }
 
 export interface FullstackNode {
-  id: string;           // filePath:name (unique)
+  id: string; // filePath:name (unique)
   name: string;
   filePath: string;
   type: FullstackNodeType;
@@ -317,17 +337,17 @@ export interface EmbeddingRecord {
 export interface BehaviorEvent {
   type: 'page_visit' | 'click' | 'scroll' | 'api_call' | 'error' | 'sort' | 'filter';
   url: string;
-  target?: string;      // CSS selector or element description
+  target?: string; // CSS selector or element description
   metadata?: Record<string, string>;
   timestamp: number;
-  duration?: number;     // time on page in ms
+  duration?: number; // time on page in ms
 }
 
 export interface BehaviorPattern {
   id: string;
   type: 'frequent_page' | 'repeated_action' | 'slow_api' | 'recurring_error' | 'unused_feature';
   description: string;
-  confidence: number;    // 0-1
+  confidence: number; // 0-1
   occurrences: number;
   firstSeen: number;
   lastSeen: number;
@@ -412,8 +432,8 @@ export interface RecipeTemplate {
 }
 
 export interface RecipeFileTemplate {
-  pathPattern: string;   // e.g. "app/api/{name}/route.ts"
-  content: string;       // template with {{variable}} placeholders
+  pathPattern: string; // e.g. "app/api/{name}/route.ts"
+  content: string; // template with {{variable}} placeholders
   action: 'create' | 'modify';
 }
 

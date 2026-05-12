@@ -39,7 +39,8 @@ export class ProviderError extends Error {
   constructor(
     message: string,
     public readonly statusCode?: number,
-    public readonly provider?: string
+    public readonly provider?: string,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = 'ProviderError';

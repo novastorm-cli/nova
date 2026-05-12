@@ -12,9 +12,8 @@ function toOpenAIMessages(
   jsonMode: boolean,
 ): OpenAI.ChatCompletionMessageParam[] {
   return messages.map((m) => {
-    const content = jsonMode && m.role === 'user'
-      ? `${m.content}\n\nRespond with valid JSON only.`
-      : m.content;
+    const content =
+      jsonMode && m.role === 'user' ? `${m.content}\n\nRespond with valid JSON only.` : m.content;
     return { role: m.role, content };
   });
 }
@@ -39,11 +38,7 @@ function handleError(err: unknown, provider: string): never {
     throw new ProviderError(err.message, err.status, provider);
   }
 
-  throw new ProviderError(
-    err instanceof Error ? err.message : String(err),
-    undefined,
-    provider,
-  );
+  throw new ProviderError(err instanceof Error ? err.message : String(err), undefined, provider);
 }
 
 function shouldRetry(err: unknown): boolean {
@@ -63,7 +58,12 @@ export class OpenAIProvider implements LlmClient {
   protected readonly providerName: string;
   protected readonly defaultModel: string;
 
-  constructor(apiKey: string, baseURL?: string, providerName = 'openai', defaultModel = DEFAULT_MODEL) {
+  constructor(
+    apiKey: string,
+    baseURL?: string,
+    providerName = 'openai',
+    defaultModel = DEFAULT_MODEL,
+  ) {
     this.client = new OpenAI({
       apiKey,
       ...(baseURL ? { baseURL } : {}),
@@ -96,7 +96,11 @@ export class OpenAIProvider implements LlmClient {
     const jsonMode = options?.responseFormat === 'json';
     const lastUserIdx = findLastIndex(messages, (m) => m.role === 'user');
     if (lastUserIdx === -1) {
-      throw new ProviderError('No user message found for vision request', undefined, this.providerName);
+      throw new ProviderError(
+        'No user message found for vision request',
+        undefined,
+        this.providerName,
+      );
     }
 
     const openaiMessages: OpenAI.ChatCompletionMessageParam[] = messages.map((m, i) => {
@@ -107,21 +111,15 @@ export class OpenAIProvider implements LlmClient {
             url: `data:image/png;base64,${img.toString('base64')}`,
           },
         }));
-        const textContent = jsonMode
-          ? `${m.content}\n\nRespond with valid JSON only.`
-          : m.content;
+        const textContent = jsonMode ? `${m.content}\n\nRespond with valid JSON only.` : m.content;
 
         return {
           role: m.role as 'user',
-          content: [
-            { type: 'text' as const, text: textContent },
-            ...imageParts,
-          ],
+          content: [{ type: 'text' as const, text: textContent }, ...imageParts],
         };
       }
-      const content = jsonMode && m.role === 'user'
-        ? `${m.content}\n\nRespond with valid JSON only.`
-        : m.content;
+      const content =
+        jsonMode && m.role === 'user' ? `${m.content}\n\nRespond with valid JSON only.` : m.content;
       return { role: m.role, content } as OpenAI.ChatCompletionMessageParam;
     });
 
@@ -153,7 +151,7 @@ export class OpenAIProvider implements LlmClient {
     yield* this.executeStreamWithRetry(request);
   }
 
-  private async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+  protected async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (err) {
@@ -170,7 +168,7 @@ export class OpenAIProvider implements LlmClient {
     }
   }
 
-  private async *executeStreamWithRetry(
+  protected async *executeStreamWithRetry(
     request: OpenAI.ChatCompletionCreateParamsStreaming,
   ): AsyncIterable<string> {
     try {
@@ -190,7 +188,7 @@ export class OpenAIProvider implements LlmClient {
     }
   }
 
-  private async *doStream(
+  protected async *doStream(
     request: OpenAI.ChatCompletionCreateParamsStreaming,
   ): AsyncIterable<string> {
     const stream = await this.client.chat.completions.create(request);

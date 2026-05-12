@@ -8,11 +8,18 @@ import { OllamaProvider } from './OllamaProvider.js';
 import { ClaudeCliProvider } from './ClaudeCliProvider.js';
 import { DeepSeekProvider } from './DeepSeekProvider.js';
 
-const SUPPORTED_PROVIDERS = ['anthropic', 'openrouter', 'openai', 'ollama', 'claude-cli', 'deepseek'] as const;
+const SUPPORTED_PROVIDERS = [
+  'anthropic',
+  'openrouter',
+  'openai',
+  'ollama',
+  'claude-cli',
+  'deepseek',
+] as const;
 
 export class ProviderFactory implements IProviderFactory {
   create(provider: string, apiKey?: string): LlmClient {
-    if (!SUPPORTED_PROVIDERS.includes(provider as typeof SUPPORTED_PROVIDERS[number])) {
+    if (!SUPPORTED_PROVIDERS.includes(provider as (typeof SUPPORTED_PROVIDERS)[number])) {
       throw new ProviderError(
         `Unknown provider: "${provider}". Supported: ${SUPPORTED_PROVIDERS.join(', ')}`,
         undefined,
@@ -40,7 +47,7 @@ export class ProviderFactory implements IProviderFactory {
       case 'claude-cli':
         return new ClaudeCliProvider();
       case 'deepseek':
-        return new DeepSeekProvider(apiKey!);
+        return new DeepSeekProvider({ apiKey: apiKey! });
       default:
         throw new ProviderError(`Unknown provider: "${provider}"`, undefined, provider);
     }
