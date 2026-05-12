@@ -1,63 +1,71 @@
 import { describe, it, expect } from 'vitest';
-import { redactSecrets, redactContext } from '../redact.js';
+import { redactSecrets, redactContext } from '../../security/redact.js';
+
+// Helper: build a fake key that the redactor will match but secret scanners won't flag.
+// Using runtime construction avoids having long alphanumeric literals in source.
+// Must use only alphanumeric chars (no hyphens/underscores) so all regex patterns match.
+function fake(prefix: string): string {
+  return prefix + 'testdata'.repeat(4); // 32 alphanumeric chars, exceeds 20-minimum
+}
 
 describe('redactSecrets', () => {
   // ── Basic key patterns ────────────────────────────────────
 
   it('should redact generic sk- keys (OpenAI style)', () => {
-    const input = 'Authorization: Bearer sk-proj-abc123def456ghijklmnopqrstuvwxyz';
+    const input = `Authorization: Bearer ${fake('sk-proj-')}`;
     const result = redactSecrets(input);
-    expect(result).toContain('sk-***');
-    expect(result).not.toContain('sk-proj-abc');
+    expect(result).toBe('Authorization: Bearer sk-***');
+    expect(result).not.toContain('sk-proj-');
   });
 
   it('should redact Anthropic sk-ant- keys', () => {
-    const input = 'Using key sk-ant-api03-abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const input = `Using key ${fake('sk-ant-api03-')}`;
     const result = redactSecrets(input);
-    expect(result).toContain('sk-ant-***');
-    expect(result).not.toContain('sk-ant-api03');
+    expect(result).toBe('Using key sk-ant-***');
+    expect(result).not.toContain('sk-ant-api03-');
   });
 
   it('should redact DeepSeek sk-deepseek- keys', () => {
-    const input = 'API key is sk-deepseek-abcdefghijklmnopqrstuvwxyz1234567890ABCDEF';
+    const k = fake('sk-deepseek-');
+    const input = `API key is ${k}`;
     const result = redactSecrets(input);
-    expect(result).toContain('sk-deepseek-***');
-    expect(result).not.toContain('sk-deepseek-abcdef');
+    expect(result).toBe('API key is sk-deepseek-***');
+    expect(result).not.toContain(k);
   });
 
   it('should redact OpenRouter sk-or- keys', () => {
-    const input = 'Authorization: sk-or-v1-abcdefghijklmnopqrstuvwxyz1234567890ABCD';
+    const input = `Authorization: ${fake('sk-or-v1-')}`;
     const result = redactSecrets(input);
-    expect(result).toContain('sk-or-***');
-    expect(result).not.toContain('sk-or-v1');
+    expect(result).toBe('Authorization: sk-or-***');
+    expect(result).not.toContain('sk-or-v1-');
   });
 
   it('should redact GitHub OAuth tokens (gho_)', () => {
-    const input = 'GITHUB_TOKEN=gho_abcdefghijklmnopqrstuvwxyz1234567890ABCD';
+    const input = `GITHUB_TOKEN=${fake('gho_')}`;
     const result = redactSecrets(input);
-    expect(result).toContain('gho_***');
-    expect(result).not.toContain('gho_abcdef');
+    expect(result).toBe('GITHUB_TOKEN=gho_***');
+    expect(result).not.toContain('gho_testdata');
   });
 
   it('should redact Google API keys (AIza)', () => {
-    const input = 'GOOGLE_API_KEY=AIzaSyB-abcdefghijklmnopqrstuvwxyz1234567890';
+    const input = `GOOGLE_API_KEY=${fake('AIza')}`;
     const result = redactSecrets(input);
-    expect(result).toContain('AIza***');
-    expect(result).not.toContain('AIzaSy');
+    expect(result).toBe('GOOGLE_API_KEY=AIza***');
+    expect(result).not.toContain('AIzatestdata');
   });
 
   it('should redact HuggingFace tokens (hf_)', () => {
-    const input = 'HF_TOKEN=hf_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGH';
+    const input = `HF_TOKEN=${fake('hf_')}`;
     const result = redactSecrets(input);
-    expect(result).toContain('hf_***');
-    expect(result).not.toContain('hf_abcdef');
+    expect(result).toBe('HF_TOKEN=hf_***');
+    expect(result).not.toContain('hf_testdata');
   });
 
   it('should redact xAI / Grok keys (xai-)', () => {
-    const input = 'XAI_API_KEY=xai-abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGH';
+    const input = `XAI_API_KEY=${fake('xai-')}`;
     const result = redactSecrets(input);
-    expect(result).toContain('xai-***');
-    expect(result).not.toContain('xai-abcdef');
+    expect(result).toBe('XAI_API_KEY=xai-***');
+    expect(result).not.toContain('xaitestdata');
   });
 
   // ── Text without secrets ──────────────────────────────────
@@ -82,22 +90,27 @@ describe('redactSecrets', () => {
   // ── Multiple keys in one string ────────────────────────────
 
   it('should redact multiple keys in one string', () => {
-    const input = 'Keys: sk-abcdefghijklmnopqrstuvwxyz and sk-ant-api03-1234567890abcdefghijklmnopqrstuv';
+    const key1 = fake('sk-');
+    const key2 = fake('sk-ant-api03-');
+    const input = `Keys: ${key1} and ${key2}`;
     const result = redactSecrets(input);
     expect(result).toBe('Keys: sk-*** and sk-ant-***');
-    expect(result).not.toContain('abcdef');
+    expect(result).not.toContain(key1);
+    expect(result).not.toContain(key2);
   });
 
   // ── Keys in JSON-like content ─────────────────────────────
 
   it('should redact keys in JSON strings', () => {
-    const input = '{"apiKey":"sk-proj-abcdefghijklmnopqrstuvwxyz1234567890","provider":"openai"}';
+    const k = fake('sk-');
+    const input = `{"apiKey":"${k}","provider":"openai"}`;
     const result = redactSecrets(input);
     expect(result).toBe('{"apiKey":"sk-***","provider":"openai"}');
   });
 
   it('should redact keys in Authorization headers', () => {
-    const input = 'headers: { Authorization: "Bearer sk-deepseek-abcdefghijklmnopqrstuvwxyz1234567890ABCD" }';
+    const k = fake('sk-deepseek-');
+    const input = `headers: { Authorization: "Bearer ${k}" }`;
     const result = redactSecrets(input);
     expect(result).toContain('sk-deepseek-***');
   });
@@ -113,13 +126,15 @@ describe('redactSecrets', () => {
   });
 
   it('should handle key at start of string', () => {
-    const input = 'sk-abcdefghijklmnopqrstuvwxyz is the key';
+    const k = fake('sk-');
+    const input = `${k} is the key`;
     const result = redactSecrets(input);
     expect(result).toBe('sk-*** is the key');
   });
 
   it('should handle key at end of string', () => {
-    const input = 'The key is sk-abcdefghijklmnopqrstuvwxyz';
+    const k = fake('sk-');
+    const input = `The key is ${k}`;
     const result = redactSecrets(input);
     expect(result).toBe('The key is sk-***');
   });
@@ -127,15 +142,16 @@ describe('redactSecrets', () => {
 
 describe('redactContext', () => {
   it('should redact string values containing keys', () => {
+    const k = fake('sk-');
     const input = {
-      msg: 'Using key sk-abcdefghijklmnopqrstuvwxyz1234567890',
+      msg: `Using key ${k}`,
       count: 42,
       flag: true,
       nested: { key: 'value' },
     };
     const result = redactContext(input);
-    expect(result.msg).toContain('sk-***');
-    expect(result.msg).not.toContain('sk-abcdef');
+    expect(result.msg).toBe('Using key sk-***');
+    expect(result.msg).not.toContain(k);
     expect(result.count).toBe(42);
     expect(result.flag).toBe(true);
     expect(result.nested).toEqual({ key: 'value' });
@@ -146,8 +162,9 @@ describe('redactContext', () => {
   });
 
   it('should not mutate the original object', () => {
-    const input = { key: 'sk-abcdefghijklmnopqrstuvwxyz1234567890' };
+    const k = fake('sk-');
+    const input = { key: k };
     redactContext(input);
-    expect(input.key).toBe('sk-abcdefghijklmnopqrstuvwxyz1234567890');
+    expect(input.key).toBe(k);
   });
 });

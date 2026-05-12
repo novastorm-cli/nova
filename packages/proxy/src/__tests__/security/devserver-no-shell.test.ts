@@ -18,7 +18,7 @@ vi.mock('node:child_process', async (importOriginal) => {
   };
 });
 
-import { DevServerRunner } from '../DevServerRunner.js';
+import { DevServerRunner } from '../../DevServerRunner.js';
 
 type SpawnArgs = [string, string[], Record<string, unknown>];
 

@@ -6,8 +6,8 @@ import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import WebSocket from 'ws';
-import { ProxyServer } from '../ProxyServer.js';
-import { WebSocketServer as NovaWsServer } from '../WebSocketServer.js';
+import { ProxyServer } from '../../ProxyServer.js';
+import { WebSocketServer as NovaWsServer } from '../../WebSocketServer.js';
 
 function getRandomPort(): Promise<number> {
   return new Promise((resolve, reject) => {

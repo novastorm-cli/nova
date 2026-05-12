@@ -16,9 +16,9 @@ vi.mock('node:child_process', async (importOriginal) => {
   };
 });
 
-import { ClaudeCliProvider } from '../llm/ClaudeCliProvider.js';
-import { ProviderError } from '../contracts/ILlmClient.js';
-import type { Message } from '../models/types.js';
+import { ClaudeCliProvider } from '../../llm/ClaudeCliProvider.js';
+import { ProviderError } from '../../contracts/ILlmClient.js';
+import type { Message } from '../../models/types.js';
 
 /** Create a minimal mock ChildProcess with a Readable stdout (async-iterable) */
 function createMockChild(stdoutChunks?: Buffer[], exitCode = 0, stderrText = '') {

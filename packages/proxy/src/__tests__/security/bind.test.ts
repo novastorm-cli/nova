@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
-import { ProxyServer } from '../ProxyServer.js';
+import { ProxyServer } from '../../ProxyServer.js';
 
 function getRandomPort(): Promise<number> {
   return new Promise((resolve, reject) => {
