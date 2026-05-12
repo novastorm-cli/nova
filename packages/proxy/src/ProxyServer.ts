@@ -14,6 +14,7 @@ export class ProxyServer implements IProxyServer {
   private server: http.Server | null = null;
   private proxy: httpProxy | null = null;
   private running = false;
+  private host: string = '127.0.0.1';
   private projectMapApi: {
     handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<boolean>;
   } | null = null;
@@ -21,6 +22,11 @@ export class ProxyServer implements IProxyServer {
   /** Returns the underlying http.Server (used by WebSocketServer). */
   getHttpServer(): http.Server | null {
     return this.server;
+  }
+
+  /** Set the bind host address (defaults to 127.0.0.1). */
+  setHost(host: string): void {
+    this.host = host;
   }
 
   setProjectMapApi(api: {
@@ -33,8 +39,10 @@ export class ProxyServer implements IProxyServer {
     targetPort: number,
     proxyPort: number,
     overlayScriptPath: string,
-    host: string = '127.0.0.1',
+    host?: string,
   ): Promise<void> {
+    // Use explicit parameter if provided, otherwise fall back to this.host
+    const bindHost = host ?? this.host;
     if (this.running) {
       return;
     }
@@ -202,7 +210,7 @@ export class ProxyServer implements IProxyServer {
         }
       });
 
-      this.server!.listen(proxyPort, host, () => {
+      this.server!.listen(proxyPort, bindHost, () => {
         this.running = true;
         resolve();
       });
