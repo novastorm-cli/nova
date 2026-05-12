@@ -1,7 +1,6 @@
 import { exec } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { writeFile, mkdir } from 'node:fs/promises';
-import * as net from 'node:net';
 import * as path from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -39,6 +38,7 @@ import { promptAndScaffold } from '../scaffold.js';
 import { ErrorAutoFixer } from '../autofix.js';
 import { NovaChat } from '../chat.js';
 import { handleSettingsCommand } from '../settings.js';
+import { PortManager } from '../boot/PortManager.js';
 import type { StartOptions } from '../index.js';
 
 const SELECT_THEME = {
@@ -84,17 +84,6 @@ async function runWithConcurrency<T>(
   return results;
 }
 
-function isPortInUse(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.once('error', () => resolve(true));
-    server.once('listening', () => {
-      server.close();
-      resolve(false);
-    });
-    server.listen(port);
-  });
-}
 function findOverlayScript(): string {
   const candidates = [
     // From cli/dist/ (when imported as module)
@@ -556,40 +545,40 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
   // ── 4b. Check ports ────────────────────────────────────────────────
   spinner.start('Checking ports...');
-  const devPortBusy = await isPortInUse(devPort);
-  const proxyPortBusy = await isPortInUse(proxyPort);
+  const devPortBusy = await PortManager.isPortInUse(devPort);
+  const proxyPortBusy = await PortManager.isPortInUse(proxyPort);
 
   if (devPortBusy || proxyPortBusy) {
     const nonInteractive = isNonInteractive(options);
 
     if (nonInteractive) {
-      // Non-interactive mode: auto-pick the next free port pair
+      // Non-interactive mode: auto-pick the next free port pair in the same 100-port range
       spinner.warn('Port conflict detected — auto-resolving (non-interactive mode)');
-      let nextPort = devPort + 10;
-      while ((await isPortInUse(nextPort)) || (await isPortInUse(nextPort + PROXY_PORT_OFFSET))) {
-        nextPort += 10;
-        if (nextPort > 65535 - PROXY_PORT_OFFSET) {
-          spinner.fail('No free ports available in range');
-          process.exit(1);
-        }
+      try {
+        const pair = await PortManager.findFreePortPair(devPort, proxyPort);
+        devPort = pair.devPort;
+        proxyPort = pair.proxyPort;
+        console.log(
+          chalk.yellow(`  Auto-selected ports: dev=${devPort}, proxy=${proxyPort}`),
+        );
+      } catch {
+        spinner.fail('No free ports available in range');
+        process.exit(1);
       }
-      devPort = nextPort;
-      proxyPort = devPort + PROXY_PORT_OFFSET;
-      console.log(chalk.yellow(`  Auto-selected ports: dev=${devPort}, proxy=${proxyPort}`));
     } else {
       spinner.fail('Port conflict detected');
-      const busyPorts = [];
+      const busyPorts: number[] = [];
       if (devPortBusy) busyPorts.push(devPort);
       if (proxyPortBusy) busyPorts.push(proxyPort);
       console.log(chalk.red(`  Port(s) in use: ${busyPorts.join(', ')}`));
 
       const portChoices = [
         {
-          name: chalk.dim(`Kill processes on port(s) ${busyPorts.join(', ')} and continue`),
+          name: chalk.dim(`[k] Kill processes on port(s) ${busyPorts.join(', ')} and continue`),
           value: 'kill',
         },
-        { name: chalk.dim('Use a different port'), value: 'change' },
-        { name: chalk.dim('Exit'), value: 'exit' },
+        { name: chalk.dim('[p] Use a different port'), value: 'change' },
+        { name: chalk.dim('[c] Cancel'), value: 'exit' },
       ];
 
       let portResolved = false;
@@ -607,9 +596,8 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
         if (portAction === 'kill') {
           try {
-            const { execSync } = await import('node:child_process');
             for (const p of busyPorts) {
-              execSync(`lsof -ti :${p} | xargs kill -9`, { stdio: 'ignore' });
+              await PortManager.killPort(p);
             }
             console.log(chalk.green(`  Killed processes. Continuing...\n`));
             portResolved = true;
@@ -862,8 +850,8 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     if (/EADDRINUSE|address already in use/i.test(msg)) {
       console.log(chalk.yellow(`\n  Port ${devPort} is already in use.\n`));
       choices.push(
-        { name: chalk.dim(`Kill process on port ${devPort} and retry`), value: 'kill-retry' },
-        { name: chalk.dim('Use a different port'), value: 'change-port' },
+        { name: chalk.dim(`[k] Kill process on port ${devPort} and retry`), value: 'kill-retry' },
+        { name: chalk.dim('[p] Use a different port'), value: 'change-port' },
       );
     }
     if (/Cannot find module|MODULE_NOT_FOUND/i.test(msg)) {
@@ -898,8 +886,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
       if (action === 'kill-retry') {
         try {
-          const { execSync } = await import('node:child_process');
-          execSync(`lsof -ti :${devPort} | xargs kill -9`, { stdio: 'ignore' });
+          await PortManager.killPort(devPort);
           console.log(chalk.dim(`  Killed process on port ${devPort}. Retrying...\n`));
           await devServer.spawn(devCommand, cwd, devPort);
           serverResolved = true;

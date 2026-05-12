@@ -1,6 +1,8 @@
 {
   "name": "@novastorm-ai/cli",
-  "publishConfig": {"access": "public"},
+  "publishConfig": {
+    "access": "public"
+  },
   "version": "0.2.2",
   "license": "SEE LICENSE IN LICENSE.md",
   "type": "module",
@@ -30,6 +32,7 @@
     "html2canvas": "^1.4.1",
     "http-proxy": "^1.18.1",
     "inquirer": "^13.3.2",
+    "kill-port": "^2.0.1",
     "openai": "^4.77.0",
     "ora": "^9.3.0",
     "picomatch": "^4.0.2",
@@ -40,6 +43,7 @@
     "@novastorm-ai/core": "workspace:*",
     "@novastorm-ai/licensing": "workspace:*",
     "@novastorm-ai/proxy": "workspace:*",
+    "@types/kill-port": "^2.0.3",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0"
   }
