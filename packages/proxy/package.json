@@ -14,7 +14,9 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
-    "lint": "tsc --noEmit"
+    "lint": "eslint src/",
+    "format-check": "prettier --check \"src/**/*.ts\"",
+    "format-write": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "@novastorm-ai/core": "workspace:*",

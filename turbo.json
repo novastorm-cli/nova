@@ -8,6 +8,11 @@
     "test": {
       "dependsOn": ["build"]
     },
-    "lint": {}
+    "lint": {
+      "inputs": ["**/*.ts"]
+    },
+    "format-check": {
+      "inputs": ["**/*.ts"]
+    }
   }
 }

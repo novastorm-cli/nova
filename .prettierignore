@@ -1,0 +1,10 @@
+node_modules
+dist
+.turbo
+coverage
+pnpm-lock.yaml
+.nova
+*.tsbuildinfo
+.claude
+tests-e2e
+eslint-local-rules

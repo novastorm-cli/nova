@@ -17,7 +17,9 @@
   },
   "scripts": {
     "build": "tsup",
-    "lint": "tsc --noEmit"
+    "lint": "eslint src/",
+    "format-check": "prettier --check \"src/**/*.ts\"",
+    "format-write": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
