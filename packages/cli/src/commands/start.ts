@@ -1817,6 +1817,41 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     }
   });
 
-  // Keep process alive
-  await new Promise(() => {});
+  // Keep process alive in interactive/service mode.
+  // In non-interactive mode with non-TTY stdin (e.g. CI/verification),
+  // listen for stdin close and exit cleanly. This handles:
+  //   - /dev/null: stream readableEnded check; falls back to timeout
+  //   - Pipe: exits when the writing end closes
+  //   - TTY: stays alive (interactive or service mode)
+  if (isNonInteractive(options) && !process.stdin.isTTY) {
+    console.log(
+      chalk.dim('Non-interactive mode -- will exit cleanly after startup.'),
+    );
+
+    // If the stdin stream has already ended (e.g. fd opened to /dev/null),
+    // exit after a brief startup grace period.
+    if (process.stdin.readableEnded) {
+      await new Promise((r) => setTimeout(r, 500));
+      await shutdown();
+    } else {
+      // Stdin is a pipe — wait for it to close.
+      // Also apply a safety timeout (30s) in case close never fires.
+      process.stdin.resume();
+
+      const stdinClosed = new Promise<void>((resolve) => {
+        process.stdin.on('close', resolve);
+        process.stdin.on('end', resolve);
+      });
+
+      const safetyTimeout = new Promise<void>((resolve) =>
+        setTimeout(resolve, 30_000),
+      );
+
+      await Promise.race([stdinClosed, safetyTimeout]);
+      await shutdown();
+    }
+  } else {
+    // Keep process alive for interactive use or long-running service mode
+    await new Promise(() => {});
+  }
 }
