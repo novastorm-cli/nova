@@ -45,7 +45,7 @@ async function showStatus(
   const envKey = process.env['NOVA_LICENSE_KEY'];
   const activeKey = configKey ?? envKey ?? null;
 
-  console.log(chalk.bold('\nNova Architect License Status\n'));
+  console.log(chalk.bold('\nNovastorm License Status\n'));
   console.log(`  Tier:           ${chalk.cyan(license.tier)}`);
   console.log(`  Valid:          ${license.valid ? chalk.green('yes') : chalk.red('no')}`);
   console.log(`  Developers:     ${chalk.cyan(String(teamInfo.devCount))} (${teamInfo.windowDays}-day window)`);

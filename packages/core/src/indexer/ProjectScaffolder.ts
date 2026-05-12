@@ -88,7 +88,7 @@ export class ProjectScaffolder {
     await mkdir(projectPath, { recursive: true });
     await writeFile(
       join(projectPath, 'nova.toml'),
-      `# Nova Architect configuration\n\n[project]\ndevCommand = ""\nport = 3000\n`,
+      `# Novastorm configuration\n\n[project]\ndevCommand = ""\nport = 3000\n`,
       'utf-8',
     );
   }

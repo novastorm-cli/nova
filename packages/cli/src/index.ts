@@ -3,13 +3,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { startCommand } from './commands/start.js';
-import { chatCommand } from './commands/chat.js';
 import { initCommand } from './commands/init.js';
 import { statusCommand } from './commands/status.js';
-import { tasksCommand } from './commands/tasks.js';
-import { reviewCommand } from './commands/review.js';
-import { watchCommand } from './commands/watch.js';
 import { licenseCommand } from './commands/license.js';
+import { DEPRECATION } from './strings.js';
 import { entityCommand } from './commands/entity.js';
 import { bibleCommand } from './commands/bible.js';
 import { updateCommand, checkForUpdates } from './commands/update.js';
@@ -76,13 +73,6 @@ export function createCli(): Command {
         host: opts.host,
         noTelemetry: opts.telemetry === false,
       });
-    });
-
-  program
-    .command('chat')
-    .description('Open interactive chat mode')
-    .action(async () => {
-      await chatCommand();
     });
 
   program
@@ -169,27 +159,6 @@ export function createCli(): Command {
     });
 
   program
-    .command('tasks')
-    .description('Manage tasks')
-    .action(async () => {
-      await tasksCommand();
-    });
-
-  program
-    .command('review')
-    .description('Run code review')
-    .action(async () => {
-      await reviewCommand();
-    });
-
-  program
-    .command('watch')
-    .description('Watch for file changes')
-    .action(async () => {
-      await watchCommand();
-    });
-
-  program
     .command('license [subcommand] [key]')
     .description('Manage license: nova license [status|activate <key>]')
     .action(async (subcommand?: string, key?: string) => {
@@ -258,6 +227,23 @@ export async function run(argv: string[] = process.argv): Promise<void> {
 
   const args = argv.slice(2);
 
+  // ── Intercept removed commands (deprecated in v1.0) ──────────────
+  const removedCommands = {
+    chat: DEPRECATION.removedCommands.chat,
+    tasks: DEPRECATION.removedCommands.tasks,
+    watch: DEPRECATION.removedCommands.watch,
+    review: DEPRECATION.removedCommands.review,
+  } as const;
+
+  const removedSubcommand = args.find(
+    (a) => !a.startsWith('-') && a in removedCommands,
+  ) as keyof typeof removedCommands | undefined;
+
+  if (removedSubcommand) {
+    console.error(removedCommands[removedSubcommand]);
+    process.exit(2);
+  }
+
   // Determine whether to suppress the banner.
   // Banner is shown ONLY when ALL of these are true:
   //   1. NOVA_QUIET is not set (or is not '1')
@@ -270,13 +256,9 @@ export async function run(argv: string[] = process.argv): Promise<void> {
   // Determine the subcommand: first non-flag arg that is a known command
   const knownCommands = [
     'start',
-    'chat',
     'init',
     'setup',
     'status',
-    'tasks',
-    'review',
-    'watch',
     'license',
     'entity',
     'bible',

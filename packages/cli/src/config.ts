@@ -7,6 +7,7 @@ import {
   type NovaConfig,
   DEFAULT_CONFIG,
 } from '@novastorm-ai/core';
+import { DEPRECATION } from './strings.js';
 
 const NOVA_TOML = 'nova.toml';
 const LOCAL_CONFIG_PATH = path.join('.nova', 'config.toml');
@@ -159,12 +160,37 @@ function diffFromDefaults(config: Partial<NovaConfig>): Record<string, unknown> 
 }
 
 export class ConfigReader implements IConfigReader {
+  /** Tracks whether the `models.fast` deprecation warning has been emitted this session. */
+  private _fastModelWarned = false;
+
   async read(projectPath: string): Promise<NovaConfig> {
     const projectTomlPath = path.join(projectPath, NOVA_TOML);
     const localTomlPath = path.join(projectPath, LOCAL_CONFIG_PATH);
 
     const projectData = await readTomlFile(projectTomlPath);
     const localData = await readTomlFile(localTomlPath);
+
+    // ── Backward compat: [models] fast → [models] standard ─────────
+    // Check both project and local data for legacy `fast` key.
+    for (const data of [projectData, localData]) {
+      const models = data['models'] as Record<string, unknown> | undefined;
+      if (models && models['fast'] !== undefined) {
+        // Use fast value as standard only if standard isn't already set
+        // by this same data source.
+        if (models['standard'] === undefined) {
+          models['standard'] = models['fast'];
+        }
+        // Delete the legacy key after aliasing so it doesn't leak into
+        // the merged config object.
+        delete models['fast'];
+
+        // One-time deprecation warning per session.
+        if (!this._fastModelWarned) {
+          this._fastModelWarned = true;
+          console.warn(DEPRECATION.modelsFastWarning);
+        }
+      }
+    }
 
     // Merge: defaults <- project <- local
     let merged = deepMerge(

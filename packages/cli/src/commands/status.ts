@@ -14,7 +14,7 @@ export async function statusCommand(): Promise<void> {
 
   const config = await configReader.read(cwd);
 
-  console.log('--- Nova Architect Status ---');
+  console.log('--- Novastorm Status ---');
   console.log('');
   console.log(`Stack:    provider=${config.apiKeys.provider}, micro=${config.models.micro}, standard=${config.models.standard}, strong=${config.models.strong}`);
   console.log(`Port:     ${config.project.port}`);

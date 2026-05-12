@@ -60,16 +60,24 @@ describe('CLI binary (nova)', () => {
     const { stdout } = await runCli(['--help']);
     const commands = [
       'start',
-      'chat',
       'init',
+      'setup',
       'status',
-      'tasks',
-      'review',
-      'watch',
+      'license',
+      'entity',
+      'bible',
+      'update',
+      'uninstall',
+      'doctor',
     ];
     for (const cmd of commands) {
       expect(stdout).toContain(cmd);
     }
+    // Deprecated commands must NOT appear in help
+    expect(stdout).not.toMatch(/\bchat\b/);
+    expect(stdout).not.toMatch(/\btasks\b/);
+    expect(stdout).not.toMatch(/\breview\b/);
+    expect(stdout).not.toMatch(/\bwatch\b/);
   });
 
   // skip: times out in CI
