@@ -3,6 +3,6 @@ dist
 .nova
 .env
 *.tsbuildinfo
-.turbo/cache/*
+**/.turbo/
 *.log
 .claude/worktrees/
