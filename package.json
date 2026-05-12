@@ -12,7 +12,8 @@
     "format-check": "prettier --check \"packages/*/src/**/*.ts\"",
     "format-write": "prettier --write \"packages/*/src/**/*.ts\"",
     "link": "rm -rf .turbo packages/*/.turbo packages/*/dist && pnpm build && cd packages/cli && pnpm link --global",
-    "eval": "turbo run eval --filter=@novastorm-ai/eval"
+    "eval": "turbo run eval --filter=@novastorm-ai/eval",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
