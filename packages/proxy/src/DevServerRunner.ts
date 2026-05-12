@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import http from 'node:http';
 import type { IDevServerRunner } from '@novastorm-ai/core';
 
@@ -119,9 +119,22 @@ export class DevServerRunner implements IDevServerRunner {
     }
 
     const proc = this.process;
+    const pid = proc.pid!;
+
+    // Kill child processes to prevent orphans.
+    // Needed because shell:true spawns an intermediate sh process;
+    // killing sh does not automatically kill its children (node servers).
+    const killChildren = (signal: string) => {
+      try {
+        spawnSync('pkill', [`-${signal}`, '-P', String(pid)], { timeout: 2000 });
+      } catch {
+        // pkill may fail if there are no children — ignore
+      }
+    };
 
     await new Promise<void>((resolve) => {
       const killTimer = setTimeout(() => {
+        killChildren('KILL');
         proc.kill('SIGKILL');
       }, 5000);
 
@@ -132,6 +145,7 @@ export class DevServerRunner implements IDevServerRunner {
         resolve();
       });
 
+      killChildren('TERM');
       proc.kill('SIGTERM');
     });
   }

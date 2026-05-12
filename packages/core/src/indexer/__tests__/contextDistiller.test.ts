@@ -1,36 +1,36 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { rm } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { rm, mkdtemp, cp } from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { ContextDistiller } from '../ContextDistiller.js';
 import { ProjectIndexer } from '../ProjectIndexer.js';
 
 const fixturesDir = path.resolve(__dirname, '../../../../../tests/fixtures');
 
-function fixturePath(name: string): string {
-  return path.join(fixturesDir, name);
+/** Copy fixture to a temp dir so parallel tests don't conflict on .nova/ */
+async function copyFixture(name: string): Promise<string> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), `nova-distiller-test-${name}-`));
+  const src = path.join(fixturesDir, name);
+  await cp(src, tmpDir, { recursive: true });
+  return tmpDir;
 }
 
 describe('ContextDistiller', () => {
   const distiller = new ContextDistiller();
   const indexer = new ProjectIndexer();
-  const novaCleanupPaths: string[] = [];
+  let cleanupDirs: string[] = [];
 
   afterEach(async () => {
-    for (const p of novaCleanupPaths) {
-      await rm(path.join(p, '.nova'), { recursive: true, force: true });
-      const gitignorePath = path.join(p, '.gitignore');
-      if (existsSync(gitignorePath)) {
-        await rm(gitignorePath, { force: true });
-      }
+    for (const p of cleanupDirs) {
+      await rm(p, { recursive: true, force: true });
     }
-    novaCleanupPaths.length = 0;
+    cleanupDirs = [];
   });
 
   describe('distill()', () => {
     it('should return a string containing the framework name', async () => {
-      const projectPath = fixturePath('nextjs-app');
-      novaCleanupPaths.push(projectPath);
+      const projectPath = await copyFixture('nextjs-app');
+      cleanupDirs.push(projectPath);
 
       const map = await indexer.index(projectPath);
       const result = distiller.distill(map);
@@ -41,8 +41,8 @@ describe('ContextDistiller', () => {
     });
 
     it('should return a string mentioning route count', async () => {
-      const projectPath = fixturePath('nextjs-app');
-      novaCleanupPaths.push(projectPath);
+      const projectPath = await copyFixture('nextjs-app');
+      cleanupDirs.push(projectPath);
 
       const map = await indexer.index(projectPath);
       const result = distiller.distill(map);
@@ -53,8 +53,8 @@ describe('ContextDistiller', () => {
     });
 
     it('should produce a result shorter than 3000 characters', async () => {
-      const projectPath = fixturePath('nextjs-app');
-      novaCleanupPaths.push(projectPath);
+      const projectPath = await copyFixture('nextjs-app');
+      cleanupDirs.push(projectPath);
 
       const map = await indexer.index(projectPath);
       const result = distiller.distill(map);

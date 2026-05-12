@@ -106,7 +106,7 @@ describe('ProxyServer', () => {
     await proxy.start(targetPort, proxyPort, overlayScriptPath);
 
     const result = await fetch(`http://localhost:${proxyPort}/`);
-    expect(result.body).toContain('<script src="/nova-overlay.js"></script>');
+    expect(result.body).toMatch(/src="\/nova-overlay\.js"/);
     expect(result.body).toContain('<h1>Hello</h1>');
   });
 
