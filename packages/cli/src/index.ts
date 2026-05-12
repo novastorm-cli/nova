@@ -14,6 +14,7 @@ import { entityCommand } from './commands/entity.js';
 import { bibleCommand } from './commands/bible.js';
 import { updateCommand, checkForUpdates } from './commands/update.js';
 import { uninstallCommand } from './commands/uninstall.js';
+import { doctorCommand } from './commands/doctor.js';
 import { runSetup } from './setup.js';
 
 export { ConfigReader } from './config.js';
@@ -190,6 +191,14 @@ export function createCli(): Command {
       await uninstallCommand();
     });
 
+  program
+    .command('doctor')
+    .description('Run system diagnostics to check your Nova setup')
+    .option('--json', 'Output results as JSON')
+    .action(async (opts: { json?: boolean }) => {
+      await doctorCommand({ json: opts.json === true });
+    });
+
   return program;
 }
 
@@ -240,6 +249,7 @@ export async function run(argv: string[] = process.argv): Promise<void> {
     'bible',
     'update',
     'uninstall',
+    'doctor',
   ];
   const subcommand = args.find((a) => !a.startsWith('-') && knownCommands.includes(a));
   const isStartOrDefault = !subcommand || subcommand === 'start';

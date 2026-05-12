@@ -5,6 +5,7 @@ import TOML from '@iarna/toml';
 import chalk from 'chalk';
 import { ConfigReader } from './config.js';
 import { DEFAULT_CONFIG, type NovaConfig } from '@novastorm-ai/core';
+import { doctorCommand } from './commands/doctor.js';
 
 const NOVA_DIR = '.nova';
 const LOCAL_CONFIG = 'config.toml';
@@ -66,6 +67,10 @@ export async function runSetup(projectPath?: string, opts: SetupOptions = {}): P
     }
 
     console.log(chalk.dim('\nSetup complete (non-interactive).'));
+
+    // Auto-run doctor for immediate feedback
+    console.log(chalk.dim('\nRunning diagnostics…'));
+    await doctorCommand({ cwd });
     return;
   }
 
@@ -136,4 +141,8 @@ export async function runSetup(projectPath?: string, opts: SetupOptions = {}): P
   }
 
   console.log('\nSetup complete!');
+
+  // Auto-run doctor for immediate feedback
+  console.log(chalk.dim('\nRunning diagnostics…'));
+  await doctorCommand();
 }
