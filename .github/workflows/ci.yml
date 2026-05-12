@@ -1,0 +1,212 @@
+# =============================================================================
+# Nova v1.0.0 — CI Workflow
+# =============================================================================
+#
+# EXPECTED RED → GREEN PROGRESSION
+# ─────────────────────────────────
+# This CI file is introduced in Milestone 0 (Preflight & Test Infrastructure).
+# It will NOT pass on first push — several stages start red and go green as
+# later milestones land:
+#
+#   Stage                        | M0  | M1  | M2  | M3  | M4  | M5
+#   -----------------------------+-----+-----+-----+-----+-----+-----
+#   pnpm install                 |  🟢  |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   pnpm -r build                |  🟢  |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   tsc --noEmit                 |  🔴  |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   eslint .                     |  🟢  |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   prettier --check             |  🟢  |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   pnpm test                    |  🟢  |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   vitest --coverage            |  🟢* |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   start fixture + e2e          |  🟢  |  🟢  |  🟢  |  🟢  |  🟢  |  🟢
+#   start Nova + e2e (proxy)     |  ⛔  |  🔴  |  🔴  |  🟡  |  🟢  |  🟢
+#
+#   🟢 = passes       🔴 = fails (expected)       ⛔ = skipped/placeholder
+#   🟡 = flaky (may pass locally but not CI-reliable)
+#   * coverage gate threshold will be tuned in M4
+#
+# KEY DEPENDENCIES BETWEEN MILESTONES:
+#   • tsc --noEmit goes green in M1 when stubs are removed and interfaces
+#     are reconciled (m1-06-remove-stubs-naming-brand, m3-03-base-provider).
+#   • E2E through Nova proxy goes green in M2 when overlay modals, theme,
+#     and shortcuts are wired (m2-01 through m2-15).
+#   • Coverage thresholds lock in M4 after perf work and strict TS knobs.
+#
+# M0 VERIFICATION:
+#   At the end of M0, the following stages must pass:
+#     install, build, lint, format-check, unit tests, coverage (runs), e2e smoke.
+#   tsc --noEmit is EXPECTED to fail at M0 — do not block on it.
+#   The Nova-proxy start step is commented out (placeholder for M1+).
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  ci:
+    name: CI (${{ matrix.os }})
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Checkout
+      # ------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # 2. Setup Node.js 22
+      # ------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # ------------------------------------------------------------------
+      # 3. Enable corepack and activate pnpm@10.32.1
+      # ------------------------------------------------------------------
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.32.1 --activate
+
+      # ------------------------------------------------------------------
+      # 4. Cache pnpm store (global, OS-scoped)
+      # ------------------------------------------------------------------
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      # ------------------------------------------------------------------
+      # 5. Cache node_modules
+      # ------------------------------------------------------------------
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # ------------------------------------------------------------------
+      # 6. Install dependencies
+      # ------------------------------------------------------------------
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ------------------------------------------------------------------
+      # 7. Build all packages
+      # ------------------------------------------------------------------
+      - name: Build
+        run: pnpm -r build
+
+      # ------------------------------------------------------------------
+      # 8. Typecheck
+      # ------------------------------------------------------------------
+      - name: Typecheck
+        run: pnpm -r exec tsc --noEmit
+        # NOTE: Expected to fail in M0. Goes green in M1 (m1-06) / M3 (m3-03).
+        # Remove `continue-on-error` when M1 lands.
+        continue-on-error: true
+
+      # ------------------------------------------------------------------
+      # 9. Lint
+      # ------------------------------------------------------------------
+      - name: Lint
+        run: pnpm exec eslint .
+
+      # ------------------------------------------------------------------
+      # 10. Format check
+      # ------------------------------------------------------------------
+      - name: Format check
+        run: pnpm exec prettier --check "packages/*/src/**/*.ts"
+
+      # ------------------------------------------------------------------
+      # 11. Unit tests
+      # ------------------------------------------------------------------
+      - name: Unit tests
+        run: pnpm test
+
+      # ------------------------------------------------------------------
+      # 12. Coverage
+      # ------------------------------------------------------------------
+      - name: Coverage
+        run: pnpm exec vitest run --coverage
+
+      # ------------------------------------------------------------------
+      # 13. Cache Playwright browsers
+      # ------------------------------------------------------------------
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright/
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      # ------------------------------------------------------------------
+      # 14. Install Playwright Chromium (headless)
+      # ------------------------------------------------------------------
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --no-deps chromium
+
+      # ------------------------------------------------------------------
+      # 15. Start test fixture
+      # ------------------------------------------------------------------
+      - name: Start test fixture
+        run: |
+          cd tests-e2e/fixture
+          python3 -m http.server 3500 &
+          echo "Waiting for fixture on http://localhost:3500 ..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3500/ > /dev/null && echo "Fixture ready." && break
+            sleep 2
+          done
+
+      # ------------------------------------------------------------------
+      # 16. Start Nova proxy (PLACEHOLDER — skipped in M0)
+      # ------------------------------------------------------------------
+      # This step is commented out in M0 because the CLI flags required
+      # (--no-open, --yes, --port, --proxy-port) and the NOVA_NON_INTERACTIVE
+      # env var do not exist yet. They are introduced in M1/F1.
+      #
+      # Uncomment when M1 lands:
+      #
+      # - name: Start Nova proxy
+      #   run: |
+      #     cd tests-e2e/fixture
+      #     DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}" \
+      #       NOVA_NON_INTERACTIVE=1 \
+      #       node ../../packages/cli/dist/bin/nova.js \
+      #         --no-open --no-telemetry \
+      #         --port=3500 --proxy-port=3501 \
+      #         --yes &
+      #     echo "Waiting for Nova proxy on http://localhost:3501 ..."
+      #     for i in $(seq 1 30); do
+      #       curl -sf http://localhost:3501/ > /dev/null && echo "Nova proxy ready." && break
+      #       sleep 2
+      #     done
+
+      # ------------------------------------------------------------------
+      # 17. Playwright E2E tests
+      # ------------------------------------------------------------------
+      - name: Playwright E2E tests
+        run: pnpm exec playwright test
