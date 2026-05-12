@@ -37,6 +37,16 @@ function getPort(): number {
   return DEFAULT_PORT;
 }
 
+function getSessionToken(): string | null {
+  // Read the session token from the overlay's own script tag
+  // (injected by the proxy as data-nova-session)
+  const script = document.querySelector('script[data-nova-session]');
+  if (script) {
+    return script.getAttribute('data-nova-session');
+  }
+  return null;
+}
+
 async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -108,10 +118,11 @@ function boot(): void {
   let gestureModeEnabled = localStorage.getItem('nova-gesture-mode') === 'true';
 
   function updateCursorTracking(): void {
-    const shouldTrack = gestureModeEnabled
-      && voiceStarted
-      && !elementInspector.isActive()
-      && !multiSelector.isActive();
+    const shouldTrack =
+      gestureModeEnabled &&
+      voiceStarted &&
+      !elementInspector.isActive() &&
+      !multiSelector.isActive();
     if (shouldTrack && !cursorTracker.isTracking()) {
       cursorTracker.start();
     } else if (!shouldTrack && cursorTracker.isTracking()) {
@@ -197,15 +208,20 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
   document.addEventListener('click', (e) => {
     // Skip clicks on Nova UI elements
     const target = e.target as HTMLElement;
-    if (target.closest('#nova-root') || target.closest('[data-nova-pill]') || target.closest('[data-nova-transcript]')) return;
+    if (
+      target.closest('#nova-root') ||
+      target.closest('[data-nova-pill]') ||
+      target.closest('[data-nova-transcript]')
+    )
+      return;
 
     const now = Date.now();
     rageClicks.push({ target: e.target, time: now });
     // Keep only recent clicks
-    rageClicks = rageClicks.filter(c => now - c.time < 1500);
+    rageClicks = rageClicks.filter((c) => now - c.time < 1500);
 
     // Check for 3+ clicks on the same element
-    const sameTarget = rageClicks.filter(c => c.target === e.target);
+    const sameTarget = rageClicks.filter((c) => c.target === e.target);
     if (sameTarget.length >= 3) {
       rageClicks = [];
       // Activate inspector and auto-select this element
@@ -233,7 +249,12 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     const target = e.target as HTMLElement;
 
     // Skip Nova UI elements
-    if (target.closest('#nova-root') || target.closest('[data-nova-pill]') || target.closest('[data-nova-transcript]')) return;
+    if (
+      target.closest('#nova-root') ||
+      target.closest('[data-nova-pill]') ||
+      target.closest('[data-nova-transcript]')
+    )
+      return;
 
     // Skip when processing, in autofix, or inspector/selector modes are active
     if (isProcessing || autofixInProgress) return;
@@ -247,15 +268,22 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     if (interactive.closest('#nova-root')) return;
 
     // Skip if element has React/framework event handlers attached
-    const hasFrameworkHandler = Object.keys(interactive).some(k =>
-      k.startsWith('__reactFiber') || k.startsWith('__reactEvents') || k.startsWith('__reactProps') ||
-      k.startsWith('__vue') || k.startsWith('__svelte')
+    const hasFrameworkHandler = Object.keys(interactive).some(
+      (k) =>
+        k.startsWith('__reactFiber') ||
+        k.startsWith('__reactEvents') ||
+        k.startsWith('__reactProps') ||
+        k.startsWith('__vue') ||
+        k.startsWith('__svelte'),
     );
     if (hasFrameworkHandler && interactive.getAttribute('onclick') === null) {
       // Element has React/Vue/Svelte handler — check if it has an onClick prop
-      const reactProps = Object.keys(interactive).find(k => k.startsWith('__reactProps'));
+      const reactProps = Object.keys(interactive).find((k) => k.startsWith('__reactProps'));
       if (reactProps && (interactive as unknown as Record<string, unknown>)[reactProps]) {
-        const props = (interactive as unknown as Record<string, unknown>)[reactProps] as Record<string, unknown>;
+        const props = (interactive as unknown as Record<string, unknown>)[reactProps] as Record<
+          string,
+          unknown
+        >;
         if (typeof props.onClick === 'function') return; // Has React onClick — not a dead click
       }
     }
@@ -269,37 +297,39 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     // Use requestAnimationFrame to avoid blocking the current event cycle
     // This ensures React processes the click BEFORE we snapshot DOM state
     requestAnimationFrame(() => {
-    const snapshotUrl = window.location.href;
-    const snapshotDomLength = document.body.innerHTML.length;
+      const snapshotUrl = window.location.href;
+      const snapshotDomLength = document.body.innerHTML.length;
 
-    setTimeout(() => {
-      // Re-check state — user may have started processing in the meantime
-      if (isProcessing || autofixInProgress) return;
-      if (awaitingConfirmation || awaitingSendConfirmation) return;
-      if (voiceStarted) return; // Don't interfere with active voice recording
+      setTimeout(() => {
+        // Re-check state — user may have started processing in the meantime
+        if (isProcessing || autofixInProgress) return;
+        if (awaitingConfirmation || awaitingSendConfirmation) return;
+        if (voiceStarted) return; // Don't interfere with active voice recording
 
-      // Element may have been removed by React re-render
-      if (!clickedElement.isConnected) return;
+        // Element may have been removed by React re-render
+        if (!clickedElement.isConnected) return;
 
-      // Check if URL changed
-      if (window.location.href !== snapshotUrl) return;
+        // Check if URL changed
+        if (window.location.href !== snapshotUrl) return;
 
-      // Check if DOM changed significantly
-      const currentDomLength = document.body.innerHTML.length;
-      if (Math.abs(currentDomLength - snapshotDomLength) > DEAD_CLICK_DOM_THRESHOLD) return;
+        // Check if DOM changed significantly
+        const currentDomLength = document.body.innerHTML.length;
+        if (Math.abs(currentDomLength - snapshotDomLength) > DEAD_CLICK_DOM_THRESHOLD) return;
 
-      // Check if a new element appeared (modal, dropdown, tooltip, popover) — check both parent and body
-      const overlaySelector = '[class*="modal"], [class*="dropdown"], [class*="tooltip"], [class*="popover"], [class*="menu"], [role="dialog"], [role="menu"], [role="listbox"], [role="tooltip"]';
-      const nearbyNew = clickedElement.parentElement?.querySelector(overlaySelector)
-        || document.body.querySelector(overlaySelector + ':not([data-nova-pill])');
-      if (nearbyNew) return;
+        // Check if a new element appeared (modal, dropdown, tooltip, popover) — check both parent and body
+        const overlaySelector =
+          '[class*="modal"], [class*="dropdown"], [class*="tooltip"], [class*="popover"], [class*="menu"], [role="dialog"], [role="menu"], [role="listbox"], [role="tooltip"]';
+        const nearbyNew =
+          clickedElement.parentElement?.querySelector(overlaySelector) ||
+          document.body.querySelector(overlaySelector + ':not([data-nova-pill])');
+        if (nearbyNew) return;
 
-      // Nothing happened — suggest adding functionality
-      deadClickSuggested.set(clickedElement, Date.now());
-      deadClickElement = clickedElement;
+        // Nothing happened — suggest adding functionality
+        deadClickSuggested.set(clickedElement, Date.now());
+        deadClickElement = clickedElement;
 
-      const elementSnapshot = domCapture.captureElement(clickedElement);
-      const instruction = `DEAD CLICK DETECTED — this interactive element does nothing when clicked. Add appropriate functionality to it.
+        const elementSnapshot = domCapture.captureElement(clickedElement);
+        const instruction = `DEAD CLICK DETECTED — this interactive element does nothing when clicked. Add appropriate functionality to it.
 
 Element snapshot:
 ${elementSnapshot}
@@ -314,24 +344,74 @@ The user clicked this element and nothing happened. Analyze the element's contex
 
 IMPORTANT: Only modify the minimum code needed. Do not restructure other parts of the page.`;
 
-      // Piggyback on existing confirmation flow via pendingVoiceCommand
-      pendingVoiceCommand = instruction;
-      awaitingSendConfirmation = true;
-      transcriptBar.showConfirmation('Кнопка не работает. Хотите добавить функционал?', { showInput: true });
-    }, DEAD_CLICK_DELAY_MS);
+        // Piggyback on existing confirmation flow via pendingVoiceCommand
+        pendingVoiceCommand = instruction;
+        awaitingSendConfirmation = true;
+        transcriptBar.showConfirmation('Кнопка не работает. Хотите добавить функционал?', {
+          showInput: true,
+        });
+      }, DEAD_CLICK_DELAY_MS);
     }); // end requestAnimationFrame
   });
 
   // Watch for removal and re-mount if React or error boundaries nuke the elements
   const overlaySelectors = [
-    { attr: 'data-nova-pill', remount: () => { pill.unmount(); pill.mount(novaRoot!); } },
-    { attr: 'data-nova-transcript', remount: () => { transcriptBar.unmount(); transcriptBar.mount(novaRoot!); } },
-    { attr: 'data-nova-task-panel', remount: () => { taskPanel.unmount(); taskPanel.mount(novaRoot!); } },
-    { attr: 'data-nova-activity-log', remount: () => { activityLog.unmount(); activityLog.mount(novaRoot!); } },
-    { attr: 'data-nova-diff-modal', remount: () => { diffModal.unmount(); diffModal.mount(novaRoot!); } },
-    { attr: 'data-nova-inspector', remount: () => { elementInspector.unmount(); elementInspector.mount(novaRoot!); } },
-    { attr: 'data-nova-multi-selector', remount: () => { multiSelector.unmount(); multiSelector.mount(novaRoot!); } },
-    { attr: 'data-nova-secret-console', remount: () => { secretConsole.unmount(); secretConsole.mount(novaRoot!); } },
+    {
+      attr: 'data-nova-pill',
+      remount: () => {
+        pill.unmount();
+        pill.mount(novaRoot!);
+      },
+    },
+    {
+      attr: 'data-nova-transcript',
+      remount: () => {
+        transcriptBar.unmount();
+        transcriptBar.mount(novaRoot!);
+      },
+    },
+    {
+      attr: 'data-nova-task-panel',
+      remount: () => {
+        taskPanel.unmount();
+        taskPanel.mount(novaRoot!);
+      },
+    },
+    {
+      attr: 'data-nova-activity-log',
+      remount: () => {
+        activityLog.unmount();
+        activityLog.mount(novaRoot!);
+      },
+    },
+    {
+      attr: 'data-nova-diff-modal',
+      remount: () => {
+        diffModal.unmount();
+        diffModal.mount(novaRoot!);
+      },
+    },
+    {
+      attr: 'data-nova-inspector',
+      remount: () => {
+        elementInspector.unmount();
+        elementInspector.mount(novaRoot!);
+      },
+    },
+    {
+      attr: 'data-nova-multi-selector',
+      remount: () => {
+        multiSelector.unmount();
+        multiSelector.mount(novaRoot!);
+      },
+    },
+    {
+      attr: 'data-nova-secret-console',
+      remount: () => {
+        secretConsole.unmount();
+        secretConsole.mount(novaRoot!);
+      },
+    },
   ];
 
   const overlayObserver = new MutationObserver(() => {
@@ -352,7 +432,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
     for (const item of overlaySelectors) {
       if (!novaRoot!.querySelector(`[${item.attr}]`)) {
-        try { item.remount(); } catch { /* best-effort */ }
+        try {
+          item.remount();
+        } catch {
+          /* best-effort */
+        }
       }
     }
   });
@@ -371,13 +455,20 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     if (autofixInProgress) return; // Don't report errors while fixing
 
     const isWarning = error.startsWith('[warn]');
-    const isImageIssue = /image|src.*prop|hostname.*not configured|unsplash|picsum|placeholder/i.test(error);
-    const isFixableError = /Module not found|Invalid src|Error boundary|SyntaxError|TypeError|Build error|Failed to compile/i.test(error);
+    const isImageIssue =
+      /image|src.*prop|hostname.*not configured|unsplash|picsum|placeholder/i.test(error);
+    const isFixableError =
+      /Module not found|Invalid src|Error boundary|SyntaxError|TypeError|Build error|Failed to compile/i.test(
+        error,
+      );
 
     // Show toast for errors (not routine warnings)
     if (!isWarning || isImageIssue) {
       const shortError = error.length > 200 ? error.slice(0, 200) + '...' : error;
-      statusToast.show(`Console ${isWarning ? 'warning' : 'error'}: ${shortError}`, isWarning ? 'info' : 'error');
+      statusToast.show(
+        `Console ${isWarning ? 'warning' : 'error'}: ${shortError}`,
+        isWarning ? 'info' : 'error',
+      );
       activityLog.addEntry(shortError, 'error');
     }
 
@@ -552,13 +643,10 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       const screenshotBlob = await screenshotCapture.captureViewport();
       const screenshotBase64 = await blobToBase64(screenshotBlob);
 
-      const domSnapshot = selectedElement
-        ? domCapture.captureElement(selectedElement)
-        : undefined;
+      const domSnapshot = selectedElement ? domCapture.captureElement(selectedElement) : undefined;
 
-      const gestureContext = gestureModeEnabled && !autoExecute
-        ? temporalCorrelator.resolve()
-        : undefined;
+      const gestureContext =
+        gestureModeEnabled && !autoExecute ? temporalCorrelator.resolve() : undefined;
 
       const observation: BrowserObservation = {
         screenshotBase64,
@@ -570,7 +658,9 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         gestureContext: gestureContext?.gestures.length ? gestureContext : undefined,
       };
 
-      console.log(`[Nova] Sending observation: screenshot=${screenshotBase64.length} chars, url=${window.location.href}, transcript="${transcript}", autoExec=${autoExecute}`);
+      console.log(
+        `[Nova] Sending observation: screenshot=${screenshotBase64.length} chars, url=${window.location.href}, transcript="${transcript}", autoExec=${autoExecute}`,
+      );
       // Send autoExecute flag alongside observation
       if (autoExecute) {
         wsClient.sendRaw({ type: 'observation', data: { ...observation, autoExecute: true } });
@@ -654,7 +744,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     pill.setGestureModeActive(gestureModeEnabled);
     updateCursorTracking();
     if (gestureModeEnabled) {
-      statusToast.show('Gesture Mode ON \u2014 point at elements while speaking (Option+G)', 'info', 2000);
+      statusToast.show(
+        'Gesture Mode ON \u2014 point at elements while speaking (Option+G)',
+        'info',
+        2000,
+      );
     } else {
       statusToast.show('Gesture Mode OFF', 'info', 1500);
     }
@@ -700,7 +794,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       pill.setGestureModeActive(gestureModeEnabled);
       updateCursorTracking();
       if (gestureModeEnabled) {
-        statusToast.show('Gesture Mode ON \u2014 point at elements while speaking (Option+G)', 'info', 2000);
+        statusToast.show(
+          'Gesture Mode ON \u2014 point at elements while speaking (Option+G)',
+          'info',
+          2000,
+        );
       } else {
         statusToast.show('Gesture Mode OFF', 'info', 1500);
       }
@@ -762,7 +860,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'task_failed':
         completedTasks++;
         taskPanel.setTaskFailed(event.data.taskId, event.data.error);
-        activityLog.addEntry(`Failed: ${event.data.taskId}${event.data.error ? ' - ' + event.data.error : ''}`, 'error', false, ts);
+        activityLog.addEntry(
+          `Failed: ${event.data.taskId}${event.data.error ? ' - ' + event.data.error : ''}`,
+          'error',
+          false,
+          ts,
+        );
         // Count failed as completed for tracking
         if (completedTasks >= totalTasks && totalTasks > 0) {
           if (executingToastId) {
@@ -784,7 +887,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'llm_chunk':
         // Show brief phase status instead of raw code in task panel
         if (event.data.taskId) {
-          const phaseLabel = event.data.phase === 'reasoning' ? 'Thinking...' : 'Generating code...';
+          const phaseLabel =
+            event.data.phase === 'reasoning' ? 'Thinking...' : 'Generating code...';
           taskPanel.setStreamingText(event.data.taskId, phaseLabel, event.data.phase);
         }
         // Activity log: accumulate all LLM output, detect file/diff blocks in both phases
@@ -809,7 +913,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
         // Check for completed FILE or DIFF blocks (in both reasoning and code phases)
         {
-          const blockRegex = /=== (?:FILE|DIFF): (.+?) ===\n([\s\S]*?)(?:=== END (?:FILE|DIFF) ===)/g;
+          const blockRegex =
+            /=== (?:FILE|DIFF): (.+?) ===\n([\s\S]*?)(?:=== END (?:FILE|DIFF) ===)/g;
           let blockMatch;
           while ((blockMatch = blockRegex.exec(codeBuffer)) !== null) {
             const filePath = blockMatch[1].trim();
@@ -834,7 +939,10 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         break;
       case 'task_created': {
         // Dismiss thinking toast
-        if (executingToastId) { statusToast.dismiss(executingToastId); executingToastId = null; }
+        if (executingToastId) {
+          statusToast.dismiss(executingToastId);
+          executingToastId = null;
+        }
         const td = event.data as { id?: string; description?: string; lane?: number };
         if (td.id && td.description) {
           taskPanel.addTask({ id: td.id, description: td.description, lane: td.lane ?? 3 });
@@ -852,13 +960,25 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       }
       case 'analysis_complete': {
         const { fileCount, methodCount } = event.data as { fileCount: number; methodCount: number };
-        statusToast.show(`Project analyzed: ${fileCount} files, ${methodCount} methods`, 'success', 4000);
-        activityLog.addEntry(`Project analyzed: ${fileCount} files, ${methodCount} methods`, 'success', false, ts);
+        statusToast.show(
+          `Project analyzed: ${fileCount} files, ${methodCount} methods`,
+          'success',
+          4000,
+        );
+        activityLog.addEntry(
+          `Project analyzed: ${fileCount} files, ${methodCount} methods`,
+          'success',
+          false,
+          ts,
+        );
         break;
       }
       case 'pending_tasks': {
         // Dismiss "AI is thinking" toast
-        if (executingToastId) { statusToast.dismiss(executingToastId); executingToastId = null; }
+        if (executingToastId) {
+          statusToast.dismiss(executingToastId);
+          executingToastId = null;
+        }
         awaitingConfirmation = true;
         pill.setState('idle');
 
@@ -868,7 +988,9 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         };
 
         if (pendingTaskList && pendingTaskList.length > 0) {
-          taskPanel.setPendingTasks(pendingTaskList as Array<{ id: string; description: string; lane: number }>);
+          taskPanel.setPendingTasks(
+            pendingTaskList as Array<{ id: string; description: string; lane: number }>,
+          );
           totalTasks = pendingTaskList.length;
           completedTasks = 0;
         }
@@ -876,7 +998,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         const taskCount = pendingTaskList?.length ?? 0;
         const shortMsg = `Awaiting confirmation — ${taskCount} task(s) ready. Execute?`;
         transcriptBar.showConfirmation(shortMsg);
-        activityLog.addEntry(message ?? `Awaiting confirmation for ${taskCount} task(s)`, 'info', false, ts);
+        activityLog.addEntry(
+          message ?? `Awaiting confirmation for ${taskCount} task(s)`,
+          'info',
+          false,
+          ts,
+        );
         break;
       }
       case 'status': {
@@ -885,7 +1012,10 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         // Show confirmation toast with buttons for pending tasks
         if (msg.startsWith('question:')) {
           // AI is asking a clarifying question — show it with input for answer
-          if (executingToastId) { statusToast.dismiss(executingToastId); executingToastId = null; }
+          if (executingToastId) {
+            statusToast.dismiss(executingToastId);
+            executingToastId = null;
+          }
           pill.setState('idle');
           const question = msg.slice('question:'.length).trim();
           activityLog.addEntry(`AI asks: ${question}`, 'thinking', false, ts);
@@ -904,12 +1034,17 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           });
         } else if (msg.startsWith('Pending:')) {
           // Dismiss "AI is thinking" toast
-          if (executingToastId) { statusToast.dismiss(executingToastId); executingToastId = null; }
+          if (executingToastId) {
+            statusToast.dismiss(executingToastId);
+            executingToastId = null;
+          }
           awaitingConfirmation = true;
           pill.setState('idle');
 
           // Show task panel if structured tasks are included
-          const statusTasks = (event.data as { tasks?: Array<{ id: string; description: string; lane: number }> }).tasks;
+          const statusTasks = (
+            event.data as { tasks?: Array<{ id: string; description: string; lane: number }> }
+          ).tasks;
           if (statusTasks && statusTasks.length > 0) {
             taskPanel.setPendingTasks(statusTasks);
             totalTasks = statusTasks.length;
@@ -955,6 +1090,10 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
   // Connect WebSocket
   const port = getPort();
+  const token = getSessionToken();
+  if (token) {
+    wsClient.setToken(token);
+  }
   wsClient.connect(`ws://localhost:${port}/nova-ws`);
 }
 

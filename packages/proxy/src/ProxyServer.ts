@@ -1,20 +1,16 @@
 import http from 'node:http';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { pipeline } from 'node:stream';
 import fs from 'node:fs';
 import httpProxy from 'http-proxy';
 import type { IProxyServer } from '@novastorm-ai/core';
-
-// Injected AFTER </html> to avoid React hydration mismatch.
-// Browsers still parse and execute it, but React never sees it in the DOM tree.
-const SCRIPT_TAG = '<script src="/nova-overlay.js" async></script>';
 
 export class ProxyServer implements IProxyServer {
   private server: http.Server | null = null;
   private proxy: httpProxy | null = null;
   private running = false;
   private host: string = '127.0.0.1';
+  private sessionToken: string | null = null;
   private projectMapApi: {
     handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<boolean>;
   } | null = null;
@@ -29,10 +25,28 @@ export class ProxyServer implements IProxyServer {
     this.host = host;
   }
 
+  /** Set the per-session token for WS auth and HTML injection. */
+  setSessionToken(token: string): void {
+    this.sessionToken = token;
+  }
+
   setProjectMapApi(api: {
     handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<boolean>;
   }): void {
     this.projectMapApi = api;
+  }
+
+  /**
+   * Builds the overlay script tag injected into proxied HTML.
+   * Includes data-nova-session token when available.
+   */
+  private buildScriptTag(proxyPort: number): string {
+    const attrs: string[] = ['src="/nova-overlay.js"', 'async'];
+    if (this.sessionToken) {
+      attrs.push(`data-nova-session="${this.sessionToken}"`);
+    }
+    attrs.push(`data-nova-port="${proxyPort}"`);
+    return `<script ${attrs.join(' ')}></script>`;
   }
 
   async start(
@@ -102,7 +116,8 @@ export class ProxyServer implements IProxyServer {
         let body = Buffer.concat(chunks).toString('utf-8');
 
         // Append AFTER </html> — outside React's hydration scope
-        body += SCRIPT_TAG;
+        // Includes data-nova-session token and data-nova-port for WS auth
+        body += this.buildScriptTag(proxyPort);
 
         // Remove content-length and content-encoding since we modified + decompressed
         delete headers['content-length'];
@@ -136,6 +151,7 @@ export class ProxyServer implements IProxyServer {
                   <p>Waiting for dev server on port ${targetPort}...</p>
                   <p style="color:#888">This page will auto-refresh.</p>
                   <script>setTimeout(() => location.reload(), 2000)</script>
+                  ${this.buildScriptTag(proxyPort)}
                 </div>
               </body></html>
             `);
@@ -197,7 +213,7 @@ export class ProxyServer implements IProxyServer {
 
     // Proxy WebSocket upgrades (HMR, dev server WS) — skip Nova's own /nova-ws
     this.server.on('upgrade', (req, socket, head) => {
-      if (req.url === '/nova-ws') return; // Let Nova's WS server handle this
+      if (req.url === '/nova-ws' || req.url?.startsWith('/nova-ws?')) return; // Let Nova's WS server handle this
       this.proxy!.ws(req, socket, head);
     });
 

@@ -44,9 +44,17 @@ const RECONNECT_DELAY_MS = 1000;
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private url = '';
+  private token: string | null = null;
   private eventCallbacks: EventCallback[] = [];
   private retryCount = 0;
   private closed = false;
+
+  /**
+   * Set the session token to include in WS connect URL as ?token= parameter.
+   */
+  setToken(token: string): void {
+    this.token = token;
+  }
 
   connect(url: string): void {
     this.url = url;
@@ -90,7 +98,13 @@ export class WebSocketClient {
     if (this.closed) return;
 
     try {
-      this.ws = new WebSocket(this.url);
+      let url = this.url;
+      // Append session token as query parameter if available
+      if (this.token) {
+        const sep = url.includes('?') ? '&' : '?';
+        url = `${url}${sep}token=${encodeURIComponent(this.token)}`;
+      }
+      this.ws = new WebSocket(url);
     } catch (err) {
       console.error('[Nova] Failed to create WebSocket:', err);
       this.scheduleReconnect();

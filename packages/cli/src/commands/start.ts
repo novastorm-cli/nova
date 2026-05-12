@@ -1,6 +1,7 @@
 import { exec } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { writeFile, mkdir } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import * as path from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -1053,6 +1054,15 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         ),
       );
     }
+
+    // Generate per-session token for WS auth (rotated on each restart)
+    const sessionToken = randomBytes(32).toString('hex');
+    const sessionTokenPath = path.join(novaDir.getPath(cwd), 'session-token');
+    await writeFile(sessionTokenPath, sessionToken, { mode: 0o600 });
+    proxyServer.setSessionToken(sessionToken);
+    wsServer.setSessionToken(sessionToken);
+    wsServer.setProxyPort(proxyPort);
+
     await proxyServer.start(devPort, proxyPort, OVERLAY_SCRIPT_PATH, host);
   } catch (err) {
     spinner.fail('Proxy server failed to start.');
