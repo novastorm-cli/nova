@@ -31,11 +31,7 @@ import {
   EnvDetector,
   StackDetector,
 } from '@novastorm-ai/core';
-import {
-  DevServerRunner,
-  ProxyServer,
-  WebSocketServer,
-} from '@novastorm-ai/proxy';
+import { DevServerRunner, ProxyServer, WebSocketServer } from '@novastorm-ai/proxy';
 import { LicenseChecker, Telemetry, NudgeRenderer } from '@novastorm-ai/licensing';
 import { ConfigReader } from '../config.js';
 import { NovaLogger } from '../logger.js';
@@ -43,6 +39,7 @@ import { promptAndScaffold } from '../scaffold.js';
 import { ErrorAutoFixer } from '../autofix.js';
 import { NovaChat } from '../chat.js';
 import { handleSettingsCommand } from '../settings.js';
+import type { StartOptions } from '../index.js';
 
 const SELECT_THEME = {
   icon: { cursor: chalk.whiteBright('❯') },
@@ -54,6 +51,14 @@ const SELECT_THEME = {
 
 const PROXY_PORT_OFFSET = 1;
 const MAX_TASK_CONCURRENCY = 3;
+
+/**
+ * Check if the process is running in non-interactive mode.
+ * Non-interactive means: NOVA_NON_INTERACTIVE=1 or --yes flag.
+ */
+function isNonInteractive(options: StartOptions): boolean {
+  return process.env['NOVA_NON_INTERACTIVE'] === '1' || options.yes === true;
+}
 
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
@@ -83,7 +88,10 @@ function isPortInUse(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
     server.once('error', () => resolve(true));
-    server.once('listening', () => { server.close(); resolve(false); });
+    server.once('listening', () => {
+      server.close();
+      resolve(false);
+    });
     server.listen(port);
   });
 }
@@ -92,9 +100,26 @@ function findOverlayScript(): string {
     // From cli/dist/ (when imported as module)
     path.resolve(import.meta.dirname, '..', '..', 'overlay', 'dist', 'nova-overlay.global.js'),
     // From cli/dist/bin/ (when run as binary)
-    path.resolve(import.meta.dirname, '..', '..', '..', 'overlay', 'dist', 'nova-overlay.global.js'),
+    path.resolve(
+      import.meta.dirname,
+      '..',
+      '..',
+      '..',
+      'overlay',
+      'dist',
+      'nova-overlay.global.js',
+    ),
     // From cli/src/commands/ (dev mode)
-    path.resolve(import.meta.dirname, '..', '..', '..', '..', 'overlay', 'dist', 'nova-overlay.global.js'),
+    path.resolve(
+      import.meta.dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'overlay',
+      'dist',
+      'nova-overlay.global.js',
+    ),
   ];
   for (const p of candidates) {
     try {
@@ -105,7 +130,7 @@ function findOverlayScript(): string {
 }
 const OVERLAY_SCRIPT_PATH = findOverlayScript();
 
-export async function startCommand(): Promise<void> {
+export async function startCommand(options: StartOptions = {}): Promise<void> {
   const cwd = process.cwd();
   const eventBus = new NovaEventBus();
   const configReader = new ConfigReader();
@@ -155,9 +180,10 @@ export async function startCommand(): Promise<void> {
     const os = await import('node:os');
     const { execFile } = await import('node:child_process');
 
-    const mac = Object.values(os.networkInterfaces())
-      .flat()
-      .find((i) => !i?.internal && i?.mac !== '00:00:00:00:00:00')?.mac ?? '';
+    const mac =
+      Object.values(os.networkInterfaces())
+        .flat()
+        .find((i) => !i?.internal && i?.mac !== '00:00:00:00:00:00')?.mac ?? '';
     const machineId = createHash('sha256')
       .update(os.hostname() + os.userInfo().username + mac)
       .digest('hex');
@@ -176,9 +202,9 @@ export async function startCommand(): Promise<void> {
     }
 
     const telemetry = new Telemetry();
-    const cliPkg = await import('../../package.json', { with: { type: 'json' } }).catch(
-      () => ({ default: { version: '0.0.1' } }),
-    );
+    const cliPkg = await import('../../package.json', { with: { type: 'json' } }).catch(() => ({
+      default: { version: '0.0.1' },
+    }));
 
     telemetry
       .send({
@@ -208,13 +234,25 @@ export async function startCommand(): Promise<void> {
   }
 
   // ── 2c. Set up LLM provider (early — before scanning) ──────────────
-  if (!config.apiKeys.key && config.apiKeys.provider !== 'ollama' && config.apiKeys.provider !== 'claude-cli') {
-    console.log(chalk.yellow('\nNo API key configured. Running setup...\n'));
-    const { runSetup } = await import('../setup.js');
-    await runSetup(cwd);
-    // Re-read config after setup
-    const updatedConfig = await configReader.read(cwd);
-    config.apiKeys = updatedConfig.apiKeys;
+  if (
+    !config.apiKeys.key &&
+    config.apiKeys.provider !== 'ollama' &&
+    config.apiKeys.provider !== 'claude-cli'
+  ) {
+    if (isNonInteractive(options)) {
+      console.log(
+        chalk.yellow(
+          '\nNo API key configured. Running in non-interactive mode — using defaults.\n',
+        ),
+      );
+    } else {
+      console.log(chalk.yellow('\nNo API key configured. Running setup...\n'));
+      const { runSetup } = await import('../setup.js');
+      await runSetup(cwd, { nonInteractive: false });
+      // Re-read config after setup
+      const updatedConfig = await configReader.read(cwd);
+      config.apiKeys = updatedConfig.apiKeys;
+    }
   }
 
   const providerFactory = new ProviderFactory();
@@ -237,7 +275,7 @@ export async function startCommand(): Promise<void> {
   let detectedPort = await stackDetector.detectPort(stack, cwd);
 
   const allStacks = [stack.framework, ...(stack.additionalStacks ?? [])];
-  const stackLabel = allStacks.filter(s => s !== 'unknown').join(' + ') || 'unknown';
+  const stackLabel = allStacks.filter((s) => s !== 'unknown').join(' + ') || 'unknown';
   const langLabel = stack.typescript ? 'TypeScript' : stack.language || 'unknown';
 
   spinner.succeed(`Detecting project... ${chalk.cyan(stackLabel)} (${chalk.dim(langLabel)})`);
@@ -256,59 +294,105 @@ export async function startCommand(): Promise<void> {
   // ── 3b. Scaffold if no project found ──────────────────────────────
   if (!devCommand) {
     // Check if directory already has project files
-    const projectMarkers = ['package.json', 'requirements.txt', 'go.mod', 'Cargo.toml', 'pom.xml', 'build.gradle', 'composer.json', 'Gemfile'];
-    const hasProjectFiles = projectMarkers.some(f => existsSync(join(cwd, f)))
-      || readdirSync(cwd).some(f => f.endsWith('.sln') || f.endsWith('.csproj'));
+    const projectMarkers = [
+      'package.json',
+      'requirements.txt',
+      'go.mod',
+      'Cargo.toml',
+      'pom.xml',
+      'build.gradle',
+      'composer.json',
+      'Gemfile',
+    ];
+    const hasProjectFiles =
+      projectMarkers.some((f) => existsSync(join(cwd, f))) ||
+      readdirSync(cwd).some((f) => f.endsWith('.sln') || f.endsWith('.csproj'));
 
     if (hasProjectFiles) {
       // Existing project but dev command unknown — ask user
       // Suggest a default based on detected stack
-      const defaultCmd = stack.framework === 'dotnet' ? 'dotnet run'
-        : stack.framework === 'django' ? 'python manage.py runserver'
-        : stack.framework === 'fastapi' ? 'uvicorn main:app --reload'
-        : stack.framework === 'flask' ? 'flask run'
-        : stack.framework === 'rails' ? 'bin/rails server'
-        : stack.framework === 'laravel' ? 'php artisan serve'
-        : stack.framework === 'spring-boot' ? './mvnw spring-boot:run'
-        : existsSync(join(cwd, 'package.json')) ? 'npm run dev'
-        : '';
+      const defaultCmd =
+        stack.framework === 'dotnet'
+          ? 'dotnet run'
+          : stack.framework === 'django'
+            ? 'python manage.py runserver'
+            : stack.framework === 'fastapi'
+              ? 'uvicorn main:app --reload'
+              : stack.framework === 'flask'
+                ? 'flask run'
+                : stack.framework === 'rails'
+                  ? 'bin/rails server'
+                  : stack.framework === 'laravel'
+                    ? 'php artisan serve'
+                    : stack.framework === 'spring-boot'
+                      ? './mvnw spring-boot:run'
+                      : existsSync(join(cwd, 'package.json'))
+                        ? 'npm run dev'
+                        : '';
 
-      const stackLabel = stack.framework !== 'unknown'
-        ? ` (${chalk.cyan(stack.framework)} detected)`
-        : '';
+      const stackLabel =
+        stack.framework !== 'unknown' ? ` (${chalk.cyan(stack.framework)} detected)` : '';
 
-      let devCmd: string;
-      try {
-        devCmd = await input({
-          message: `Dev command not found${stackLabel}. Enter your dev command:`,
-          default: defaultCmd || undefined,
-        });
-      } catch {
-        console.log('\nCancelled.');
-        process.exit(0);
-      }
-
-      if (devCmd && devCmd.trim()) {
-        devCommand = devCmd.trim();
-        // Save to nova.toml for future runs
-        try {
-          const novaTomlPath = join(cwd, 'nova.toml');
-          let tomlContent: Record<string, unknown> = {};
-          if (existsSync(novaTomlPath)) {
-            const { readFileSync } = await import('node:fs');
-            tomlContent = TOML.parse(readFileSync(novaTomlPath, 'utf-8')) as Record<string, unknown>;
-          }
-          const project = (tomlContent['project'] as Record<string, unknown>) ?? {};
-          project['devCommand'] = devCommand;
-          tomlContent['project'] = project;
-          await writeFile(novaTomlPath, TOML.stringify(tomlContent as TOML.JsonMap), 'utf-8');
-          console.log(chalk.dim(`Saved devCommand to nova.toml`));
-        } catch {
-          // Non-critical — continue without saving
+      if (isNonInteractive(options)) {
+        // Non-interactive: use default if available, else error
+        if (defaultCmd) {
+          devCommand = defaultCmd;
+          console.log(
+            chalk.dim(`Non-interactive mode — using detected dev command: ${defaultCmd}`),
+          );
+        } else {
+          console.error(
+            chalk.red(
+              'Dev command is required. Add [project] devCommand = "..." to nova.toml',
+            ),
+          );
+          process.exit(1);
         }
       } else {
-        console.error(chalk.red('Dev command is required. Add [project] devCommand = "..." to nova.toml'));
-        process.exit(1);
+        let devCmd: string;
+        try {
+          devCmd = await input({
+            message: `Dev command not found${stackLabel}. Enter your dev command:`,
+            default: defaultCmd || undefined,
+          });
+        } catch {
+          console.log('\nCancelled.');
+          process.exit(0);
+        }
+
+        if (devCmd && devCmd.trim()) {
+          devCommand = devCmd.trim();
+          // Save to nova.toml for future runs
+          try {
+            const novaTomlPath = join(cwd, 'nova.toml');
+            let tomlContent: Record<string, unknown> = {};
+            if (existsSync(novaTomlPath)) {
+              const { readFileSync } = await import('node:fs');
+              tomlContent = TOML.parse(readFileSync(novaTomlPath, 'utf-8')) as Record<
+                string,
+                unknown
+              >;
+            }
+            const project = (tomlContent['project'] as Record<string, unknown>) ?? {};
+            project['devCommand'] = devCommand;
+            tomlContent['project'] = project;
+            await writeFile(
+              novaTomlPath,
+              TOML.stringify(tomlContent as TOML.JsonMap),
+              'utf-8',
+            );
+            console.log(chalk.dim(`Saved devCommand to nova.toml`));
+          } catch {
+            // Non-critical — continue without saving
+          }
+        } else {
+          console.error(
+            chalk.red(
+              'Dev command is required. Add [project] devCommand = "..." to nova.toml',
+            ),
+          );
+          process.exit(1);
+        }
       }
     } else {
       // Empty directory — scaffold as before
@@ -338,15 +422,22 @@ export async function startCommand(): Promise<void> {
       stack = await stackDetector.detectStack(cwd);
       detectedDevCommand = await stackDetector.detectDevCommand(stack, cwd);
       detectedPort = await stackDetector.detectPort(stack, cwd);
-      const reStacks = [stack.framework, ...(stack.additionalStacks ?? [])].filter(s => s !== 'unknown').join(' + ') || 'unknown';
-      spinner.succeed(`Detecting project... ${chalk.cyan(reStacks)} (${chalk.dim(stack.typescript ? 'TypeScript' : stack.language || 'unknown')})`);
+      const reStacks =
+        [stack.framework, ...(stack.additionalStacks ?? [])]
+          .filter((s) => s !== 'unknown')
+          .join(' + ') || 'unknown';
+      spinner.succeed(
+        `Detecting project... ${chalk.cyan(reStacks)} (${chalk.dim(stack.typescript ? 'TypeScript' : stack.language || 'unknown')})`,
+      );
 
       devCommand = config.project.devCommand || detectedDevCommand;
       devPort = config.project.port || detectedPort;
 
       if (!devCommand) {
         console.error(
-          chalk.red('No dev command found after scaffolding. Set project.devCommand in nova.toml or ensure package.json has a "dev" script.'),
+          chalk.red(
+            'No dev command found after scaffolding. Set project.devCommand in nova.toml or ensure package.json has a "dev" script.',
+          ),
         );
         process.exit(1);
       }
@@ -361,7 +452,10 @@ export async function startCommand(): Promise<void> {
   spinner.start('Indexing project...');
   let projectMap: ProjectMap;
   try {
-    projectMap = await indexer.index(cwd, { frontend: config.project.frontend, backends: config.project.backends });
+    projectMap = await indexer.index(cwd, {
+      frontend: config.project.frontend,
+      backends: config.project.backends,
+    });
   } catch (err) {
     spinner.fail('Failed to index project.');
     throw err;
@@ -369,13 +463,16 @@ export async function startCommand(): Promise<void> {
   spinner.succeed('Project indexed.');
 
   // ── 4b. Analyze project structure ─────────────────────────────────
-  const { ProjectAnalyzer, RagIndexer, createEmbeddingService } = await import('@novastorm-ai/core');
+  const { ProjectAnalyzer, RagIndexer, createEmbeddingService } =
+    await import('@novastorm-ai/core');
   const { ProjectMapApi } = await import('@novastorm-ai/proxy');
 
   const projectAnalyzer = new ProjectAnalyzer();
   spinner.start('Analyzing project structure...');
   const analysis = await projectAnalyzer.analyze(cwd, projectMap);
-  spinner.succeed(`Project analyzed: ${analysis.fileCount} files, ${analysis.methods.length} methods.`);
+  spinner.succeed(
+    `Project analyzed: ${analysis.fileCount} files, ${analysis.methods.length} methods.`,
+  );
 
   // ── 4c. RAG indexing ──────────────────────────────────────────────
   let ragIndexer: InstanceType<typeof RagIndexer> | null = null;
@@ -399,7 +496,8 @@ export async function startCommand(): Promise<void> {
 
     // 2. Fall back to OpenAI if Ollama not available
     if (embeddingProvider === 'tfidf') {
-      const openaiKey = config.apiKeys.provider === 'openai' ? config.apiKeys.key : process.env.OPENAI_API_KEY;
+      const openaiKey =
+        config.apiKeys.provider === 'openai' ? config.apiKeys.key : process.env.OPENAI_API_KEY;
       if (openaiKey) {
         embeddingProvider = 'openai';
         embeddingApiKey = openaiKey;
@@ -416,7 +514,12 @@ export async function startCommand(): Promise<void> {
     const vectorStore = new VectorStore();
     ragIndexer = new RagIndexer(embeddingService, vectorStore);
 
-    const providerLabel = embeddingProvider === 'openai' ? 'OpenAI' : embeddingProvider === 'ollama' ? 'Ollama' : 'TF-IDF (offline)';
+    const providerLabel =
+      embeddingProvider === 'openai'
+        ? 'OpenAI'
+        : embeddingProvider === 'ollama'
+          ? 'Ollama'
+          : 'TF-IDF (offline)';
     spinner.start(`Building RAG index (${providerLabel})...`);
     await ragIndexer.index(cwd, projectMap);
     spinner.succeed(`RAG index built: ${vectorStore.getRecordCount()} chunks (${providerLabel}).`);
@@ -429,7 +532,27 @@ export async function startCommand(): Promise<void> {
   // Set up project map API
   const projectMapApi = new ProjectMapApi();
 
-  let proxyPort = devPort + PROXY_PORT_OFFSET;
+  // Apply CLI flag overrides for ports
+  if (options.port) {
+    devPort = parseInt(options.port, 10);
+    if (isNaN(devPort) || devPort <= 0 || devPort > 65535) {
+      console.error(chalk.red(`Invalid port: ${options.port}. Must be between 1 and 65535.`));
+      process.exit(1);
+    }
+  }
+
+  let proxyPort: number;
+  if (options.proxyPort) {
+    proxyPort = parseInt(options.proxyPort, 10);
+    if (isNaN(proxyPort) || proxyPort <= 0 || proxyPort > 65535) {
+      console.error(
+        chalk.red(`Invalid proxy port: ${options.proxyPort}. Must be between 1 and 65535.`),
+      );
+      process.exit(1);
+    }
+  } else {
+    proxyPort = devPort + PROXY_PORT_OFFSET;
+  }
 
   // ── 4b. Check ports ────────────────────────────────────────────────
   spinner.start('Checking ports...');
@@ -437,52 +560,97 @@ export async function startCommand(): Promise<void> {
   const proxyPortBusy = await isPortInUse(proxyPort);
 
   if (devPortBusy || proxyPortBusy) {
-    spinner.fail('Port conflict detected');
-    const busyPorts = [];
-    if (devPortBusy) busyPorts.push(devPort);
-    if (proxyPortBusy) busyPorts.push(proxyPort);
-    console.log(chalk.red(`  Port(s) in use: ${busyPorts.join(', ')}`));
+    const nonInteractive = isNonInteractive(options);
 
-    const portChoices = [
-      { name: chalk.dim(`Kill processes on port(s) ${busyPorts.join(', ')} and continue`), value: 'kill' },
-      { name: chalk.dim('Use a different port'), value: 'change' },
-      { name: chalk.dim('Exit'), value: 'exit' },
-    ];
-
-    let portResolved = false;
-    while (!portResolved) {
-      let portAction: string;
-      try {
-        portAction = await select({ message: 'What would you like to do?', choices: portChoices, theme: SELECT_THEME });
-      } catch { process.exit(0); }
-
-      if (portAction === 'kill') {
-        try {
-          const { execSync } = await import('node:child_process');
-          for (const p of busyPorts) {
-            execSync(`lsof -ti :${p} | xargs kill -9`, { stdio: 'ignore' });
-          }
-          console.log(chalk.green(`  Killed processes. Continuing...\n`));
-          portResolved = true;
-        } catch {
-          console.log(chalk.red('  Failed to kill processes.\n'));
+    if (nonInteractive) {
+      // Non-interactive mode: auto-pick the next free port pair
+      spinner.warn('Port conflict detected — auto-resolving (non-interactive mode)');
+      let nextPort = devPort + 10;
+      while ((await isPortInUse(nextPort)) || (await isPortInUse(nextPort + PROXY_PORT_OFFSET))) {
+        nextPort += 10;
+        if (nextPort > 65535 - PROXY_PORT_OFFSET) {
+          spinner.fail('No free ports available in range');
+          process.exit(1);
         }
-      } else if (portAction === 'change') {
+      }
+      devPort = nextPort;
+      proxyPort = devPort + PROXY_PORT_OFFSET;
+      console.log(chalk.yellow(`  Auto-selected ports: dev=${devPort}, proxy=${proxyPort}`));
+    } else {
+      spinner.fail('Port conflict detected');
+      const busyPorts = [];
+      if (devPortBusy) busyPorts.push(devPort);
+      if (proxyPortBusy) busyPorts.push(proxyPort);
+      console.log(chalk.red(`  Port(s) in use: ${busyPorts.join(', ')}`));
+
+      const portChoices = [
+        {
+          name: chalk.dim(`Kill processes on port(s) ${busyPorts.join(', ')} and continue`),
+          value: 'kill',
+        },
+        { name: chalk.dim('Use a different port'), value: 'change' },
+        { name: chalk.dim('Exit'), value: 'exit' },
+      ];
+
+      let portResolved = false;
+      while (!portResolved) {
+        let portAction: string;
         try {
-          const newPortStr = await input({ message: 'Enter dev server port:', default: String(devPort + 10) });
-          devPort = parseInt(newPortStr, 10);
-          proxyPort = devPort + PROXY_PORT_OFFSET;
-          portResolved = true;
-        } catch { process.exit(0); }
-      } else {
-        process.exit(0);
+          portAction = await select({
+            message: 'What would you like to do?',
+            choices: portChoices,
+            theme: SELECT_THEME,
+          });
+        } catch {
+          process.exit(0);
+        }
+
+        if (portAction === 'kill') {
+          try {
+            const { execSync } = await import('node:child_process');
+            for (const p of busyPorts) {
+              execSync(`lsof -ti :${p} | xargs kill -9`, { stdio: 'ignore' });
+            }
+            console.log(chalk.green(`  Killed processes. Continuing...\n`));
+            portResolved = true;
+          } catch {
+            console.log(chalk.red('  Failed to kill processes.\n'));
+          }
+        } else if (portAction === 'change') {
+          try {
+            const newPortStr = await input({
+              message: 'Enter dev server port:',
+              default: String(devPort + 10),
+            });
+            devPort = parseInt(newPortStr, 10);
+            proxyPort = devPort + PROXY_PORT_OFFSET;
+            portResolved = true;
+          } catch {
+            process.exit(0);
+          }
+        } else {
+          process.exit(0);
+        }
       }
     }
   }
   spinner.succeed('Ports available');
 
   // ── 4b. Check node_modules for Node.js projects ────────────────────
-  const NODE_FRAMEWORKS = ['node', 'express', 'nest', 'fastify', 'koa', 'hapi', 'next.js', 'nuxt', 'sveltekit', 'astro', 'vite', 'cra'];
+  const NODE_FRAMEWORKS = [
+    'node',
+    'express',
+    'nest',
+    'fastify',
+    'koa',
+    'hapi',
+    'next.js',
+    'nuxt',
+    'sveltekit',
+    'astro',
+    'vite',
+    'cra',
+  ];
   if (NODE_FRAMEWORKS.includes(stack.framework) && !existsSync(join(cwd, 'node_modules'))) {
     const pm = stack.packageManager ?? 'npm';
     const installCmd = pm === 'yarn' ? 'yarn' : `${pm} install`;
@@ -494,30 +662,43 @@ export async function startCommand(): Promise<void> {
       console.log(chalk.green('  Dependencies installed.'));
     } catch (installErr) {
       const stderr = (installErr as { stderr?: Buffer })?.stderr?.toString() ?? '';
-      const errMsg = stderr || (installErr instanceof Error ? installErr.message : String(installErr));
-      const errorLines = errMsg.split('\n').filter(l => /error/i.test(l)).slice(0, 5);
+      const errMsg =
+        stderr || (installErr instanceof Error ? installErr.message : String(installErr));
+      const errorLines = errMsg
+        .split('\n')
+        .filter((l) => /error/i.test(l))
+        .slice(0, 5);
       console.log(chalk.red(`\n  Failed to install dependencies.`));
       if (errorLines.length) {
-        console.log(chalk.dim(errorLines.map(l => `  ${l.trim()}`).join('\n')));
+        console.log(chalk.dim(errorLines.map((l) => `  ${l.trim()}`).join('\n')));
       }
       console.log();
+
+      if (isNonInteractive(options)) {
+        console.log(
+          chalk.dim('Non-interactive mode — skipping install recovery. Run "npm install" manually.'),
+        );
+        // Continue without installing
+      } else {
 
       const choices: Array<{ name: string; value: string }> = [];
 
       if (/EJSONPARSE|JSON/.test(errMsg)) {
         console.log(chalk.yellow('  Cause: package.json contains invalid JSON.\n'));
-        choices.push(
-          { name: chalk.dim('Fix package.json automatically (remove syntax errors)'), value: 'fix-json' },
-        );
+        choices.push({
+          name: chalk.dim('Fix package.json automatically (remove syntax errors)'),
+          value: 'fix-json',
+        });
       }
       if (/ENOENT|not found|Cannot find/.test(errMsg)) {
         console.log(chalk.yellow('  Cause: missing files or modules.\n'));
       }
 
       if (llmClient) {
-        choices.push(
-          { name: chalk.dim('Describe what to fix (AI will handle it)'), value: 'ai-fix' },
-        );
+        choices.push({
+          name: chalk.dim('Describe what to fix (AI will handle it)'),
+          value: 'ai-fix',
+        });
       }
       choices.push(
         { name: chalk.dim('Skip install and continue'), value: 'skip' },
@@ -528,7 +709,11 @@ export async function startCommand(): Promise<void> {
       while (!resolved) {
         let action: string;
         try {
-          action = await select({ message: 'What would you like to do?', choices, theme: SELECT_THEME });
+          action = await select({
+            message: 'What would you like to do?',
+            choices,
+            theme: SELECT_THEME,
+          });
         } catch {
           process.exit(0);
         }
@@ -548,12 +733,21 @@ export async function startCommand(): Promise<void> {
               JSON.parse(readFileSync(pkgPath, 'utf-8'));
             } catch {
               if (llmClient) {
-                console.log(chalk.dim('  Regex fix insufficient, asking AI to fix package.json...\n'));
+                console.log(
+                  chalk.dim('  Regex fix insufficient, asking AI to fix package.json...\n'),
+                );
                 const brokenContent = readFileSync(pkgPath, 'utf-8');
-                const response = await llmClient.chat([
-                  { role: 'system', content: 'You are a JSON fixer. You receive a broken package.json. Output ONLY the corrected valid JSON. No explanation, no markdown fences, just the JSON.' },
-                  { role: 'user', content: `Fix this package.json:\n\n${brokenContent}` },
-                ], { temperature: 0, maxTokens: 4096 });
+                const response = await llmClient.chat(
+                  [
+                    {
+                      role: 'system',
+                      content:
+                        'You are a JSON fixer. You receive a broken package.json. Output ONLY the corrected valid JSON. No explanation, no markdown fences, just the JSON.',
+                    },
+                    { role: 'user', content: `Fix this package.json:\n\n${brokenContent}` },
+                  ],
+                  { temperature: 0, maxTokens: 4096 },
+                );
 
                 // Extract JSON from response (strip markdown fences if present)
                 let fixed = response.trim();
@@ -573,17 +767,28 @@ export async function startCommand(): Promise<void> {
             console.log(chalk.green('  Dependencies installed.'));
             resolved = true;
           } catch (fixErr) {
-            console.log(chalk.red(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : fixErr}\n`));
+            console.log(
+              chalk.red(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : fixErr}\n`),
+            );
           }
         } else if (action === 'ai-fix') {
           try {
             const userDesc = await input({ message: 'Describe what needs to be fixed:' });
             if (userDesc.trim() && llmClient) {
               console.log(chalk.dim('\n  AI is working on it...\n'));
-              const response = await llmClient.chat([
-                { role: 'system', content: `You are a code fixer. You receive an error and a user description of what to fix. Output ONLY the fixed file content with no explanation. Format:\n=== FILE: path/to/file ===\nfull file content\n=== END FILE ===` },
-                { role: 'user', content: `Error:\n${errMsg.slice(0, 800)}\n\nUser says: ${userDesc.trim()}\n\nProject directory: ${cwd}\nFix the issue. Output the corrected file(s).` },
-              ], { temperature: 0, maxTokens: 4096 });
+              const response = await llmClient.chat(
+                [
+                  {
+                    role: 'system',
+                    content: `You are a code fixer. You receive an error and a user description of what to fix. Output ONLY the fixed file content with no explanation. Format:\n=== FILE: path/to/file ===\nfull file content\n=== END FILE ===`,
+                  },
+                  {
+                    role: 'user',
+                    content: `Error:\n${errMsg.slice(0, 800)}\n\nUser says: ${userDesc.trim()}\n\nProject directory: ${cwd}\nFix the issue. Output the corrected file(s).`,
+                  },
+                ],
+                { temperature: 0, maxTokens: 4096 },
+              );
 
               // Parse and write file blocks
               const fileBlockRegex = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
@@ -601,7 +806,9 @@ export async function startCommand(): Promise<void> {
               }
 
               if (filesWritten > 0) {
-                console.log(chalk.green(`\n  AI fixed ${filesWritten} file(s). Retrying install...\n`));
+                console.log(
+                  chalk.green(`\n  AI fixed ${filesWritten} file(s). Retrying install...\n`),
+                );
                 const { execSync } = await import('node:child_process');
                 execSync(installCmd, { cwd, stdio: 'pipe' });
                 console.log(chalk.green('  Dependencies installed.'));
@@ -620,6 +827,7 @@ export async function startCommand(): Promise<void> {
           process.exit(0);
         }
       }
+      } // end else (non-interactive guard for install failure)
     }
   }
 
@@ -640,6 +848,15 @@ export async function startCommand(): Promise<void> {
     const msg = err instanceof Error ? err.message : String(err);
     console.log(chalk.red(`\n${msg}`));
 
+    if (isNonInteractive(options)) {
+      console.error(
+        chalk.red(
+          'Non-interactive mode — cannot recover from dev server failure. Fix the issue and try again.',
+        ),
+      );
+      process.exit(1);
+    }
+
     const choices: Array<{ name: string; value: string }> = [];
 
     if (/EADDRINUSE|address already in use/i.test(msg)) {
@@ -651,31 +868,30 @@ export async function startCommand(): Promise<void> {
     }
     if (/Cannot find module|MODULE_NOT_FOUND/i.test(msg)) {
       console.log(chalk.yellow('\n  Missing dependencies.\n'));
-      choices.push(
-        { name: chalk.dim('Run npm install and retry'), value: 'install-retry' },
-      );
+      choices.push({ name: chalk.dim('Run npm install and retry'), value: 'install-retry' });
     }
     if (/EJSONPARSE|JSON/.test(msg)) {
       console.log(chalk.yellow('\n  package.json has invalid JSON.\n'));
-      choices.push(
-        { name: chalk.dim('Fix package.json and retry'), value: 'fix-json-retry' },
-      );
+      choices.push({ name: chalk.dim('Fix package.json and retry'), value: 'fix-json-retry' });
     }
 
     if (llmClient) {
-      choices.push(
-        { name: chalk.dim('Describe what to fix (AI will handle it)'), value: 'ai-fix' },
-      );
+      choices.push({
+        name: chalk.dim('Describe what to fix (AI will handle it)'),
+        value: 'ai-fix',
+      });
     }
-    choices.push(
-      { name: chalk.dim('Exit'), value: 'exit' },
-    );
+    choices.push({ name: chalk.dim('Exit'), value: 'exit' });
 
     let serverResolved = false;
     while (!serverResolved) {
       let action: string;
       try {
-        action = await select({ message: 'What would you like to do?', choices, theme: SELECT_THEME });
+        action = await select({
+          message: 'What would you like to do?',
+          choices,
+          theme: SELECT_THEME,
+        });
       } catch {
         process.exit(0);
       }
@@ -688,18 +904,27 @@ export async function startCommand(): Promise<void> {
           await devServer.spawn(devCommand, cwd, devPort);
           serverResolved = true;
         } catch (retryErr) {
-          console.log(chalk.red(`  Still failing: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`));
+          console.log(
+            chalk.red(
+              `  Still failing: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`,
+            ),
+          );
         }
       } else if (action === 'change-port') {
         try {
-          const newPortStr = await input({ message: 'Enter port number:', default: String(devPort + 10) });
+          const newPortStr = await input({
+            message: 'Enter port number:',
+            default: String(devPort + 10),
+          });
           devPort = parseInt(newPortStr, 10);
           proxyPort = devPort + PROXY_PORT_OFFSET;
           console.log(chalk.dim(`  Trying port ${devPort}...\n`));
           await devServer.spawn(devCommand, cwd, devPort);
           serverResolved = true;
         } catch (retryErr) {
-          console.log(chalk.red(`  Failed: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`));
+          console.log(
+            chalk.red(`  Failed: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`),
+          );
         }
       } else if (action === 'install-retry') {
         try {
@@ -711,7 +936,11 @@ export async function startCommand(): Promise<void> {
           await devServer.spawn(devCommand, cwd, devPort);
           serverResolved = true;
         } catch (retryErr) {
-          console.log(chalk.red(`  Still failing: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`));
+          console.log(
+            chalk.red(
+              `  Still failing: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`,
+            ),
+          );
         }
       } else if (action === 'fix-json-retry') {
         try {
@@ -725,12 +954,21 @@ export async function startCommand(): Promise<void> {
             JSON.parse(readFileSync(pkgPath, 'utf-8'));
           } catch {
             if (llmClient) {
-              console.log(chalk.dim('  Regex fix insufficient, asking AI to fix package.json...\n'));
+              console.log(
+                chalk.dim('  Regex fix insufficient, asking AI to fix package.json...\n'),
+              );
               const brokenContent = readFileSync(pkgPath, 'utf-8');
-              const resp = await llmClient.chat([
-                { role: 'system', content: 'You are a JSON fixer. You receive a broken package.json. Output ONLY the corrected valid JSON. No explanation, no markdown fences, just the JSON.' },
-                { role: 'user', content: `Fix this package.json:\n\n${brokenContent}` },
-              ], { temperature: 0, maxTokens: 4096 });
+              const resp = await llmClient.chat(
+                [
+                  {
+                    role: 'system',
+                    content:
+                      'You are a JSON fixer. You receive a broken package.json. Output ONLY the corrected valid JSON. No explanation, no markdown fences, just the JSON.',
+                  },
+                  { role: 'user', content: `Fix this package.json:\n\n${brokenContent}` },
+                ],
+                { temperature: 0, maxTokens: 4096 },
+              );
               let fixed = resp.trim();
               const fence = fixed.match(/```(?:json)?\n([\s\S]*?)```/);
               if (fence) fixed = fence[1].trim();
@@ -748,17 +986,28 @@ export async function startCommand(): Promise<void> {
           await devServer.spawn(devCommand, cwd, devPort);
           serverResolved = true;
         } catch (retryErr) {
-          console.log(chalk.red(`  Failed: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`));
+          console.log(
+            chalk.red(`  Failed: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`),
+          );
         }
       } else if (action === 'ai-fix') {
         try {
           const userDesc = await input({ message: 'Describe what needs to be fixed:' });
           if (userDesc.trim() && llmClient) {
             console.log(chalk.dim('\n  AI is working on it...\n'));
-            const response = await llmClient.chat([
-              { role: 'system', content: `You are a code fixer. You receive an error and a user description of what to fix. Output ONLY the fixed file content with no explanation. Format:\n=== FILE: path/to/file ===\nfull file content\n=== END FILE ===` },
-              { role: 'user', content: `Error:\n${msg.slice(0, 800)}\n\nUser says: ${userDesc.trim()}\n\nProject directory: ${cwd}\nFix the issue. Output the corrected file(s).` },
-            ], { temperature: 0, maxTokens: 4096 });
+            const response = await llmClient.chat(
+              [
+                {
+                  role: 'system',
+                  content: `You are a code fixer. You receive an error and a user description of what to fix. Output ONLY the fixed file content with no explanation. Format:\n=== FILE: path/to/file ===\nfull file content\n=== END FILE ===`,
+                },
+                {
+                  role: 'user',
+                  content: `Error:\n${msg.slice(0, 800)}\n\nUser says: ${userDesc.trim()}\n\nProject directory: ${cwd}\nFix the issue. Output the corrected file(s).`,
+                },
+              ],
+              { temperature: 0, maxTokens: 4096 },
+            );
 
             const fileBlockRegex = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
             let fMatch;
@@ -774,7 +1023,9 @@ export async function startCommand(): Promise<void> {
             }
 
             if (filesWritten > 0) {
-              console.log(chalk.green(`\n  AI fixed ${filesWritten} file(s). Retrying dev server...\n`));
+              console.log(
+                chalk.green(`\n  AI fixed ${filesWritten} file(s). Retrying dev server...\n`),
+              );
               await devServer.spawn(devCommand, cwd, devPort);
               serverResolved = true;
             } else {
@@ -782,7 +1033,9 @@ export async function startCommand(): Promise<void> {
             }
           }
         } catch (retryErr) {
-          console.log(chalk.red(`  Failed: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`));
+          console.log(
+            chalk.red(`  Failed: ${retryErr instanceof Error ? retryErr.message : retryErr}\n`),
+          );
         }
       } else {
         process.exit(0);
@@ -793,7 +1046,9 @@ export async function startCommand(): Promise<void> {
   // Check if dev server started on a different port
   const actualPort = devServer.getActualPort();
   if (actualPort && actualPort !== devPort) {
-    spinner.succeed(`Dev server started on port ${chalk.yellow(actualPort)} (requested ${devPort})`);
+    spinner.succeed(
+      `Dev server started on port ${chalk.yellow(actualPort)} (requested ${devPort})`,
+    );
     devPort = actualPort;
     proxyPort = devPort + PROXY_PORT_OFFSET;
   } else {
@@ -803,7 +1058,15 @@ export async function startCommand(): Promise<void> {
   // ── 6. Start proxy server ──────────────────────────────────────────
   spinner.start('Starting proxy server...');
   try {
-    await proxyServer.start(devPort, proxyPort, OVERLAY_SCRIPT_PATH);
+    const host = options.host ?? '127.0.0.1';
+    if (host !== '127.0.0.1' && host !== '::1' && host !== 'localhost') {
+      console.log(
+        chalk.yellow(
+          `\n  ⚠ Binding proxy to ${host} — accessible from other devices on the network.\n`,
+        ),
+      );
+    }
+    await proxyServer.start(devPort, proxyPort, OVERLAY_SCRIPT_PATH, host);
   } catch (err) {
     spinner.fail('Proxy server failed to start.');
     await devServer.kill();
@@ -836,15 +1099,27 @@ export async function startCommand(): Promise<void> {
   }, 2000);
 
   // ── 7. Open browser ────────────────────────────────────────────────
-  console.log(chalk.dim('Opening browser...'));
-  const openUrl = `http://localhost:${proxyPort}`;
-  if (process.platform === 'darwin') {
-    // Try Chrome first, fall back to default browser
-    exec(`open -a "Google Chrome" "${openUrl}" 2>/dev/null || open -a "Chromium" "${openUrl}" 2>/dev/null || open "${openUrl}"`);
-  } else if (process.platform === 'win32') {
-    exec(`start chrome "${openUrl}" 2>nul || start "${openUrl}"`);
+  if (options.noOpen) {
+    console.log(
+      chalk.dim(
+        `Proxy ready at ${chalk.green(`http://localhost:${proxyPort}`)} (browser not opened: --no-open)`,
+      ),
+    );
   } else {
-    exec(`google-chrome "${openUrl}" 2>/dev/null || chromium "${openUrl}" 2>/dev/null || xdg-open "${openUrl}"`);
+    console.log(chalk.dim('Opening browser...'));
+    const openUrl = `http://localhost:${proxyPort}`;
+    if (process.platform === 'darwin') {
+      // Try Chrome first, fall back to default browser
+      exec(
+        `open -a "Google Chrome" "${openUrl}" 2>/dev/null || open -a "Chromium" "${openUrl}" 2>/dev/null || open "${openUrl}"`,
+      );
+    } else if (process.platform === 'win32') {
+      exec(`start chrome "${openUrl}" 2>nul || start "${openUrl}"`);
+    } else {
+      exec(
+        `google-chrome "${openUrl}" 2>/dev/null || chromium "${openUrl}" 2>/dev/null || xdg-open "${openUrl}"`,
+      );
+    }
   }
 
   // ── 8. Set up event loop ────────────────────────────────────────────
@@ -857,7 +1132,11 @@ export async function startCommand(): Promise<void> {
     // Not a git repo — initialize one
     const { execSync } = await import('node:child_process');
     execSync('git init', { cwd, stdio: 'ignore' });
-    execSync('git add -A && git commit -m "Initial commit (before Nova)" --allow-empty', { cwd, stdio: 'ignore', shell: '/bin/sh' });
+    execSync('git add -A && git commit -m "Initial commit (before Nova)" --allow-empty', {
+      cwd,
+      stdio: 'ignore',
+      shell: '/bin/sh',
+    });
     console.log(chalk.dim('Initialized git repository.'));
   }
 
@@ -886,13 +1165,36 @@ export async function startCommand(): Promise<void> {
     const agentPromptLoader = new AgentPromptLoader();
     const lane1 = new Lane1Executor(cwd, pathGuard);
     const lane2 = new Lane2Executor(cwd, llmClient, gitManager, pathGuard, commitQueue);
-    executorPool = new ExecutorPool(lane1, lane2, eventBus, llmClient, gitManager, cwd, config.models.micro, config.models.standard, config.models.strong, agentPromptLoader, pathGuard, undefined, commitQueue);
+    executorPool = new ExecutorPool(
+      lane1,
+      lane2,
+      eventBus,
+      llmClient,
+      gitManager,
+      cwd,
+      config.models.micro,
+      config.models.standard,
+      config.models.strong,
+      agentPromptLoader,
+      pathGuard,
+      undefined,
+      commitQueue,
+    );
   }
 
   // Wire dev server output to auto-fixer for error detection
   let autoFixer: ErrorAutoFixer | null = null;
   if (llmClient) {
-    autoFixer = new ErrorAutoFixer(cwd, llmClient, gitManager, eventBus, wsServer, projectMap, commitQueue, config.models.micro);
+    autoFixer = new ErrorAutoFixer(
+      cwd,
+      llmClient,
+      gitManager,
+      eventBus,
+      wsServer,
+      projectMap,
+      commitQueue,
+      config.models.micro,
+    );
   }
   devServer.onOutput((output: string) => {
     autoFixer?.handleOutput(output);
@@ -904,7 +1206,10 @@ export async function startCommand(): Promise<void> {
     console.log(chalk.cyan(`[Nova] Saving ${Object.keys(secrets).length} secret(s) to .env.local`));
     envDetector.writeEnvLocal(cwd, secrets);
     envDetector.ensureGitignored(cwd);
-    wsServer.sendEvent({ type: 'status', data: { message: `Saved ${Object.keys(secrets).length} secret(s) to .env.local` } } as NovaEvent);
+    wsServer.sendEvent({
+      type: 'status',
+      data: { message: `Saved ${Object.keys(secrets).length} secret(s) to .env.local` },
+    } as NovaEvent);
   });
 
   // Wire browser errors from overlay to autoFixer
@@ -922,7 +1227,11 @@ export async function startCommand(): Promise<void> {
   // Handle observations: analyze and create tasks (pending confirmation)
   eventBus.on('observation', async (event) => {
     if (!brain) {
-      console.log(chalk.yellow('Observation received but no AI configured. Run "nova setup" to add an API key.'));
+      console.log(
+        chalk.yellow(
+          'Observation received but no AI configured. Run "nova setup" to add an API key.',
+        ),
+      );
       return;
     }
     try {
@@ -932,35 +1241,55 @@ export async function startCommand(): Promise<void> {
       // Detect revert/undo commands — handle directly via git
       if (/\b(revert|верни|откати|undo|отмени последн|верни назад|откатить)\b/i.test(transcript)) {
         console.log(chalk.cyan('[Nova] Detected revert request — using git revert'));
-        wsServer.sendEvent({ type: 'status', data: { message: 'Reverting last commit...' } } as NovaEvent);
+        wsServer.sendEvent({
+          type: 'status',
+          data: { message: 'Reverting last commit...' },
+        } as NovaEvent);
         try {
           const log = await gitManager.getLog();
           if (log.length > 0) {
             const lastCommit = log[0];
-            console.log(chalk.cyan(`[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`));
+            console.log(
+              chalk.cyan(`[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`),
+            );
             await gitManager.rollback(lastCommit.hash);
             console.log(chalk.green(`[Nova] Reverted successfully!`));
-            wsServer.sendEvent({ type: 'status', data: { message: `Reverted: ${lastCommit.message.slice(0, 80)}` } } as NovaEvent);
+            wsServer.sendEvent({
+              type: 'status',
+              data: { message: `Reverted: ${lastCommit.message.slice(0, 80)}` },
+            } as NovaEvent);
             // Reload overlay
             setTimeout(() => {
               wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } } as NovaEvent);
             }, 1500);
           } else {
             console.log(chalk.yellow('[Nova] No commits to revert'));
-            wsServer.sendEvent({ type: 'status', data: { message: 'No commits to revert.' } } as NovaEvent);
+            wsServer.sendEvent({
+              type: 'status',
+              data: { message: 'No commits to revert.' },
+            } as NovaEvent);
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           console.log(chalk.red(`[Nova] Revert failed: ${msg}`));
-          wsServer.sendEvent({ type: 'status', data: { message: `Revert failed: ${msg}` } } as NovaEvent);
+          wsServer.sendEvent({
+            type: 'status',
+            data: { message: `Revert failed: ${msg}` },
+          } as NovaEvent);
         }
         return;
       }
 
       logger.logAnalyzing(transcript);
-      wsServer.sendEvent({ type: 'status', data: { message: `🧠 AI is thinking about: "${transcript.slice(0, 80)}"...` } } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: `🧠 AI is thinking about: "${transcript.slice(0, 80)}"...` },
+      } as NovaEvent);
 
-      const analyzeSpinner = ora({ text: chalk.yellow('AI is thinking...'), spinner: 'dots' }).start();
+      const analyzeSpinner = ora({
+        text: chalk.yellow('AI is thinking...'),
+        spinner: 'dots',
+      }).start();
 
       const tasks = await brain.analyze(event.data, projectMap);
       analyzeSpinner.succeed(chalk.green(`AI produced ${tasks.length} task(s)`));
@@ -973,17 +1302,29 @@ export async function startCommand(): Promise<void> {
         return;
       }
 
-      wsServer.sendEvent({ type: 'status', data: { message: `AI produced ${tasks.length} task(s)` } } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: `AI produced ${tasks.length} task(s)` },
+      } as NovaEvent);
 
       // Auto-execute tasks immediately (no confirmation needed)
       console.log(chalk.green(`Auto-executing ${tasks.length} task(s)...`));
-      wsServer.sendEvent({ type: 'status', data: { message: `Auto-executing ${tasks.length} task(s)...` } } as NovaEvent);
-      wsServer.sendEvent({ type: 'status', data: { message: 'Confirmed! Executing tasks...' } } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: `Auto-executing ${tasks.length} task(s)...` },
+      } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: 'Confirmed! Executing tasks...' },
+      } as NovaEvent);
       executeTasks(tasks);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`Analysis error: ${message}`));
-      wsServer.sendEvent({ type: 'status', data: { message: `Analysis error: ${message}` } } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: `Analysis error: ${message}` },
+      } as NovaEvent);
     }
   });
 
@@ -994,7 +1335,10 @@ export async function startCommand(): Promise<void> {
       return;
     }
     console.log(chalk.green(`Confirmed ${pendingTasks.length} task(s). Executing...`));
-    wsServer.sendEvent({ type: 'status', data: { message: 'Confirmed! Executing tasks...' } } as NovaEvent);
+    wsServer.sendEvent({
+      type: 'status',
+      data: { message: 'Confirmed! Executing tasks...' },
+    } as NovaEvent);
     const tasksToRun = [...pendingTasks];
     pendingTasks = [];
     executeTasks(tasksToRun);
@@ -1027,7 +1371,10 @@ export async function startCommand(): Promise<void> {
 
     // Clear pending, re-analyze
     pendingTasks = [];
-    wsServer.sendEvent({ type: 'status', data: { message: `Re-analyzing with: "${text}"...` } } as NovaEvent);
+    wsServer.sendEvent({
+      type: 'status',
+      data: { message: `Re-analyzing with: "${text}"...` },
+    } as NovaEvent);
 
     try {
       logger.logAnalyzing(mergedTranscript);
@@ -1035,7 +1382,10 @@ export async function startCommand(): Promise<void> {
       logger.logTasks(tasks);
 
       if (tasks.length === 0) {
-        wsServer.sendEvent({ type: 'status', data: { message: 'No tasks generated.' } } as NovaEvent);
+        wsServer.sendEvent({
+          type: 'status',
+          data: { message: 'No tasks generated.' },
+        } as NovaEvent);
         return;
       }
 
@@ -1043,11 +1393,20 @@ export async function startCommand(): Promise<void> {
       const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
       const pendingMessage = `Pending: ${tasks.length} task(s) — ${taskDescriptions}. Say "yes"/"execute" to proceed or "no"/"cancel" to discard.`;
       console.log(chalk.yellow(`\n${pendingMessage}\n`));
-      wsServer.sendEvent({ type: 'status', data: { message: pendingMessage, tasks: tasks.map(t => ({ id: t.id, description: t.description, lane: t.lane })) } } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: {
+          message: pendingMessage,
+          tasks: tasks.map((t) => ({ id: t.id, description: t.description, lane: t.lane })),
+        },
+      } as NovaEvent);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`Analysis error: ${message}`));
-      wsServer.sendEvent({ type: 'status', data: { message: `Analysis error: ${message}` } } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: `Analysis error: ${message}` },
+      } as NovaEvent);
     }
   });
 
@@ -1099,14 +1458,24 @@ export async function startCommand(): Promise<void> {
       // Check dev server logs for errors
       const logs = devServer.getLogs();
       const recentLogs = logs.slice(-2000);
-      const hasLogError = /error|Error|failed|Failed|Module not found|SyntaxError|TypeError/i.test(recentLogs)
-        && !/Successfully compiled|Compiled/.test(recentLogs.slice(-500));
+      const hasLogError =
+        /error|Error|failed|Failed|Module not found|SyntaxError|TypeError/i.test(recentLogs) &&
+        !/Successfully compiled|Compiled/.test(recentLogs.slice(-500));
 
       if (hasLogError && autoFixer) {
-        const errorLines = recentLogs.split('\n').filter(l => /error|Error|failed|Module not found/i.test(l)).slice(-5).join('\n');
+        const errorLines = recentLogs
+          .split('\n')
+          .filter((l) => /error|Error|failed|Module not found/i.test(l))
+          .slice(-5)
+          .join('\n');
         if (errorLines.trim()) {
-          console.log(chalk.yellow(`[Nova] Post-task health check: build errors detected, auto-fixing...`));
-          wsServer.sendEvent({ type: 'status', data: { message: 'Post-task check: fixing build errors...' } } as NovaEvent);
+          console.log(
+            chalk.yellow(`[Nova] Post-task health check: build errors detected, auto-fixing...`),
+          );
+          wsServer.sendEvent({
+            type: 'status',
+            data: { message: 'Post-task check: fixing build errors...' },
+          } as NovaEvent);
           autoFixer.forceFixNow(errorLines);
           return;
         }
@@ -1118,11 +1487,19 @@ export async function startCommand(): Promise<void> {
         const res = await new Promise<{ statusCode?: number }>((resolve) => {
           const req = http.get(`http://localhost:${devPort}`, resolve);
           req.on('error', () => resolve({ statusCode: 0 }));
-          req.setTimeout(5000, () => { req.destroy(); resolve({ statusCode: 0 }); });
+          req.setTimeout(5000, () => {
+            req.destroy();
+            resolve({ statusCode: 0 });
+          });
         });
         if (res.statusCode && res.statusCode >= 500) {
-          console.log(chalk.yellow(`[Nova] Post-task health check: HTTP ${res.statusCode}, auto-fixing...`));
-          wsServer.sendEvent({ type: 'status', data: { message: `Site returned ${res.statusCode}, auto-fixing...` } } as NovaEvent);
+          console.log(
+            chalk.yellow(`[Nova] Post-task health check: HTTP ${res.statusCode}, auto-fixing...`),
+          );
+          wsServer.sendEvent({
+            type: 'status',
+            data: { message: `Site returned ${res.statusCode}, auto-fixing...` },
+          } as NovaEvent);
           autoFixer?.forceFixNow(`Dev server returned HTTP ${res.statusCode} after code changes`);
         }
       } catch {
@@ -1158,18 +1535,17 @@ export async function startCommand(): Promise<void> {
     wsServer.sendEvent(event as NovaEvent);
   });
 
-  console.log(
-    chalk.bold.green('\nReady! Click elements or speak to start building.'),
-  );
+  console.log(chalk.bold.green('\nReady! Click elements or speak to start building.'));
   console.log(chalk.dim('Type commands below, or use /help for available commands.\n'));
 
   // ── Startup health check (after overlay is ready) ─────────────────
   // Delayed so overlay WebSocket has time to connect
   setTimeout(async () => {
     const startupLogs = devServer.getLogs();
-    const startupErrors = startupLogs.split('\n')
-      .filter(l => /error|Error|failed|Module not found|SyntaxError|Cannot find/i.test(l))
-      .filter(l => !/warning|warn|deprecat|DeprecationWarning/i.test(l))
+    const startupErrors = startupLogs
+      .split('\n')
+      .filter((l) => /error|Error|failed|Module not found|SyntaxError|Cannot find/i.test(l))
+      .filter((l) => !/warning|warn|deprecat|DeprecationWarning/i.test(l))
       .slice(-10)
       .join('\n')
       .trim();
@@ -1235,7 +1611,10 @@ export async function startCommand(): Promise<void> {
   devServer.onError((error) => {
     if (!shuttingDown) {
       console.error(chalk.red(`\nDev server error: ${error}`));
-      wsServer.sendEvent({ type: 'status', data: { message: `Dev server error: ${error}` } } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: `Dev server error: ${error}` },
+      } as NovaEvent);
     }
   });
 
@@ -1247,7 +1626,9 @@ export async function startCommand(): Promise<void> {
       case 'text': {
         // Create a synthetic observation from terminal text
         if (!brain) {
-          chat!.log(chalk.yellow('AI not configured. Run /settings apiKeys.provider <provider> to set up.'));
+          chat!.log(
+            chalk.yellow('AI not configured. Run /settings apiKeys.provider <provider> to set up.'),
+          );
           return;
         }
 
@@ -1270,7 +1651,10 @@ export async function startCommand(): Promise<void> {
           return;
         }
         chat!.log(chalk.green(`Confirmed ${pendingTasks.length} task(s). Executing...`));
-        wsServer.sendEvent({ type: 'status', data: { message: 'Confirmed! Executing tasks...' } } as NovaEvent);
+        wsServer.sendEvent({
+          type: 'status',
+          data: { message: 'Confirmed! Executing tasks...' },
+        } as NovaEvent);
         for (const task of pendingTasks) {
           eventBus.emit({ type: 'task_created', data: task });
         }
@@ -1296,30 +1680,36 @@ export async function startCommand(): Promise<void> {
       }
 
       case 'help': {
-        chat!.log([
-          chalk.bold('\nNova Commands\n'),
-          `  ${chalk.cyan('any text')}        Send as a code change request (like voice in UI)`,
-          `  ${chalk.cyan('/settings')}       View all settings`,
-          `  ${chalk.cyan('/settings k v')}   Change a setting`,
-          `  ${chalk.cyan('/status')}         Show current status`,
-          `  ${chalk.cyan('/map')}            Open project map in browser`,
-          `  ${chalk.cyan('/help')}           Show this help`,
-          `  ${chalk.cyan('y / yes')}         Confirm pending tasks`,
-          `  ${chalk.cyan('n / no')}          Cancel pending tasks`,
-          `  ${chalk.cyan('Ctrl+C')}          Shutdown Nova`,
-          '',
-        ].join('\n'));
+        chat!.log(
+          [
+            chalk.bold('\nNova Commands\n'),
+            `  ${chalk.cyan('any text')}        Send as a code change request (like voice in UI)`,
+            `  ${chalk.cyan('/settings')}       View all settings`,
+            `  ${chalk.cyan('/settings k v')}   Change a setting`,
+            `  ${chalk.cyan('/status')}         Show current status`,
+            `  ${chalk.cyan('/map')}            Open project map in browser`,
+            `  ${chalk.cyan('/help')}           Show this help`,
+            `  ${chalk.cyan('y / yes')}         Confirm pending tasks`,
+            `  ${chalk.cyan('n / no')}          Cancel pending tasks`,
+            `  ${chalk.cyan('Ctrl+C')}          Shutdown Nova`,
+            '',
+          ].join('\n'),
+        );
         break;
       }
 
       case 'status': {
         const parts: string[] = [chalk.bold('\nNova Status\n')];
         parts.push(`  ${chalk.dim('Project:')} ${cwd}`);
-        parts.push(`  ${chalk.dim('Stack:')} ${projectMap.stack.framework} (${projectMap.stack.language})`);
+        parts.push(
+          `  ${chalk.dim('Stack:')} ${projectMap.stack.framework} (${projectMap.stack.language})`,
+        );
         parts.push(`  ${chalk.dim('Dev server:')} localhost:${devPort}`);
         parts.push(`  ${chalk.dim('Proxy:')} localhost:${proxyPort}`);
         parts.push(`  ${chalk.dim('Overlay clients:')} ${wsServer.getClientCount()}`);
-        parts.push(`  ${chalk.dim('AI:')} ${llmClient ? `${config.apiKeys.provider}` : 'not configured'}`);
+        parts.push(
+          `  ${chalk.dim('AI:')} ${llmClient ? `${config.apiKeys.provider}` : 'not configured'}`,
+        );
         parts.push(`  ${chalk.dim('RAG:')} ${ragIndexer ? 'active' : 'disabled'}`);
         parts.push(`  ${chalk.dim('Pending tasks:')} ${pendingTasks.length}`);
         parts.push('');

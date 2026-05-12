@@ -23,27 +23,58 @@ export { promptAndScaffold } from './scaffold.js';
 export { ErrorAutoFixer } from './autofix.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'),
-) as { version: string };
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8')) as {
+  version: string;
+};
+
+export interface StartOptions {
+  noOpen?: boolean;
+  yes?: boolean;
+  port?: string;
+  proxyPort?: string;
+  host?: string;
+  noTelemetry?: boolean;
+}
 
 export function createCli(): Command {
   const program = new Command();
 
   program
     .name('nova')
-    .description('Nova Architect - AI-powered site creation assistant')
+    .description('Novastorm — AI-powered site creation assistant')
     .version(pkg.version)
-    .option('--no-telemetry', 'Disable telemetry for this run');
+    .option('--no-open', 'Do not open browser on startup')
+    .option('--yes', 'Skip all interactive prompts (use defaults)')
+    .option('--port <number>', 'Dev server port')
+    .option('--proxy-port <number>', 'Proxy server port')
+    .option('--no-telemetry', 'Disable telemetry for this run')
+    .option('--host <addr>', 'Proxy bind address', '127.0.0.1');
 
   program
     .command('start', { isDefault: true })
-    .description('Start Nova Architect')
+    .description('Start Novastorm')
     .action(async () => {
-      if (!program.opts().telemetry) {
+      const opts = program.opts<{
+        open?: boolean;
+        yes?: boolean;
+        port?: string;
+        proxyPort?: string;
+        telemetry?: boolean;
+        host?: string;
+      }>();
+
+      if (opts.telemetry === false) {
         process.env['NOVA_TELEMETRY'] = 'false';
       }
-      await startCommand();
+
+      await startCommand({
+        noOpen: opts.open === false,
+        yes: opts.yes === true,
+        port: opts.port,
+        proxyPort: opts.proxyPort,
+        host: opts.host,
+        noTelemetry: opts.telemetry === false,
+      });
     });
 
   program
@@ -63,10 +94,20 @@ export function createCli(): Command {
   program
     .command('setup')
     .description('Run first-time interactive setup')
-    .option('-p, --provider <provider>', 'AI provider: claude-cli, anthropic, openrouter, openai, ollama')
+    .option(
+      '-p, --provider <provider>',
+      'AI provider: claude-cli, anthropic, openrouter, openai, ollama',
+    )
     .option('-k, --key <key>', 'API key')
     .action(async (opts: { provider?: string; key?: string }) => {
-      if (opts.provider && (opts.key || opts.provider === 'ollama' || opts.provider === 'claude-cli')) {
+      const rootOpts = program.opts<{ yes?: boolean; telemetry?: boolean }>();
+      if (rootOpts.telemetry === false) {
+        process.env['NOVA_TELEMETRY'] = 'false';
+      }
+      if (
+        opts.provider &&
+        (opts.key || opts.provider === 'ollama' || opts.provider === 'claude-cli')
+      ) {
         // Non-interactive mode
         const fs = await import('node:fs/promises');
         const path = await import('node:path');
@@ -83,7 +124,7 @@ export function createCli(): Command {
         console.log(`Saved ${opts.provider} config to .nova/config.toml`);
         return;
       }
-      await runSetup();
+      await runSetup(undefined, { nonInteractive: rootOpts.yes === true });
     });
 
   program
@@ -166,10 +207,49 @@ const BANNER = `\x1b[96m
 `;
 
 export async function run(argv: string[] = process.argv): Promise<void> {
-  // Suppress banner for --version / --help / -V / -h to keep output machine-parseable
+  // Handle NOVA_NON_INTERACTIVE env var — inject --yes into argv before commander sees it
+  if (process.env['NOVA_NON_INTERACTIVE'] === '1') {
+    if (!argv.includes('--yes')) {
+      argv = [...argv, '--yes'];
+    }
+  }
+
   const args = argv.slice(2);
-  const suppressBanner = args.includes('--version') || args.includes('-V')
-    || args.includes('--help') || args.includes('-h');
+
+  // Determine whether to suppress the banner.
+  // Banner is shown ONLY when ALL of these are true:
+  //   1. NOVA_QUIET is not set (or is not '1')
+  //   2. stdout is a TTY
+  //   3. The subcommand IS "start" (or no explicit subcommand = default start)
+  //   4. Not --version, --help, -V, -h
+  const novaQuiet = process.env['NOVA_QUIET'] === '1';
+  const stdoutIsTTY = process.stdout.isTTY === true;
+
+  // Determine the subcommand: first non-flag arg that is a known command
+  const knownCommands = [
+    'start',
+    'chat',
+    'init',
+    'setup',
+    'status',
+    'tasks',
+    'review',
+    'watch',
+    'license',
+    'entity',
+    'bible',
+    'update',
+    'uninstall',
+  ];
+  const subcommand = args.find((a) => !a.startsWith('-') && knownCommands.includes(a));
+  const isStartOrDefault = !subcommand || subcommand === 'start';
+  const isFlagOnly =
+    args.includes('--version') ||
+    args.includes('-V') ||
+    args.includes('--help') ||
+    args.includes('-h');
+
+  const suppressBanner = novaQuiet || !stdoutIsTTY || !isStartOrDefault || isFlagOnly;
 
   if (!suppressBanner) {
     console.log(BANNER);

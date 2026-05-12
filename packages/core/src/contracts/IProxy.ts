@@ -17,7 +17,12 @@ export interface IProxyServer {
    *
    * @throws if proxyPort is already in use
    */
-  start(targetPort: number, proxyPort: number, overlayScriptPath: string): Promise<void>;
+  start(
+    targetPort: number,
+    proxyPort: number,
+    overlayScriptPath: string,
+    host?: string,
+  ): Promise<void>;
 
   /** Stops the proxy server. */
   stop(): Promise<void>;
