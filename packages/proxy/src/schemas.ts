@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 const ConfirmMessageSchema = z.object({ type: z.literal('confirm') });
+const ConfirmTasksMessageSchema = z.object({
+  type: z.literal('confirm_tasks'),
+  data: z.object({ taskIds: z.array(z.string()).optional() }).optional(),
+});
 const CancelMessageSchema = z.object({ type: z.literal('cancel') });
 const AppendMessageSchema = z.object({
   type: z.literal('append'),
@@ -32,6 +36,7 @@ const ObservationMessageSchema = z.object({
 
 export const WsMessageSchema = z.discriminatedUnion('type', [
   ConfirmMessageSchema,
+  ConfirmTasksMessageSchema,
   CancelMessageSchema,
   AppendMessageSchema,
   BrowserErrorMessageSchema,

@@ -42,7 +42,25 @@ export interface IWebSocketServer {
   start(httpServer: any): void;
 
   /** Register handler for incoming observations. */
-  onObservation(handler: (observation: Observation) => void): void;
+  onObservation(handler: (observation: Observation, autoExecute?: boolean) => void): void;
+
+  /** Register handler for confirm messages from overlay. */
+  onConfirm(handler: () => void): void;
+
+  /** Register handler for confirm_tasks messages from overlay. */
+  onConfirmTasks(handler: (taskIds?: string[]) => void): void;
+
+  /** Register handler for cancel messages from overlay. */
+  onCancel(handler: () => void): void;
+
+  /** Register handler for append messages from overlay. */
+  onAppend(handler: (text: string) => void): void;
+
+  /** Register handler for browser error messages from overlay. */
+  onBrowserError(handler: (error: string) => void): void;
+
+  /** Register handler for secrets submission from overlay. */
+  onSecretsSubmit(handler: (secrets: Record<string, string>) => void): void;
 
   /** Send event to all connected overlay clients. */
   sendEvent(event: NovaEvent): void;

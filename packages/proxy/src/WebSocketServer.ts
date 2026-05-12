@@ -6,6 +6,7 @@ export class WebSocketServer implements IWebSocketServer {
   private wss: WsServer | null = null;
   private observationHandlers: Array<(observation: Observation, autoExecute?: boolean) => void> = [];
   private confirmHandlers: Array<() => void> = [];
+  private confirmTasksHandlers: Array<(taskIds?: string[]) => void> = [];
   private cancelHandlers: Array<() => void> = [];
   private appendHandlers: Array<(text: string) => void> = [];
   private browserErrorHandlers: Array<(error: string) => void> = [];
@@ -35,6 +36,13 @@ export class WebSocketServer implements IWebSocketServer {
           if (parsed.type === 'confirm') {
             for (const handler of this.confirmHandlers) {
               handler();
+            }
+            return;
+          }
+          if (parsed.type === 'confirm_tasks') {
+            const taskIds = parsed.data?.taskIds as string[] | undefined;
+            for (const handler of this.confirmTasksHandlers) {
+              handler(taskIds);
             }
             return;
           }
@@ -101,6 +109,10 @@ export class WebSocketServer implements IWebSocketServer {
 
   onConfirm(handler: () => void): void {
     this.confirmHandlers.push(handler);
+  }
+
+  onConfirmTasks(handler: (taskIds?: string[]) => void): void {
+    this.confirmTasksHandlers.push(handler);
   }
 
   onCancel(handler: () => void): void {

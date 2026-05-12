@@ -856,6 +856,29 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         activityLog.addEntry(`Project analyzed: ${fileCount} files, ${methodCount} methods`, 'success', false, ts);
         break;
       }
+      case 'pending_tasks': {
+        // Dismiss "AI is thinking" toast
+        if (executingToastId) { statusToast.dismiss(executingToastId); executingToastId = null; }
+        awaitingConfirmation = true;
+        pill.setState('idle');
+
+        const { tasks: pendingTaskList, message } = event.data as {
+          tasks: Array<{ id: string; description: string; lane: number; preConfirmed?: boolean }>;
+          message: string;
+        };
+
+        if (pendingTaskList && pendingTaskList.length > 0) {
+          taskPanel.setPendingTasks(pendingTaskList as Array<{ id: string; description: string; lane: number }>);
+          totalTasks = pendingTaskList.length;
+          completedTasks = 0;
+        }
+
+        const taskCount = pendingTaskList?.length ?? 0;
+        const shortMsg = `Awaiting confirmation — ${taskCount} task(s) ready. Execute?`;
+        transcriptBar.showConfirmation(shortMsg);
+        activityLog.addEntry(message ?? `Awaiting confirmation for ${taskCount} task(s)`, 'info', false, ts);
+        break;
+      }
       case 'status': {
         const msg = event.data.message;
         activityLog.addEntry(msg, 'info', false, ts);

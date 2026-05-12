@@ -134,6 +134,9 @@ export interface TaskItem {
   commitHash?: string;
   diff?: string;
   error?: string;
+  /** When true, the task was explicitly initiated by user action (Quick Edit, Multi-Edit)
+   * and can skip the confirmation gate. */
+  preConfirmed?: boolean;
 }
 
 export interface ExecutionResult {

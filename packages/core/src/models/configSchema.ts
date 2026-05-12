@@ -20,6 +20,7 @@ export const NovaConfigSchema = z.object({
   }),
   behavior: z.object({
     autoCommit: z.boolean(),
+    confirmTasks: z.boolean(),
     branchPrefix: z.string(),
     passiveSuggestions: z.boolean(),
   }),

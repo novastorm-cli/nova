@@ -69,6 +69,7 @@ engine = "whisper"
       expect(config.apiKeys.provider).toBe('anthropic');
       expect(config.apiKeys.key).toBe('sk-test-key');
       expect(config.behavior.autoCommit).toBe(true);
+      expect(config.behavior.confirmTasks).toBe(true); // default
       expect(config.behavior.branchPrefix).toBe('feat/');
       expect(config.behavior.passiveSuggestions).toBe(false);
       expect(config.voice.enabled).toBe(false);
@@ -87,6 +88,7 @@ engine = "whisper"
       expect(config.apiKeys.provider).toBe(DEFAULT_CONFIG.apiKeys.provider);
       expect(config.apiKeys.key).toBeUndefined();
       expect(config.behavior.autoCommit).toBe(DEFAULT_CONFIG.behavior.autoCommit);
+      expect(config.behavior.confirmTasks).toBe(DEFAULT_CONFIG.behavior.confirmTasks);
       expect(config.behavior.branchPrefix).toBe(DEFAULT_CONFIG.behavior.branchPrefix);
       expect(config.behavior.passiveSuggestions).toBe(DEFAULT_CONFIG.behavior.passiveSuggestions);
       expect(config.voice.enabled).toBe(DEFAULT_CONFIG.voice.enabled);
@@ -178,7 +180,7 @@ port = -1
     it('should create nova.toml and skip default values', async () => {
       const config: Partial<NovaConfig> = {
         project: { devCommand: 'npm start', port: 3000 }, // port is default
-        behavior: { autoCommit: true, branchPrefix: 'nova/', passiveSuggestions: true }, // branchPrefix and passiveSuggestions are default
+        behavior: { autoCommit: true, confirmTasks: true, branchPrefix: 'nova/', passiveSuggestions: true }, // branchPrefix and passiveSuggestions are default
       };
 
       await reader.write(tmpDir, config);

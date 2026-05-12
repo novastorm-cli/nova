@@ -22,7 +22,9 @@ export type NovaEvent =
   | { type: 'background_started'; data: { taskId: string; branch: string } }
   | { type: 'background_progress'; data: { taskId: string; progress: string } }
   | { type: 'background_completed'; data: { taskId: string; branch: string; commitHash: string; diff: string } }
-  | { type: 'background_failed'; data: { taskId: string; error: string } };
+  | { type: 'background_failed'; data: { taskId: string; error: string } }
+  | { type: 'pending_tasks'; data: { tasks: Array<{ id: string; description: string; lane: number; preConfirmed?: boolean }>; message: string } }
+  | { type: 'confirm_tasks'; data: { taskIds: string[] } }; 
 
 export type NovaEventType = NovaEvent['type'];
 

@@ -1219,9 +1219,10 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   });
 
   // Wire WebSocket observations into EventBus
-  wsServer.onObservation((observation: Observation, _autoExecute?: boolean) => {
+  wsServer.onObservation((observation: Observation, autoExecute?: boolean) => {
     logger.logObservation(observation);
-    eventBus.emit({ type: 'observation', data: observation });
+    // Tag the observation with the autoExecute flag so the handler can check it
+    eventBus.emit({ type: 'observation', data: { ...observation, autoExecute } } as any);
   });
 
   // Handle observations: analyze and create tasks (pending confirmation)
@@ -1302,22 +1303,54 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         return;
       }
 
-      wsServer.sendEvent({
-        type: 'status',
-        data: { message: `AI produced ${tasks.length} task(s)` },
-      } as NovaEvent);
+      // Determine whether tasks came from an explicit user action (Quick Edit / Multi-Edit)
+      const isPreConfirmed = (event.data as any).autoExecute === true;
 
-      // Auto-execute tasks immediately (no confirmation needed)
-      console.log(chalk.green(`Auto-executing ${tasks.length} task(s)...`));
-      wsServer.sendEvent({
-        type: 'status',
-        data: { message: `Auto-executing ${tasks.length} task(s)...` },
-      } as NovaEvent);
-      wsServer.sendEvent({
-        type: 'status',
-        data: { message: 'Confirmed! Executing tasks...' },
-      } as NovaEvent);
-      executeTasks(tasks);
+      // Tag tasks with preConfirmed when from explicit user intent actions
+      if (isPreConfirmed) {
+        for (const task of tasks) {
+          task.preConfirmed = true;
+        }
+      }
+
+      // Decide whether to auto-execute or await confirmation
+      const shouldAutoExecute =
+        isNonInteractive(options) ||       // --yes flag or NOVA_NON_INTERACTIVE=1
+        config.behavior.confirmTasks === false ||  // config allows auto-execute
+        isPreConfirmed;                    // Quick Edit / Multi-Edit (explicit user intent)
+
+      if (shouldAutoExecute) {
+        // Auto-execute: tasks go straight to the executor
+        console.log(chalk.green(`Executing ${tasks.length} task(s)...`));
+        wsServer.sendEvent({
+          type: 'status',
+          data: { message: `Executing ${tasks.length} task(s)...` },
+        } as NovaEvent);
+        executeTasks(tasks);
+      } else {
+        // Awaiting confirmation: push to pendingTasks, emit pending_tasks event
+        pendingTasks = tasks;
+        const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
+        const pendingMessage = `Press Y to execute, N to discard — ${taskDescriptions}`;
+
+        console.log(chalk.yellow(`\n${pendingMessage}\n`));
+        wsServer.sendEvent({
+          type: 'pending_tasks',
+          data: {
+            tasks: tasks.map((t) => ({
+              id: t.id,
+              description: t.description,
+              lane: t.lane,
+              preConfirmed: t.preConfirmed,
+            })),
+            message: pendingMessage,
+          },
+        } as NovaEvent);
+        wsServer.sendEvent({
+          type: 'status',
+          data: { message: 'Awaiting confirmation' },
+        } as NovaEvent);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`Analysis error: ${message}`));
@@ -1337,7 +1370,23 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     console.log(chalk.green(`Confirmed ${pendingTasks.length} task(s). Executing...`));
     wsServer.sendEvent({
       type: 'status',
-      data: { message: 'Confirmed! Executing tasks...' },
+      data: { message: `Executing ${pendingTasks.length} task(s)...` },
+    } as NovaEvent);
+    const tasksToRun = [...pendingTasks];
+    pendingTasks = [];
+    executeTasks(tasksToRun);
+  });
+
+  // Handle confirm_tasks from overlay (Execute button click)
+  wsServer.onConfirmTasks((_taskIds?: string[]) => {
+    if (pendingTasks.length === 0) {
+      console.log(chalk.dim('No pending tasks to confirm.'));
+      return;
+    }
+    console.log(chalk.green(`Confirmed ${pendingTasks.length} task(s) via overlay. Executing...`));
+    wsServer.sendEvent({
+      type: 'status',
+      data: { message: `Executing ${pendingTasks.length} task(s)...` },
     } as NovaEvent);
     const tasksToRun = [...pendingTasks];
     pendingTasks = [];
@@ -1391,14 +1440,23 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
       pendingTasks = tasks;
       const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
-      const pendingMessage = `Pending: ${tasks.length} task(s) — ${taskDescriptions}. Say "yes"/"execute" to proceed or "no"/"cancel" to discard.`;
+      const pendingMessage = `Press Y to execute, N to discard — ${taskDescriptions}`;
       console.log(chalk.yellow(`\n${pendingMessage}\n`));
       wsServer.sendEvent({
-        type: 'status',
+        type: 'pending_tasks',
         data: {
+          tasks: tasks.map((t) => ({
+            id: t.id,
+            description: t.description,
+            lane: t.lane,
+            preConfirmed: t.preConfirmed,
+          })),
           message: pendingMessage,
-          tasks: tasks.map((t) => ({ id: t.id, description: t.description, lane: t.lane })),
         },
+      } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: 'Awaiting confirmation' },
       } as NovaEvent);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1567,16 +1625,30 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
     pendingTasks = [fixTask];
 
-    const pendingMessage = `Pending: Build errors detected at startup. Fix them? 1. ${fixTask.description.slice(0, 100)}`;
-    console.log(chalk.yellow(`\n${pendingMessage}`));
-    console.log(chalk.dim('Press Y/Enter to fix, N to skip'));
-    wsServer.sendEvent({
-      type: 'status',
-      data: {
-        message: pendingMessage,
-        tasks: [{ id: fixTask.id, description: 'Fix startup build errors', lane: 3 }],
-      },
-    } as NovaEvent);
+    // Auto-execute if in non-interactive mode or confirmTasks disabled
+    if (isNonInteractive(options) || config.behavior.confirmTasks === false) {
+      console.log(chalk.green('Auto-executing build error fix task...'));
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: 'Executing 1 task(s)...' },
+      } as NovaEvent);
+      executeTasks([fixTask]);
+    } else {
+      const pendingMessage = `Press Y to execute, N to discard — ${fixTask.description.slice(0, 200)}`;
+      console.log(chalk.yellow(`\n${pendingMessage}`));
+      console.log(chalk.dim('Press Y/Enter to fix, N to skip'));
+      wsServer.sendEvent({
+        type: 'pending_tasks',
+        data: {
+          tasks: [{ id: fixTask.id, description: 'Fix startup build errors', lane: 3 }],
+          message: pendingMessage,
+        },
+      } as NovaEvent);
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: 'Awaiting confirmation' },
+      } as NovaEvent);
+    }
   }, 4000);
 
   // ── 9. Handle Ctrl+C ───────────────────────────────────────────────
@@ -1653,7 +1725,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         chat!.log(chalk.green(`Confirmed ${pendingTasks.length} task(s). Executing...`));
         wsServer.sendEvent({
           type: 'status',
-          data: { message: 'Confirmed! Executing tasks...' },
+          data: { message: `Executing ${pendingTasks.length} task(s)...` },
         } as NovaEvent);
         for (const task of pendingTasks) {
           eventBus.emit({ type: 'task_created', data: task });
