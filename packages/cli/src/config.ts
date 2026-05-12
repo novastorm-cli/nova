@@ -7,7 +7,7 @@ import {
   type NovaConfig,
   DEFAULT_CONFIG,
 } from '@novastorm-ai/core';
-import { DEPRECATION } from './strings.js';
+import { DEPRECATION, MIGRATION } from './strings.js';
 
 const NOVA_TOML = 'nova.toml';
 const LOCAL_CONFIG_PATH = path.join('.nova', 'config.toml');
@@ -53,7 +53,7 @@ async function readTomlFile(filePath: string): Promise<Record<string, unknown>> 
     return {};
   }
   try {
-    return TOML.parse(content) as unknown as Record<string, unknown>;
+    return TOML.parse(content);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     throw new ConfigError(`Invalid TOML in ${filePath}: ${message}`);
@@ -65,10 +65,7 @@ async function readTomlFile(filePath: string): Promise<Record<string, unknown>> 
  */
 function validateRelativePath(value: string, field: string): void {
   if (value.includes('..')) {
-    throw new ConfigError(
-      `Path traversal not allowed in ${field}: "${value}"`,
-      field,
-    );
+    throw new ConfigError(`Path traversal not allowed in ${field}: "${value}"`, field);
   }
   if (path.isAbsolute(value)) {
     throw new ConfigError(
@@ -86,7 +83,14 @@ function validate(config: NovaConfig): void {
     );
   }
 
-  const validProviders = ['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli', 'deepseek'] as const;
+  const validProviders = [
+    'openrouter',
+    'anthropic',
+    'openai',
+    'ollama',
+    'claude-cli',
+    'deepseek',
+  ] as const;
   if (!validProviders.includes(config.apiKeys.provider)) {
     throw new ConfigError(
       `Invalid provider: ${config.apiKeys.provider}. Must be one of: ${validProviders.join(', ')}`,
@@ -103,10 +107,7 @@ function validate(config: NovaConfig): void {
   }
 
   if (typeof config.telemetry.enabled !== 'boolean') {
-    throw new ConfigError(
-      `Invalid telemetry.enabled: must be a boolean.`,
-      'telemetry.enabled',
-    );
+    throw new ConfigError(`Invalid telemetry.enabled: must be a boolean.`, 'telemetry.enabled');
   }
 
   if (config.project.frontend !== undefined) {
@@ -115,10 +116,7 @@ function validate(config: NovaConfig): void {
 
   if (config.project.backends !== undefined) {
     if (!Array.isArray(config.project.backends)) {
-      throw new ConfigError(
-        'project.backends must be an array of strings.',
-        'project.backends',
-      );
+      throw new ConfigError('project.backends must be an array of strings.', 'project.backends');
     }
     for (const backend of config.project.backends) {
       if (typeof backend !== 'string') {
@@ -159,9 +157,117 @@ function diffFromDefaults(config: Partial<NovaConfig>): Record<string, unknown> 
   return result;
 }
 
+// ── Well-known top-level sections in the canonical schema ──────────
+const KNOWN_SECTIONS = [
+  'project',
+  'models',
+  'apiKeys',
+  'behavior',
+  'voice',
+  'telemetry',
+  'license',
+  'git',
+] as const;
+
+// ── Well-known provider names (must match the apiKeys.provider union) ──
+const KNOWN_PROVIDERS = [
+  'openrouter',
+  'anthropic',
+  'openai',
+  'ollama',
+  'claude-cli',
+  'deepseek',
+] as const;
+
+/**
+ * Compute Levenshtein (edit) distance between two strings.
+ * Standard dynamic-programming implementation, O(m×n).
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+
+  // Use a single-row DP buffer for memory efficiency.
+  // We keep two rows at a time: prev and curr.
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const curr = new Array<number>(n + 1);
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const substitutionCost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1, // deletion
+        curr[j - 1] + 1, // insertion
+        prev[j - 1] + substitutionCost, // substitution
+      );
+    }
+    prev = curr;
+  }
+  return prev[n];
+}
+
+/**
+ * Find the closest known section name within Levenshtein distance ≤ 2.
+ * Returns the match or `null` if nothing is close enough.
+ */
+function findClosestSection(raw: string): string | null {
+  let bestMatch: string | null = null;
+  let bestDist = Infinity;
+
+  for (const known of KNOWN_SECTIONS) {
+    const dist = levenshteinDistance(raw, known);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestMatch = known;
+    }
+  }
+
+  return bestDist <= 2 ? bestMatch : null;
+}
+
+/**
+ * Migrate a legacy `[providers]` section to `[apiKeys]`.
+ *
+ * Legacy format:
+ *   [providers]
+ *   deepseek_key = "sk-..."
+ *
+ * Current format:
+ *   [apiKeys]
+ *   provider = "deepseek"
+ *   key = "sk-..."
+ *
+ * Returns the migrated `apiKeys` partial (provider + key) or `null`
+ * if no legacy migration was applicable for this data blob.
+ */
+function migrateLegacyProviders(data: Record<string, unknown>): Record<string, unknown> | null {
+  const providers = data['providers'] as Record<string, unknown> | undefined;
+  if (!providers || typeof providers !== 'object') return null;
+
+  // Look for <provider>_key entries in the [providers] block
+  for (const provider of KNOWN_PROVIDERS) {
+    const keyField = `${provider}_key`;
+    if (keyField in providers) {
+      const key = providers[keyField];
+      // Build the apiKeys record.
+      const apiKeys: Record<string, unknown> = {
+        provider,
+      };
+      if (key !== undefined && key !== null) {
+        apiKeys['key'] = key;
+      }
+      return apiKeys;
+    }
+  }
+
+  return null;
+}
+
 export class ConfigReader implements IConfigReader {
   /** Tracks whether the `models.fast` deprecation warning has been emitted this session. */
   private _fastModelWarned = false;
+  /** Tracks whether the `[providers]` migration info log has been emitted this session. */
+  private _providersMigratedWarned = false;
 
   async read(projectPath: string): Promise<NovaConfig> {
     const projectTomlPath = path.join(projectPath, NOVA_TOML);
@@ -169,6 +275,30 @@ export class ConfigReader implements IConfigReader {
 
     const projectData = await readTomlFile(projectTomlPath);
     const localData = await readTomlFile(localTomlPath);
+
+    // ── Legacy [providers] → [apiKeys] migration ──────────────────
+    // Check both project and local data for legacy [providers] block.
+    // Migration happens per-data-source so that explicit [apiKeys] in
+    // the same file still takes precedence.
+    for (const data of [projectData, localData]) {
+      const migrated = migrateLegacyProviders(data);
+      if (migrated) {
+        // Merge migrated apiKeys into any existing apiKeys in the data.
+        // Migrated values serve as defaults; explicit [apiKeys] wins.
+        const existingApiKeys = (data['apiKeys'] as Record<string, unknown>) ?? {};
+        data['apiKeys'] = { ...migrated, ...existingApiKeys };
+
+        // Clean up the legacy section so it doesn't leak or cause
+        // an unrecognized-section warning.
+        delete data['providers'];
+
+        // One-time INFO log per ConfigReader session.
+        if (!this._providersMigratedWarned) {
+          this._providersMigratedWarned = true;
+          console.info(MIGRATION.legacyProvidersMigrated);
+        }
+      }
+    }
 
     // ── Backward compat: [models] fast → [models] standard ─────────
     // Check both project and local data for legacy `fast` key.
@@ -193,10 +323,7 @@ export class ConfigReader implements IConfigReader {
     }
 
     // Merge: defaults <- project <- local
-    let merged = deepMerge(
-      DEFAULT_CONFIG as unknown as Record<string, unknown>,
-      projectData,
-    );
+    let merged = deepMerge(DEFAULT_CONFIG as unknown as Record<string, unknown>, projectData);
     merged = deepMerge(merged, localData);
 
     // Apply environment variable overrides
@@ -204,6 +331,30 @@ export class ConfigReader implements IConfigReader {
     if (envApiKey !== undefined) {
       const apiKeys = merged['apiKeys'] as Record<string, unknown>;
       apiKeys['key'] = envApiKey;
+    }
+
+    // ── Unrecognized section / typo detection ─────────────────────
+    // After merging, scan the raw data for top-level sections that are
+    // NOT in the canonical schema and warn the user.
+    const allRawSections = new Set<string>();
+    for (const data of [projectData, localData]) {
+      for (const key of Object.keys(data)) {
+        allRawSections.add(key);
+      }
+    }
+
+    for (const section of allRawSections) {
+      if ((KNOWN_SECTIONS as readonly string[]).includes(section)) continue;
+      // Legacy [providers] was already migrated and cleaned up, but
+      // defensively skip it in case a migration edge-case leaves it.
+      if (section === 'providers') continue;
+
+      const closest = findClosestSection(section);
+      if (closest) {
+        console.warn(MIGRATION.typoSuggestion.replace('%s', section).replace('%s', closest));
+      } else {
+        console.warn(MIGRATION.unrecognizedSection.replace('%s', section));
+      }
     }
 
     const config = merged as unknown as NovaConfig;

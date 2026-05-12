@@ -10,6 +10,87 @@ Nova uses three config files with different purposes:
 
 ---
 
+## Canonical Schema Reference
+
+Nova recognizes the following top-level config sections. Any table not listed below is
+unrecognized: Nova prints a warning and ignores it. If the unrecognized name has a close
+Levenshtein match (edit distance ≤ 2) to a known section, the warning will suggest the
+closest match (e.g., `[telemtry]` → "Did you mean [telemetry]?").
+
+### [project]
+Development server settings.
+
+| Field        | Type       | Default  | Description                            |
+|-------------|-----------|----------|----------------------------------------|
+| `devCommand` | `string`  | `""`     | Command to start the dev server         |
+| `port`       | `number`  | `3000`   | Dev server port                         |
+| `frontend`   | `string`  | —        | Frontend root directory (optional)      |
+| `backends`   | `string[]`| —        | Backend directories (optional)          |
+
+### [models]
+LLM model selection by capability tier.
+
+| Field      | Type      | Default                        | Description                      |
+|-----------|----------|-------------------------------|----------------------------------|
+| `micro`    | `string` | `"claude-haiku-4-5-20251001"` | Cheapest / fastest model         |
+| `standard` | `string` | `"claude-sonnet-4-6"`         | Balanced model (replaces `fast`) |
+| `strong`   | `string` | `"claude-opus-4-6"`           | Most capable model               |
+| `local`    | `boolean`| `false`                       | Prefer local models via Ollama   |
+
+> **Deprecated:** `[models] fast` is an alias for `[models] standard`. On first read
+> Nova migrates the value and prints a one-time deprecation warning (removal in v2.0).
+
+### [apiKeys]
+Provider credentials. Prefer `.nova/config.toml` for secrets.
+
+| Field      | Type     | Default        | Description                       |
+|-----------|---------|---------------|-----------------------------------|
+| `provider` | `string` | `"openrouter"` | AI provider                       |
+| `key`      | `string` | —              | API key (optional, env overrides) |
+
+**Valid providers:** `openrouter`, `anthropic`, `openai`, `ollama`, `claude-cli`, `deepseek`
+
+### [behavior]
+Task execution and confirmation behaviour.
+
+| Field               | Type      | Default | Description                    |
+|---------------------|----------|---------|--------------------------------|
+| `autoCommit`         | `boolean` | `false` | Auto-commit without confirmation |
+| `confirmTasks`       | `boolean` | `true`  | Require confirmation for tasks |
+| `branchPrefix`       | `string`  | `"nova/"`| Git branch prefix             |
+| `passiveSuggestions` | `boolean` | `true`  | Show non-blocking suggestions  |
+
+### [voice]
+Voice input settings.
+
+| Field     | Type      | Default | Description                |
+|----------|----------|---------|----------------------------|
+| `enabled` | `boolean` | `true`  | Enable voice input          |
+| `engine`  | `string`  | `"web"` | STT engine (`web`/`whisper`) |
+
+### [telemetry]
+Anonymous usage telemetry.
+
+| Field     | Type      | Default | Description            |
+|----------|----------|---------|------------------------|
+| `enabled` | `boolean` | `true`  | Send telemetry on startup |
+
+### [license]
+License key (BSL compliance).
+
+| Field | Type     | Default | Description         |
+|------|---------|---------|---------------------|
+| `key` | `string` | —       | License key (optional) |
+
+### [git]
+Git safety controls.
+
+| Field                         | Type      | Default | Description                        |
+|------------------------------|----------|---------|------------------------------------|
+| `allowProtectedBranchCommits` | `boolean` | —       | Allow commits to main/master (optional) |
+
+---
+
 ## nova.toml
 
 Main project config. Created by `nova init` or `nova setup`.
@@ -22,7 +103,11 @@ provider = "openrouter"    # AI provider
 key = "sk-or-..."          # API key (prefer .nova/config.toml for secrets)
 ```
 
-**Providers:** `claude-cli`, `anthropic`, `openrouter`, `openai`, `ollama`
+**Providers:** `claude-cli`, `anthropic`, `openrouter`, `openai`, `ollama`, `deepseek`
+
+> **Legacy migration:** The old `[providers]` block (e.g., `[providers] deepseek_key = "..."`)
+> is auto-migrated to `[apiKeys]` on read. Nova prints a one-time INFO log when this happens.
+> Remove the legacy `[providers]` block from your config after migration.
 
 > Tip: Store the key in `.nova/config.toml` instead to keep it out of git.
 
