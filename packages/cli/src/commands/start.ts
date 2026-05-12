@@ -40,6 +40,7 @@ import { ErrorAutoFixer } from '../autofix.js';
 import { NovaChat } from '../chat.js';
 import { handleSettingsCommand } from '../settings.js';
 import { PortManager } from '../boot/PortManager.js';
+import { resolveTelemetryEnabled, getMachineId } from '../telemetry.js';
 import type { StartOptions } from '../index.js';
 
 const SELECT_THEME = {
@@ -164,19 +165,15 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     spinner.succeed(`License OK (${license.tier}, ${license.devCount} dev(s)).`);
   }
 
-  // ── 2b. Send telemetry ──────────────────────────────────────────────
-  if (config.telemetry.enabled && process.env['NOVA_TELEMETRY'] !== 'false') {
+  // ── 2b. Resolve telemetry enabled state ─────────────────────────────
+  const telemetryEnabled = await resolveTelemetryEnabled(options, config.telemetry.enabled);
+
+  // ── 2c. Send telemetry (only if enabled — earliest exit before sendEvent) ──
+  if (telemetryEnabled) {
     const { createHash } = await import('node:crypto');
-    const os = await import('node:os');
     const { execFile } = await import('node:child_process');
 
-    const mac =
-      Object.values(os.networkInterfaces())
-        .flat()
-        .find((i) => !i?.internal && i?.mac !== '00:00:00:00:00:00')?.mac ?? '';
-    const machineId = createHash('sha256')
-      .update(os.hostname() + os.userInfo().username + mac)
-      .digest('hex');
+    const machineId = await getMachineId();
 
     let projectHash: string;
     try {
@@ -332,9 +329,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
           );
         } else {
           console.error(
-            chalk.red(
-              'Dev command is required. Add [project] devCommand = "..." to nova.toml',
-            ),
+            chalk.red('Dev command is required. Add [project] devCommand = "..." to nova.toml'),
           );
           process.exit(1);
         }
@@ -366,20 +361,14 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
             const project = (tomlContent['project'] as Record<string, unknown>) ?? {};
             project['devCommand'] = devCommand;
             tomlContent['project'] = project;
-            await writeFile(
-              novaTomlPath,
-              TOML.stringify(tomlContent as TOML.JsonMap),
-              'utf-8',
-            );
+            await writeFile(novaTomlPath, TOML.stringify(tomlContent as TOML.JsonMap), 'utf-8');
             console.log(chalk.dim(`Saved devCommand to nova.toml`));
           } catch {
             // Non-critical — continue without saving
           }
         } else {
           console.error(
-            chalk.red(
-              'Dev command is required. Add [project] devCommand = "..." to nova.toml',
-            ),
+            chalk.red('Dev command is required. Add [project] devCommand = "..." to nova.toml'),
           );
           process.exit(1);
         }
@@ -559,9 +548,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         const pair = await PortManager.findFreePortPair(devPort, proxyPort);
         devPort = pair.devPort;
         proxyPort = pair.proxyPort;
-        console.log(
-          chalk.yellow(`  Auto-selected ports: dev=${devPort}, proxy=${proxyPort}`),
-        );
+        console.log(chalk.yellow(`  Auto-selected ports: dev=${devPort}, proxy=${proxyPort}`));
       } catch {
         spinner.fail('No free ports available in range');
         process.exit(1);
@@ -665,157 +652,160 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
       if (isNonInteractive(options)) {
         console.log(
-          chalk.dim('Non-interactive mode — skipping install recovery. Run "npm install" manually.'),
+          chalk.dim(
+            'Non-interactive mode — skipping install recovery. Run "npm install" manually.',
+          ),
         );
         // Continue without installing
       } else {
+        const choices: Array<{ name: string; value: string }> = [];
 
-      const choices: Array<{ name: string; value: string }> = [];
-
-      if (/EJSONPARSE|JSON/.test(errMsg)) {
-        console.log(chalk.yellow('  Cause: package.json contains invalid JSON.\n'));
-        choices.push({
-          name: chalk.dim('Fix package.json automatically (remove syntax errors)'),
-          value: 'fix-json',
-        });
-      }
-      if (/ENOENT|not found|Cannot find/.test(errMsg)) {
-        console.log(chalk.yellow('  Cause: missing files or modules.\n'));
-      }
-
-      if (llmClient) {
-        choices.push({
-          name: chalk.dim('Describe what to fix (AI will handle it)'),
-          value: 'ai-fix',
-        });
-      }
-      choices.push(
-        { name: chalk.dim('Skip install and continue'), value: 'skip' },
-        { name: chalk.dim('Exit'), value: 'exit' },
-      );
-
-      let resolved = false;
-      while (!resolved) {
-        let action: string;
-        try {
-          action = await select({
-            message: 'What would you like to do?',
-            choices,
-            theme: SELECT_THEME,
+        if (/EJSONPARSE|JSON/.test(errMsg)) {
+          console.log(chalk.yellow('  Cause: package.json contains invalid JSON.\n'));
+          choices.push({
+            name: chalk.dim('Fix package.json automatically (remove syntax errors)'),
+            value: 'fix-json',
           });
-        } catch {
-          process.exit(0);
+        }
+        if (/ENOENT|not found|Cannot find/.test(errMsg)) {
+          console.log(chalk.yellow('  Cause: missing files or modules.\n'));
         }
 
-        if (action === 'fix-json') {
+        if (llmClient) {
+          choices.push({
+            name: chalk.dim('Describe what to fix (AI will handle it)'),
+            value: 'ai-fix',
+          });
+        }
+        choices.push(
+          { name: chalk.dim('Skip install and continue'), value: 'skip' },
+          { name: chalk.dim('Exit'), value: 'exit' },
+        );
+
+        let resolved = false;
+        while (!resolved) {
+          let action: string;
           try {
-            const pkgPath = join(cwd, 'package.json');
-            let content = readFileSync(pkgPath, 'utf-8');
+            action = await select({
+              message: 'What would you like to do?',
+              choices,
+              theme: SELECT_THEME,
+            });
+          } catch {
+            process.exit(0);
+          }
 
-            // Step 1: Try regex fixes (trailing commas, missing commas)
-            content = content.replace(/,(\s*[}\]])/g, '$1');
-            content = content.replace(/"(\s*\n\s*")/g, '",\n  "');
-            writeFileSync(pkgPath, content, 'utf-8');
-
-            // Step 2: Validate JSON — if still broken, use AI
+          if (action === 'fix-json') {
             try {
-              JSON.parse(readFileSync(pkgPath, 'utf-8'));
-            } catch {
-              if (llmClient) {
-                console.log(
-                  chalk.dim('  Regex fix insufficient, asking AI to fix package.json...\n'),
-                );
-                const brokenContent = readFileSync(pkgPath, 'utf-8');
+              const pkgPath = join(cwd, 'package.json');
+              let content = readFileSync(pkgPath, 'utf-8');
+
+              // Step 1: Try regex fixes (trailing commas, missing commas)
+              content = content.replace(/,(\s*[}\]])/g, '$1');
+              content = content.replace(/"(\s*\n\s*")/g, '",\n  "');
+              writeFileSync(pkgPath, content, 'utf-8');
+
+              // Step 2: Validate JSON — if still broken, use AI
+              try {
+                JSON.parse(readFileSync(pkgPath, 'utf-8'));
+              } catch {
+                if (llmClient) {
+                  console.log(
+                    chalk.dim('  Regex fix insufficient, asking AI to fix package.json...\n'),
+                  );
+                  const brokenContent = readFileSync(pkgPath, 'utf-8');
+                  const response = await llmClient.chat(
+                    [
+                      {
+                        role: 'system',
+                        content:
+                          'You are a JSON fixer. You receive a broken package.json. Output ONLY the corrected valid JSON. No explanation, no markdown fences, just the JSON.',
+                      },
+                      { role: 'user', content: `Fix this package.json:\n\n${brokenContent}` },
+                    ],
+                    { temperature: 0, maxTokens: 4096 },
+                  );
+
+                  // Extract JSON from response (strip markdown fences if present)
+                  let fixed = response.trim();
+                  const fenceMatch = fixed.match(/```(?:json)?\n([\s\S]*?)```/);
+                  if (fenceMatch) fixed = fenceMatch[1].trim();
+
+                  // Validate before writing
+                  JSON.parse(fixed);
+                  writeFileSync(pkgPath, fixed, 'utf-8');
+                  console.log(chalk.green('  AI fixed package.json.'));
+                }
+              }
+
+              console.log(chalk.dim('  Retrying install...\n'));
+              const { execSync } = await import('node:child_process');
+              execSync(installCmd, { cwd, stdio: 'pipe' });
+              console.log(chalk.green('  Dependencies installed.'));
+              resolved = true;
+            } catch (fixErr) {
+              console.log(
+                chalk.red(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : fixErr}\n`),
+              );
+            }
+          } else if (action === 'ai-fix') {
+            try {
+              const userDesc = await input({ message: 'Describe what needs to be fixed:' });
+              if (userDesc.trim() && llmClient) {
+                console.log(chalk.dim('\n  AI is working on it...\n'));
                 const response = await llmClient.chat(
                   [
                     {
                       role: 'system',
-                      content:
-                        'You are a JSON fixer. You receive a broken package.json. Output ONLY the corrected valid JSON. No explanation, no markdown fences, just the JSON.',
+                      content: `You are a code fixer. You receive an error and a user description of what to fix. Output ONLY the fixed file content with no explanation. Format:\n=== FILE: path/to/file ===\nfull file content\n=== END FILE ===`,
                     },
-                    { role: 'user', content: `Fix this package.json:\n\n${brokenContent}` },
+                    {
+                      role: 'user',
+                      content: `Error:\n${errMsg.slice(0, 800)}\n\nUser says: ${userDesc.trim()}\n\nProject directory: ${cwd}\nFix the issue. Output the corrected file(s).`,
+                    },
                   ],
                   { temperature: 0, maxTokens: 4096 },
                 );
 
-                // Extract JSON from response (strip markdown fences if present)
-                let fixed = response.trim();
-                const fenceMatch = fixed.match(/```(?:json)?\n([\s\S]*?)```/);
-                if (fenceMatch) fixed = fenceMatch[1].trim();
+                // Parse and write file blocks
+                const fileBlockRegex = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
+                let match;
+                let filesWritten = 0;
+                while ((match = fileBlockRegex.exec(response)) !== null) {
+                  const filePath = join(cwd, match[1].trim());
+                  const fileContent = match[2];
+                  const { mkdirSync, writeFileSync: writeSync } = await import('node:fs');
+                  const { dirname } = await import('node:path');
+                  mkdirSync(dirname(filePath), { recursive: true });
+                  writeSync(filePath, fileContent, 'utf-8');
+                  console.log(chalk.dim(`  Wrote: ${match[1].trim()}`));
+                  filesWritten++;
+                }
 
-                // Validate before writing
-                JSON.parse(fixed);
-                writeFileSync(pkgPath, fixed, 'utf-8');
-                console.log(chalk.green('  AI fixed package.json.'));
+                if (filesWritten > 0) {
+                  console.log(
+                    chalk.green(`\n  AI fixed ${filesWritten} file(s). Retrying install...\n`),
+                  );
+                  const { execSync } = await import('node:child_process');
+                  execSync(installCmd, { cwd, stdio: 'pipe' });
+                  console.log(chalk.green('  Dependencies installed.'));
+                  resolved = true;
+                } else {
+                  console.log(chalk.red('  AI could not produce a fix.\n'));
+                }
               }
-            }
-
-            console.log(chalk.dim('  Retrying install...\n'));
-            const { execSync } = await import('node:child_process');
-            execSync(installCmd, { cwd, stdio: 'pipe' });
-            console.log(chalk.green('  Dependencies installed.'));
-            resolved = true;
-          } catch (fixErr) {
-            console.log(
-              chalk.red(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : fixErr}\n`),
-            );
-          }
-        } else if (action === 'ai-fix') {
-          try {
-            const userDesc = await input({ message: 'Describe what needs to be fixed:' });
-            if (userDesc.trim() && llmClient) {
-              console.log(chalk.dim('\n  AI is working on it...\n'));
-              const response = await llmClient.chat(
-                [
-                  {
-                    role: 'system',
-                    content: `You are a code fixer. You receive an error and a user description of what to fix. Output ONLY the fixed file content with no explanation. Format:\n=== FILE: path/to/file ===\nfull file content\n=== END FILE ===`,
-                  },
-                  {
-                    role: 'user',
-                    content: `Error:\n${errMsg.slice(0, 800)}\n\nUser says: ${userDesc.trim()}\n\nProject directory: ${cwd}\nFix the issue. Output the corrected file(s).`,
-                  },
-                ],
-                { temperature: 0, maxTokens: 4096 },
+            } catch (aiErr) {
+              console.log(
+                chalk.red(`  Failed: ${aiErr instanceof Error ? aiErr.message : aiErr}\n`),
               );
-
-              // Parse and write file blocks
-              const fileBlockRegex = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
-              let match;
-              let filesWritten = 0;
-              while ((match = fileBlockRegex.exec(response)) !== null) {
-                const filePath = join(cwd, match[1].trim());
-                const fileContent = match[2];
-                const { mkdirSync, writeFileSync: writeSync } = await import('node:fs');
-                const { dirname } = await import('node:path');
-                mkdirSync(dirname(filePath), { recursive: true });
-                writeSync(filePath, fileContent, 'utf-8');
-                console.log(chalk.dim(`  Wrote: ${match[1].trim()}`));
-                filesWritten++;
-              }
-
-              if (filesWritten > 0) {
-                console.log(
-                  chalk.green(`\n  AI fixed ${filesWritten} file(s). Retrying install...\n`),
-                );
-                const { execSync } = await import('node:child_process');
-                execSync(installCmd, { cwd, stdio: 'pipe' });
-                console.log(chalk.green('  Dependencies installed.'));
-                resolved = true;
-              } else {
-                console.log(chalk.red('  AI could not produce a fix.\n'));
-              }
             }
-          } catch (aiErr) {
-            console.log(chalk.red(`  Failed: ${aiErr instanceof Error ? aiErr.message : aiErr}\n`));
+          } else if (action === 'skip') {
+            console.log(chalk.dim('  Skipping install.'));
+            resolved = true;
+          } else {
+            process.exit(0);
           }
-        } else if (action === 'skip') {
-          console.log(chalk.dim('  Skipping install.'));
-          resolved = true;
-        } else {
-          process.exit(0);
         }
-      }
       } // end else (non-interactive guard for install failure)
     }
   }
@@ -1312,9 +1302,9 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
       // Decide whether to auto-execute or await confirmation
       const shouldAutoExecute =
-        isNonInteractive(options) ||       // --yes flag or NOVA_NON_INTERACTIVE=1
-        config.behavior.confirmTasks === false ||  // config allows auto-execute
-        isPreConfirmed;                    // Quick Edit / Multi-Edit (explicit user intent)
+        isNonInteractive(options) || // --yes flag or NOVA_NON_INTERACTIVE=1
+        config.behavior.confirmTasks === false || // config allows auto-execute
+        isPreConfirmed; // Quick Edit / Multi-Edit (explicit user intent)
 
       if (shouldAutoExecute) {
         // Auto-execute: tasks go straight to the executor
