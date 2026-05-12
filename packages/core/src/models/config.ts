@@ -31,6 +31,9 @@ export interface NovaConfig {
   license?: {
     key?: string;
   };
+  git?: {
+    allowProtectedBranchCommits?: boolean;
+  };
 }
 
 export const DEFAULT_CONFIG: NovaConfig = {

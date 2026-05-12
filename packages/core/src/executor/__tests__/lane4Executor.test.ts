@@ -68,7 +68,7 @@ function createMockGitManager(): IGitManager {
     rollback: vi.fn().mockResolvedValue(undefined),
     getDiff: vi.fn().mockResolvedValue(''),
     getLog: vi.fn().mockResolvedValue([]),
-    getCurrentBranch: vi.fn().mockResolvedValue('main'),
+    getCurrentBranch: vi.fn().mockResolvedValue('nova/1234567890'),
     getDevCount: vi.fn().mockResolvedValue(1),
     hasUncommittedChanges: vi.fn().mockResolvedValue(false),
     stash: vi.fn().mockResolvedValue(undefined),

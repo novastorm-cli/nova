@@ -15,7 +15,7 @@ export const NovaConfigSchema = z.object({
     local: z.boolean(),
   }),
   apiKeys: z.object({
-    provider: z.enum(['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli']),
+    provider: z.enum(['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli', 'deepseek']),
     key: z.string().optional(),
   }),
   behavior: z.object({
@@ -33,6 +33,9 @@ export const NovaConfigSchema = z.object({
   }),
   license: z.object({
     key: z.string().optional(),
+  }).optional(),
+  git: z.object({
+    allowProtectedBranchCommits: z.boolean().optional(),
   }).optional(),
 }) satisfies z.ZodType<NovaConfig>;
 

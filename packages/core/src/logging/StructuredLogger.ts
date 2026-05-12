@@ -1,4 +1,5 @@
 import { ILogger, LogLevel } from '../contracts/ILogger.js';
+import { redactSecrets, redactContext } from '../security/redact.js';
 
 export interface StructuredLoggerOptions {
   minLevel?: LogLevel;
@@ -47,10 +48,14 @@ export class StructuredLogger implements ILogger {
 
     const merged = { ...this.baseContext, ...context };
 
+    // Redact secrets from both message and context before output
+    const safeMessage = redactSecrets(message);
+    const safeContext = redactContext(merged);
+
     if (this.isTTY) {
-      this.writeTTY(level, message, merged);
+      this.writeTTY(level, safeMessage, safeContext);
     } else {
-      this.writeJSON(level, message, merged);
+      this.writeJSON(level, safeMessage, safeContext);
     }
   }
 

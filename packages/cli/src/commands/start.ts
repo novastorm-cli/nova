@@ -1136,7 +1136,9 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     // May already be on a nova branch, that's ok
   }
   let executorPool: ExecutorPool | null = null;
-  const commitQueue = new CommitQueue(gitManager);
+  const commitQueue = new CommitQueue(gitManager, {
+    allowProtectedBranchCommits: config.git?.allowProtectedBranchCommits,
+  });
   if (llmClient) {
     const pathGuard = new PathGuard(cwd);
     if (config.project.frontend) pathGuard.allow(resolve(cwd, config.project.frontend));
