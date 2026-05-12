@@ -69,6 +69,13 @@ export interface IWebSocketServer {
   getClientCount(): number;
 }
 
+export class InvalidCommandError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidCommandError';
+  }
+}
+
 export interface IDevServerRunner {
   /**
    * Spawns the dev server as a child process.

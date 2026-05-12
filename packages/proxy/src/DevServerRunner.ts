@@ -1,9 +1,91 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import http from 'node:http';
+import { parse } from 'shell-quote';
 import type { IDevServerRunner } from '@novastorm-ai/core';
+import { InvalidCommandError } from '@novastorm-ai/core';
 
 const POLL_INTERVAL_MS = 500;
 const MAX_WAIT_MS = 120_000;
+
+const INVALID_COMMAND_MESSAGE =
+  'Dev command must be a single executable with arguments; ' +
+  'shell features ($, `, &&, |, >) are not supported. ' +
+  'Wrap such commands in a shell script and reference the script.';
+
+/**
+ * Validates a dev server command string.
+ *
+ * Uses shell-quote to tokenize the command respecting shell quoting rules,
+ * then checks for shell metacharacters (operators, variables, command substitution).
+ * Returns the parsed tokens if valid, or throws InvalidCommandError.
+ */
+function validateCommand(command: string): string[] {
+  if (!command || !command.trim()) {
+    throw new InvalidCommandError('Dev command must be a non-empty executable with arguments.');
+  }
+
+  // Parse the command with shell-quote to get properly tokenized arguments.
+  // We pass no env so variables are not expanded.
+  const tokens = parse(command);
+
+  if (tokens.length === 0) {
+    throw new InvalidCommandError('Dev command must be a non-empty executable with arguments.');
+  }
+
+  // Check 1: shell-quote returns objects for shell operators (&&, |, >, ;, etc.)
+  // and glob patterns. Reject any non-string token.
+  for (const token of tokens) {
+    if (typeof token !== 'string') {
+      throw new InvalidCommandError(INVALID_COMMAND_MESSAGE);
+    }
+  }
+
+  // Check 2: Detect $ variable expansion and backtick command substitution.
+  // shell-quote silently drops unexpanded $VAR (returns empty string) or expands
+  // when env is provided. We scan the raw command for these patterns, respecting
+  // single-quote boundaries (inside single quotes, $ and ` are literal).
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let escaped = false;
+
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (c === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    // Single quotes: everything inside is literal
+    if (c === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    // Double quotes: $ and ` inside double quotes ARE shell metacharacters
+    if (c === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    // $ outside single quotes is variable expansion
+    if (c === '$' && !inSingleQuote) {
+      throw new InvalidCommandError(INVALID_COMMAND_MESSAGE);
+    }
+
+    // Backtick outside single quotes is command substitution
+    if (c === '`' && !inSingleQuote) {
+      throw new InvalidCommandError(INVALID_COMMAND_MESSAGE);
+    }
+  }
+
+  return tokens as string[];
+}
 
 // Patterns that indicate the dev server failed to start
 const ERROR_PATTERNS = [
@@ -16,7 +98,8 @@ const ERROR_PATTERNS = [
 ];
 
 // Patterns that indicate the dev server started on a different port
-const PORT_REDIRECT_PATTERN = /(?:using (?:available )?port|listening on|Local:\s+http:\/\/\S+:)(\d+)/i;
+const PORT_REDIRECT_PATTERN =
+  /(?:using (?:available )?port|listening on|Local:\s+http:\/\/\S+:)(\d+)/i;
 
 export class DevServerRunner implements IDevServerRunner {
   private process: ChildProcess | null = null;
@@ -29,11 +112,13 @@ export class DevServerRunner implements IDevServerRunner {
   private startupError: string | null = null;
 
   async spawn(command: string, cwd: string, port: number): Promise<void> {
-    const [cmd, ...args] = command.split(' ');
+    const tokens = validateCommand(command);
+    const cmd = tokens[0];
+    const args = tokens.slice(1);
 
     this.process = spawn(cmd, args, {
       cwd,
-      shell: true,
+      shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, PORT: String(port) },
     });
@@ -72,9 +157,7 @@ export class DevServerRunner implements IDevServerRunner {
     this.process.on('exit', (code, signal) => {
       this.running = false;
       if (code !== 0 && code !== null) {
-        this.errorHandler?.(
-          `Dev server exited with code ${code}${signal ? ` (${signal})` : ''}`,
-        );
+        this.errorHandler?.(`Dev server exited with code ${code}${signal ? ` (${signal})` : ''}`);
       } else if (signal) {
         this.errorHandler?.(`Dev server killed by signal ${signal}`);
       }
@@ -122,8 +205,6 @@ export class DevServerRunner implements IDevServerRunner {
     const pid = proc.pid!;
 
     // Kill child processes to prevent orphans.
-    // Needed because shell:true spawns an intermediate sh process;
-    // killing sh does not automatically kill its children (node servers).
     const killChildren = (signal: string) => {
       try {
         spawnSync('pkill', [`-${signal}`, '-P', String(pid)], { timeout: 2000 });
@@ -162,20 +243,14 @@ export class DevServerRunner implements IDevServerRunner {
         // Check if process died
         if (!this.running) {
           reject(
-            new Error(
-              `Dev server process exited before becoming ready.\n\n${this.getLogs()}`,
-            ),
+            new Error(`Dev server process exited before becoming ready.\n\n${this.getLogs()}`),
           );
           return;
         }
 
         // Check if a startup error was detected in output
         if (this.startupError) {
-          reject(
-            new Error(
-              `Dev server error:\n\n${this.startupError}`,
-            ),
-          );
+          reject(new Error(`Dev server error:\n\n${this.startupError}`));
           return;
         }
 
@@ -192,21 +267,18 @@ export class DevServerRunner implements IDevServerRunner {
           const tryConnect = (host: string, fallback?: string): void => {
             if (resolved) return;
 
-            const req = http.get(
-              `http://${host}:${tryPort}`,
-              (res) => {
-                res.resume();
-                if (!resolved) {
-                  resolved = true;
-                  // Update detected port if we connected on a different one
-                  if (tryPort !== port) {
-                    this.detectedPort = tryPort;
-                  }
-                  this.readyHandler?.();
-                  resolve();
+            const req = http.get(`http://${host}:${tryPort}`, (res) => {
+              res.resume();
+              if (!resolved) {
+                resolved = true;
+                // Update detected port if we connected on a different one
+                if (tryPort !== port) {
+                  this.detectedPort = tryPort;
                 }
-              },
-            );
+                this.readyHandler?.();
+                resolve();
+              }
+            });
 
             req.on('error', () => {
               if (resolved) return;
