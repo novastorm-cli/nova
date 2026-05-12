@@ -85,7 +85,7 @@ function validate(config: NovaConfig): void {
     );
   }
 
-  const validProviders = ['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli'] as const;
+  const validProviders = ['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli', 'deepseek'] as const;
   if (!validProviders.includes(config.apiKeys.provider)) {
     throw new ConfigError(
       `Invalid provider: ${config.apiKeys.provider}. Must be one of: ${validProviders.join(', ')}`,

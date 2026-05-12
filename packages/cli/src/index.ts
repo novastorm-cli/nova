@@ -97,7 +97,7 @@ export function createCli(): Command {
     .description('Run first-time interactive setup')
     .option(
       '-p, --provider <provider>',
-      'AI provider: claude-cli, anthropic, openrouter, openai, ollama',
+      'AI provider: claude-cli, anthropic, openrouter, openai, ollama, deepseek',
     )
     .option('-k, --key <key>', 'API key')
     .action(async (opts: { provider?: string; key?: string }) => {
@@ -109,9 +109,12 @@ export function createCli(): Command {
         opts.provider &&
         (opts.key || opts.provider === 'ollama' || opts.provider === 'claude-cli')
       ) {
-        // Non-interactive mode
+        // Non-interactive mode — save config directly, but still generate
+        // install-id and set telemetry defaults.
         const fs = await import('node:fs/promises');
         const path = await import('node:path');
+        const os = await import('node:os');
+        const crypto = await import('node:crypto');
         const TOML = (await import('@iarna/toml')).default;
         const cwd = process.cwd();
         const novaDir = path.join(cwd, '.nova');
@@ -122,6 +125,36 @@ export function createCli(): Command {
           TOML.stringify(config as unknown as import('@iarna/toml').JsonMap),
           'utf-8',
         );
+
+        // Generate install-id if missing
+        const userNovaDir = path.join(os.homedir(), '.nova');
+        await fs.mkdir(userNovaDir, { recursive: true });
+        const installIdPath = path.join(userNovaDir, 'install-id');
+        try {
+          await fs.stat(installIdPath);
+        } catch {
+          await fs.writeFile(installIdPath, crypto.randomUUID() + '\n', 'utf-8');
+        }
+
+        // Set telemetry default in ~/.nova/config.toml if not present
+        const userConfigPath = path.join(userNovaDir, 'config.toml');
+        let userConfig: Record<string, unknown> = {};
+        try {
+          const raw = await fs.readFile(userConfigPath, 'utf-8');
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+          userConfig = TOML.parse(raw) as Record<string, unknown>;
+        } catch {
+          // Start fresh
+        }
+        if (userConfig['telemetry'] === undefined) {
+          userConfig['telemetry'] = { enabled: false };
+          await fs.writeFile(
+            userConfigPath,
+            TOML.stringify(userConfig as import('@iarna/toml').JsonMap),
+            'utf-8',
+          );
+        }
+
         console.log(`Saved ${opts.provider} config to .nova/config.toml`);
         return;
       }

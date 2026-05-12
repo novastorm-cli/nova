@@ -12,7 +12,7 @@ export interface NovaConfig {
     local: boolean;
   };
   apiKeys: {
-    provider: 'openrouter' | 'anthropic' | 'openai' | 'ollama' | 'claude-cli';
+    provider: 'openrouter' | 'anthropic' | 'openai' | 'ollama' | 'claude-cli' | 'deepseek';
     key?: string;  // resolved from env or .nova/config.toml
   };
   behavior: {
