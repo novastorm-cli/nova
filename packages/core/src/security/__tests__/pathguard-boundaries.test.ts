@@ -5,7 +5,7 @@ import { PathDeniedError } from '../../contracts/IPathGuard.js';
 
 describe('PathGuard boundaries', () => {
   const projectRoot = '/tmp/test-project';
-  const alwaysAllow = async () => true;
+  const alwaysAllow = () => Promise.resolve(true);
 
   it('denies readonly files on check()', async () => {
     const guard = new PathGuard(projectRoot, alwaysAllow);
@@ -13,9 +13,9 @@ describe('PathGuard boundaries', () => {
       readonly: ['migrations/**'],
     });
 
-    await expect(
-      guard.check(resolve(projectRoot, 'migrations/001.sql')),
-    ).rejects.toThrow(PathDeniedError);
+    await expect(guard.check(resolve(projectRoot, 'migrations/001.sql'))).rejects.toThrow(
+      PathDeniedError,
+    );
   });
 
   it('denies ignored files on check()', async () => {
@@ -24,9 +24,9 @@ describe('PathGuard boundaries', () => {
       ignored: ['.github/**'],
     });
 
-    await expect(
-      guard.check(resolve(projectRoot, '.github/workflows/ci.yml')),
-    ).rejects.toThrow(PathDeniedError);
+    await expect(guard.check(resolve(projectRoot, '.github/workflows/ci.yml'))).rejects.toThrow(
+      PathDeniedError,
+    );
   });
 
   it('identifies readonly files', () => {

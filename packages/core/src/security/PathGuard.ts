@@ -12,11 +12,9 @@ export class PathGuard implements IPathGuard {
   private readonly promptFn: (dir: string) => Promise<boolean>;
   private readonlyMatcher: ((path: string) => boolean) | null = null;
   private ignoredMatcher: ((path: string) => boolean) | null = null;
+  private writableMatchers: ((path: string) => boolean)[] = [];
 
-  constructor(
-    projectPath: string,
-    promptFn?: (dir: string) => Promise<boolean>,
-  ) {
+  constructor(projectPath: string, promptFn?: (dir: string) => Promise<boolean>) {
     this.projectRoot = resolve(projectPath);
     this.promptFn = promptFn ?? this.defaultPrompt.bind(this);
 
@@ -38,11 +36,13 @@ export class PathGuard implements IPathGuard {
     }
   }
 
-  loadBoundaries(boundaries: { writable?: string[]; readonly?: string[]; ignored?: string[] }): void {
+  loadBoundaries(boundaries: {
+    writable?: string[];
+    readonly?: string[];
+    ignored?: string[];
+  }): void {
     if (boundaries.writable) {
-      for (const pattern of boundaries.writable) {
-        this.allowed.add(resolve(this.projectRoot, pattern.replace(/\*\*.*/, '')));
-      }
+      this.writableMatchers = boundaries.writable.map((p) => picomatch(p, { dot: false }));
     }
     if (boundaries.readonly && boundaries.readonly.length > 0) {
       this.readonlyMatcher = picomatch(boundaries.readonly);
@@ -67,7 +67,10 @@ export class PathGuard implements IPathGuard {
   private toProjectRelative(absPath: string): string {
     const resolved = resolve(absPath);
     if (resolved.startsWith(this.projectRoot + sep)) {
-      return resolved.slice(this.projectRoot.length + 1).split(sep).join('/');
+      return resolved
+        .slice(this.projectRoot.length + 1)
+        .split(sep)
+        .join('/');
     }
     return resolved;
   }
@@ -75,21 +78,43 @@ export class PathGuard implements IPathGuard {
   async check(absPath: string): Promise<void> {
     this.validate(absPath);
 
+    // 1. Ignored patterns take highest precedence
     if (this.isIgnored(absPath)) {
       throw new PathDeniedError(`Access denied (ignored): "${absPath}"`);
     }
+
+    // 2. Readonly patterns take precedence over writable
     if (this.isReadonly(absPath)) {
       throw new PathDeniedError(`Access denied (readonly): "${absPath}"`);
     }
 
+    // 3. Convert to project-relative path for picomatch-based writable matching
+    const relPath = this.toProjectRelative(absPath);
+
+    // 4. Check writable patterns (picomatch-based, no pattern collapsing)
+    if (this.writableMatchers.length > 0) {
+      if (this.writableMatchers.some((m) => m(relPath))) {
+        return;
+      }
+
+      // Allow .nova/ system directory even when writable boundaries are set
+      const resolved = resolve(absPath);
+      const novaDir = resolve(this.projectRoot, '.nova');
+      if (resolved.startsWith(novaDir + sep) || resolved === novaDir) {
+        return;
+      }
+
+      // File doesn't match any writable pattern → deny
+      throw new PathDeniedError(`Access denied (not in writable boundaries): "${absPath}"`);
+    }
+
+    // 5. No writable patterns configured → fall back to directory-based allow/deny/prompt logic
     const dirPath = resolve(absPath, '..');
 
-    // Check if the file's directory is directly allowed or is a child of an allowed directory
     if (this.isAllowed(dirPath)) {
       return;
     }
 
-    // Check if the directory is denied
     if (this.isDenied(dirPath)) {
       throw new PathDeniedError(`Access denied: "${absPath}"`);
     }
@@ -127,9 +152,7 @@ export class PathGuard implements IPathGuard {
   private async defaultPrompt(dir: string): Promise<boolean> {
     const rl = createInterface({ input: stdin, output: stdout });
     try {
-      const answer = await rl.question(
-        `[PathGuard] Allow writing to "${dir}"? (y/N) `,
-      );
+      const answer = await rl.question(`[PathGuard] Allow writing to "${dir}"? (y/N) `);
       return answer.trim().toLowerCase() === 'y';
     } finally {
       rl.close();

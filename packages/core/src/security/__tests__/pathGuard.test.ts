@@ -57,3 +57,137 @@ describe('PathGuard', () => {
     await expect(guard.check('/etc/passwd')).rejects.toThrow(PathTraversalError);
   });
 });
+
+describe('PathGuard writable boundaries with picomatch', () => {
+  const PROJECT_ROOT = '/projects/my-app';
+  const noPrompt = () => Promise.resolve(true);
+
+  it('denies src/secret.env when writable is src/**/*.ts', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    await expect(guard.check('/projects/my-app/src/secret.env')).rejects.toThrow(PathDeniedError);
+  });
+
+  it('allows src/index.ts when writable is src/**/*.ts', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    await guard.check('/projects/my-app/src/index.ts');
+  });
+
+  it('allows src/foo/bar/baz.ts when writable is src/**/*.ts', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    await guard.check('/projects/my-app/src/foo/bar/baz.ts');
+  });
+
+  it('denies root.ts when writable is src/**/*.ts', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    await expect(guard.check('/projects/my-app/root.ts')).rejects.toThrow(PathDeniedError);
+  });
+
+  it('denies ../secret.txt when writable is src/**/*.ts', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    // resolve('/projects/my-app/src/../secret.txt') = '/projects/my-app/secret.txt'
+    // which is under project root but doesn't match writable pattern
+    await expect(guard.check('/projects/my-app/src/../secret.txt')).rejects.toThrow(
+      PathDeniedError,
+    );
+  });
+
+  it('denies /etc/passwd (absolute outside root)', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    await expect(guard.check('/etc/passwd')).rejects.toThrow(PathTraversalError);
+  });
+
+  it('allows root-level tailwind.config.ts when writable includes *.config.ts', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['*.config.ts'] });
+
+    await guard.check('/projects/my-app/tailwind.config.ts');
+  });
+
+  it('denies src/foo.ts when writable is only *.config.ts', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['*.config.ts'] });
+
+    await expect(guard.check('/projects/my-app/src/foo.ts')).rejects.toThrow(PathDeniedError);
+  });
+
+  it('allows files matching any of multiple writable patterns', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts', '*.config.ts'] });
+
+    await guard.check('/projects/my-app/src/components/Button.ts');
+    await guard.check('/projects/my-app/vite.config.ts');
+  });
+
+  it('denies files not matching any writable pattern when writable is set', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    await expect(guard.check('/projects/my-app/lib/helpers.js')).rejects.toThrow(PathDeniedError);
+  });
+
+  it('still allows .nova/ files even when writable boundaries are set', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    await guard.check('/projects/my-app/.nova/agents/developer.md');
+    await guard.check('/projects/my-app/.nova/session-token');
+  });
+
+  it('correctly handles nested glob patterns without collapsing', async () => {
+    // Verifies src/**/*.ts does NOT collapse to just src/ (the bug being fixed)
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({ writable: ['src/**/*.ts'] });
+
+    // lib/ matches the **/*.ts segment but NOT the src/ prefix
+    await expect(guard.check('/projects/my-app/lib/something.ts')).rejects.toThrow(PathDeniedError);
+  });
+
+  it('isReadonly takes precedence over writable for overlapping patterns', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({
+      writable: ['src/**/*.ts'],
+      readonly: ['src/generated/**'],
+    });
+
+    // File matches both writable and readonly — readonly should win
+    await expect(guard.check('/projects/my-app/src/generated/types.ts')).rejects.toThrow(
+      PathDeniedError,
+    );
+  });
+
+  it('isIgnored takes precedence over writable', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({
+      writable: ['src/**/*.ts'],
+      ignored: ['.github/**'],
+    });
+
+    // .github files should be denied even if they'd match writable
+    // This particular path doesn't match writable anyway, but tests precedence
+    await expect(guard.check('/projects/my-app/.github/workflows/ci.yml')).rejects.toThrow(
+      PathDeniedError,
+    );
+  });
+
+  it('no writable boundaries set -> old prompt-based logic works', async () => {
+    const guard = new PathGuard(PROJECT_ROOT, noPrompt);
+    guard.loadBoundaries({
+      readonly: ['migrations/**'],
+    });
+
+    // No writable patterns → should fall through to prompt/allow logic
+    await guard.check('/projects/my-app/src/app.ts');
+  });
+});
