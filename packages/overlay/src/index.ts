@@ -26,6 +26,7 @@ import { SecretConsole } from './ui/SecretConsole.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 import { strings } from './ui/strings.js';
+import { restoreTheme } from './ui/theme.js';
 
 const DEFAULT_PORT = 3001;
 
@@ -140,6 +141,7 @@ function boot(): void {
   if (!novaRoot) {
     novaRoot = document.createElement('div');
     novaRoot.id = 'nova-root';
+    novaRoot.setAttribute('data-nova', 'root');
     novaRoot.style.position = 'fixed';
     novaRoot.style.top = '0';
     novaRoot.style.left = '0';
@@ -150,6 +152,9 @@ function boot(): void {
     novaRoot.style.pointerEvents = 'none';
     document.documentElement.appendChild(novaRoot);
   }
+
+  // Apply theme early so CSS custom properties are available when components mount
+  restoreTheme();
 
   // Mount UI into the indestructible nova-root
   pill.mount(novaRoot);

@@ -1,6 +1,17 @@
 /**
  * CSS-in-JS helper for inline styles.
  * Converts style objects to CSS strings and provides style constants.
+ *
+ * All color constants now refer to CSS custom properties defined by
+ * packages/overlay/src/ui/theme.ts.  This allows the overlay to respond
+ * to theme changes (light / dark / auto) without re-rendering.
+ *
+ * Backdrop-filter usage with opaque fallback:
+ * ```
+ *   background: var(--nova-panel-bg);
+ *   backdrop-filter: blur(20px);
+ *   -webkit-backdrop-filter: blur(20px);
+ * ```
  */
 
 export type StyleObject = Record<string, string | number>;
@@ -19,19 +30,23 @@ export function applyStyles(element: HTMLElement, styles: StyleObject): void {
   element.setAttribute('style', styleStr);
 }
 
+/**
+ * Semantic color tokens — all refer to CSS custom properties set by
+ * applyTheme() so that light / dark / auto mode is honored.
+ */
 export const COLORS = {
-  idle: '#6b7280',
-  listening: '#10b981',
-  processing: '#3b82f6',
-  error: '#ef4444',
-  info: '#3b82f6',
-  success: '#10b981',
+  idle: 'var(--nova-pill-idle)',
+  listening: 'var(--nova-success)',
+  processing: 'var(--nova-accent)',
+  error: 'var(--nova-error)',
+  info: 'var(--nova-accent)',
+  success: 'var(--nova-success)',
   white: '#ffffff',
-  overlayBg: '#1f2937',
-  inputBg: '#111827',
-  inputBorder: '#374151',
-  textPrimary: '#f9fafb',
-  textSecondary: '#9ca3af',
+  overlayBg: 'var(--nova-panel-bg)',
+  inputBg: 'var(--nova-input-bg)',
+  inputBorder: 'var(--nova-input-border)',
+  textPrimary: 'var(--nova-text-primary)',
+  textSecondary: 'var(--nova-text-secondary)',
 } as const;
 
 export const Z_INDEX = {

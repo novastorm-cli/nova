@@ -112,7 +112,7 @@ export class StatusToast implements IStatusToast {
     const execBtn = document.createElement('button');
     execBtn.textContent = strings.toastExecute;
     Object.assign(execBtn.style, {
-      background: '#22c55e',
+      background: 'var(--nova-success)',
       color: '#fff',
       border: 'none',
       borderRadius: '4px',

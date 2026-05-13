@@ -287,10 +287,10 @@ export class OverlayPill implements IOverlayPill {
         position: absolute;
         bottom: calc(100% + 8px);
         right: 0;
-        background: #1a1a1aee;
+        background: var(--nova-dropdown-bg);
         border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.1);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        border: 1px solid var(--nova-panel-border);
+        box-shadow: 0 8px 32px var(--nova-pill-shadow);
         overflow: hidden;
         min-width: 180px;
         pointer-events: auto;
@@ -304,26 +304,26 @@ export class OverlayPill implements IOverlayPill {
         width: 100%;
         border: none;
         background: transparent;
-        color: #e5e7eb;
+        color: var(--nova-text-primary);
         font-size: 13px;
         cursor: pointer;
         text-align: left;
         border-left: 3px solid transparent;
         transition: all 0.15s;
       }
-      .dropdown-item:hover { background: rgba(255,255,255,0.08); }
-      .dropdown-item.active { border-left-color: #3b82f6; background: rgba(59,130,246,0.1); }
-      .shortcut { margin-left: auto; color: #6b7280; font-size: 11px; }
+      .dropdown-item:hover { background: var(--nova-dropdown-hover); }
+      .dropdown-item.active { border-left-color: var(--nova-accent); background: var(--nova-dropdown-hover); }
+      .shortcut { margin-left: auto; color: var(--nova-text-secondary); font-size: 11px; }
       .dropdown-divider {
         height: 1px;
-        background: rgba(255,255,255,0.08);
+        background: var(--nova-panel-border);
         margin: 4px 0;
       }
       .toggle-indicator {
         width: 28px;
         height: 16px;
         border-radius: 8px;
-        background: #4b5563;
+        background: var(--nova-text-secondary);
         position: relative;
         display: inline-block;
         margin-left: 8px;
@@ -342,7 +342,7 @@ export class OverlayPill implements IOverlayPill {
         transition: transform 0.2s;
       }
       .toggle-indicator.on {
-        background: #10b981;
+        background: var(--nova-success);
       }
       .toggle-indicator.on::after {
         transform: translateX(12px);

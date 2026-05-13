@@ -464,7 +464,7 @@ export class ElementInspector {
       .inspector-highlight {
         display: none;
         position: fixed;
-        border: 2px dashed #3b82f6;
+        border: 2px dashed var(--nova-accent);
         background: rgba(59, 130, 246, 0.08);
         pointer-events: none;
         z-index: ${Z_INDEX.commandInput};
@@ -476,7 +476,7 @@ export class ElementInspector {
         position: absolute;
         top: -22px;
         left: 0;
-        background: #3b82f6;
+        background: var(--nova-accent);
         color: #fff;
         font-size: 11px;
         font-family: monospace;
@@ -493,21 +493,21 @@ export class ElementInspector {
         gap: 8px;
         width: 340px;
         padding: 14px 16px;
-        background: #1a1a1aee;
-        border: 1px solid #333;
+        background: var(--nova-panel-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--nova-panel-border);
         border-radius: 10px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         z-index: ${Z_INDEX.commandInput};
         pointer-events: auto;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
       }
 
       .popup-header {
         font-size: 13px;
         font-weight: 600;
-        color: #e5e5e5;
+        color: var(--nova-text-primary);
         font-family: monospace;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -516,7 +516,7 @@ export class ElementInspector {
 
       .popup-question {
         font-size: 12px;
-        color: #9ca3af;
+        color: var(--nova-text-secondary);
       }
 
       .popup-input-row {
@@ -529,10 +529,10 @@ export class ElementInspector {
         flex: 1;
         min-width: 0;
         padding: 8px 10px;
-        background: #111827;
-        border: 1px solid #374151;
+        background: var(--nova-input-bg);
+        border: 1px solid var(--nova-input-border);
         border-radius: 6px;
-        color: #f9fafb;
+        color: var(--nova-text-primary);
         font-size: 13px;
         outline: none;
         box-sizing: border-box;
@@ -540,12 +540,12 @@ export class ElementInspector {
       }
 
       .popup-input:focus {
-        border-color: #3b82f6;
+        border-color: var(--nova-accent);
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
       }
 
       .popup-input::placeholder {
-        color: #6b7280;
+        color: var(--nova-text-secondary);
       }
 
       .popup-buttons {
@@ -566,26 +566,26 @@ export class ElementInspector {
       }
 
       .popup-btn-cancel {
-        background: #374151;
-        color: #d1d5db;
+        background: var(--nova-input-border);
+        color: var(--nova-text-primary);
       }
 
       .popup-btn-cancel:hover {
-        background: #4b5563;
+        background: var(--nova-text-secondary);
       }
 
       .popup-btn-execute {
-        background: #3b82f6;
+        background: var(--nova-accent);
         color: #fff;
       }
 
       .popup-btn-execute:hover {
-        background: #2563eb;
+        opacity: 0.85;
       }
 
       .popup-mic {
         background: none;
-        border: 1px solid rgba(255,255,255,0.2);
+        border: 1px solid var(--nova-panel-border);
         border-radius: 50%;
         width: 28px;
         height: 28px;
@@ -600,11 +600,11 @@ export class ElementInspector {
       }
 
       .popup-mic:hover {
-        border-color: #3b82f6;
+        border-color: var(--nova-accent);
       }
 
       .popup-mic.recording {
-        border-color: #22c55e;
+        border-color: var(--nova-success);
         animation: mic-pulse 1.5s infinite;
       }
 

@@ -488,8 +488,10 @@ export class TranscriptBar implements ITranscriptBar {
         display: flex;
         align-items: center;
         gap: 10px;
-        background: #1a1a1aee;
-        border: 1px solid #333;
+        background: var(--nova-panel-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--nova-panel-border);
         border-radius: 14px;
         padding: 10px 20px;
         min-width: 300px;
@@ -502,16 +504,17 @@ export class TranscriptBar implements ITranscriptBar {
       }
       .transcript-bar.idle {
         opacity: 0.6;
-        border-color: #222;
+        border-color: var(--nova-panel-border);
       }
       .transcript-bar.idle:hover,
       .transcript-bar.idle:focus-within {
         opacity: 1;
-        border-color: #444;
+        border-color: var(--nova-panel-border);
       }
       .transcript-bar.flash-green {
-        background: #1a2a1aee;
+        background: var(--nova-success);
         box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+        color: #fff;
       }
       .mic-btn {
         font-size: 18px;
@@ -530,11 +533,11 @@ export class TranscriptBar implements ITranscriptBar {
         padding: 0;
       }
       .mic-btn.recording {
-        border-color: #22c55e;
+        border-color: var(--nova-success);
         animation: mic-pulse 1.5s ease-in-out infinite;
       }
       .mic-btn.muted {
-        border-color: #666;
+        border-color: var(--nova-text-secondary);
         opacity: 0.5;
       }
       .mic-btn:hover {
@@ -553,18 +556,18 @@ export class TranscriptBar implements ITranscriptBar {
         background: transparent;
         border: none;
         outline: none;
-        color: #ffffff;
+        color: var(--nova-text-primary);
         padding: 6px 0;
         pointer-events: auto;
       }
       .transcript-input::placeholder {
-        color: #888;
+        color: var(--nova-text-secondary);
       }
       .transcript-input:focus {
-        color: #ffffff;
+        color: var(--nova-text-primary);
       }
       .transcript-input.recording-text {
-        color: #999;
+        color: var(--nova-text-secondary);
         font-style: italic;
       }
       .transcript-input:read-only {
@@ -573,7 +576,7 @@ export class TranscriptBar implements ITranscriptBar {
       .send-btn {
         background: none;
         border: none;
-        color: #666;
+        color: var(--nova-text-secondary);
         font-size: 16px;
         cursor: pointer;
         padding: 4px;
@@ -582,14 +585,16 @@ export class TranscriptBar implements ITranscriptBar {
         pointer-events: auto;
       }
       .send-btn:hover {
-        color: #3b82f6;
+        color: var(--nova-accent);
       }
       .confirm-bar {
         display: flex;
         flex-direction: column;
         gap: 10px;
-        background: #1a1a1aee;
-        border: 1px solid #333;
+        background: var(--nova-panel-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--nova-panel-border);
         border-radius: 14px;
         padding: 14px 20px;
         margin-bottom: 8px;
@@ -612,14 +617,14 @@ export class TranscriptBar implements ITranscriptBar {
         to { opacity: 1; transform: translateY(0); }
       }
       .confirm-text {
-        color: #e5e7eb;
+        color: var(--nova-text-primary);
         font-size: 13px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.4;
         word-break: break-word;
       }
       .confirm-exec-btn {
-        background: #22c55e;
+        background: var(--nova-success);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -629,15 +634,15 @@ export class TranscriptBar implements ITranscriptBar {
         cursor: pointer;
         flex-shrink: 0;
         pointer-events: auto;
-        transition: background 0.2s;
+        transition: opacity 0.2s;
       }
       .confirm-exec-btn:hover {
-        background: #16a34a;
+        opacity: 0.85;
       }
       .confirm-cancel-btn {
         background: transparent;
-        color: #9ca3af;
-        border: 1px solid #4b5563;
+        color: var(--nova-text-secondary);
+        border: 1px solid var(--nova-input-border);
         border-radius: 6px;
         padding: 6px 14px;
         font-size: 12px;
@@ -648,14 +653,14 @@ export class TranscriptBar implements ITranscriptBar {
         transition: all 0.2s;
       }
       .confirm-cancel-btn:hover {
-        background: #374151;
-        color: #fff;
+        background: var(--nova-input-border);
+        color: var(--nova-text-primary);
       }
       .confirm-answer-input {
         flex: 1;
-        background: #2a2a2a;
-        color: #e5e7eb;
-        border: 1px solid #4b5563;
+        background: var(--nova-input-bg);
+        color: var(--nova-text-primary);
+        border: 1px solid var(--nova-input-border);
         border-radius: 6px;
         padding: 6px 10px;
         font-size: 13px;
@@ -665,13 +670,13 @@ export class TranscriptBar implements ITranscriptBar {
         pointer-events: auto;
       }
       .confirm-answer-input:focus {
-        border-color: #3b82f6;
+        border-color: var(--nova-accent);
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
       }
       .lang-btn {
-        background: #333;
-        color: #ccc;
-        border: 1px solid #555;
+        background: var(--nova-input-bg);
+        color: var(--nova-text-secondary);
+        border: 1px solid var(--nova-input-border);
         border-radius: 6px;
         padding: 2px 8px;
         font-size: 11px;
@@ -682,15 +687,15 @@ export class TranscriptBar implements ITranscriptBar {
         pointer-events: auto;
       }
       .lang-btn:hover {
-        background: #444;
-        color: #fff;
+        background: var(--nova-input-border);
+        color: var(--nova-text-primary);
       }
       .lang-menu {
         position: absolute;
         bottom: 48px;
         right: 0;
-        background: #222;
-        border: 1px solid #444;
+        background: var(--nova-dropdown-bg);
+        border: 1px solid var(--nova-panel-border);
         border-radius: 8px;
         padding: 4px;
         display: flex;
@@ -705,7 +710,7 @@ export class TranscriptBar implements ITranscriptBar {
       }
       .lang-item {
         background: transparent;
-        color: #aaa;
+        color: var(--nova-text-secondary);
         border: 1px solid transparent;
         border-radius: 4px;
         padding: 4px 8px;
@@ -715,13 +720,13 @@ export class TranscriptBar implements ITranscriptBar {
         transition: all 0.15s;
       }
       .lang-item:hover {
-        background: #333;
-        color: #fff;
+        background: var(--nova-dropdown-hover);
+        color: var(--nova-text-primary);
       }
       .lang-item.active {
-        background: #2563eb;
+        background: var(--nova-accent);
         color: #fff;
-        border-color: #3b82f6;
+        border-color: var(--nova-accent);
       }
     `;
   }

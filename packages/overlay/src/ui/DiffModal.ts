@@ -176,7 +176,7 @@ export class DiffModal {
         left: 0;
         width: 100vw;
         height: 100vh;
-        background: rgba(0, 0, 0, 0.6);
+        background: var(--nova-backdrop);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -194,8 +194,10 @@ export class DiffModal {
       }
 
       .diff-modal {
-        background: #1e1e2e;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--nova-panel-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--nova-panel-border);
         border-radius: 12px;
         max-width: 80vw;
         max-height: 80vh;
@@ -217,14 +219,14 @@ export class DiffModal {
         align-items: center;
         justify-content: space-between;
         padding: 12px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--nova-panel-border);
         flex-shrink: 0;
       }
 
       .diff-file-path {
         font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
         font-size: 13px;
-        color: #e5e7eb;
+        color: var(--nova-text-primary);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -232,9 +234,9 @@ export class DiffModal {
 
       .diff-close-btn {
         background: none;
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        border: 1px solid var(--nova-panel-border);
         border-radius: 6px;
-        color: #9ca3af;
+        color: var(--nova-text-secondary);
         font-size: 14px;
         width: 28px;
         height: 28px;
@@ -248,9 +250,9 @@ export class DiffModal {
       }
 
       .diff-close-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
-        border-color: rgba(255, 255, 255, 0.3);
+        background: var(--nova-dropdown-hover);
+        color: var(--nova-text-primary);
+        border-color: var(--nova-panel-border);
       }
 
       .diff-body {
@@ -269,7 +271,7 @@ export class DiffModal {
       }
 
       .diff-body::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
+        background: var(--nova-panel-border);
         border-radius: 3px;
       }
 
@@ -291,10 +293,10 @@ export class DiffModal {
         width: 1px;
         min-width: 40px;
         text-align: right;
-        color: rgba(255, 255, 255, 0.2);
+        color: var(--nova-text-secondary);
         user-select: none;
         padding-right: 8px !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.05);
+        border-right: 1px solid var(--nova-panel-border);
       }
 
       .line-content {
@@ -303,7 +305,7 @@ export class DiffModal {
 
       /* Context lines */
       .diff-line-context .line-content {
-        color: #9ca3af;
+        color: var(--nova-text-secondary);
       }
 
       /* Added lines */
@@ -312,8 +314,8 @@ export class DiffModal {
       }
 
       .diff-line-added .line-content {
-        color: #4ade80;
-        border-left: 3px solid #4ade80;
+        color: var(--nova-success);
+        border-left: 3px solid var(--nova-success);
         padding-left: 9px !important;
       }
 
@@ -323,8 +325,8 @@ export class DiffModal {
       }
 
       .diff-line-removed .line-content {
-        color: #f87171;
-        border-left: 3px solid #f87171;
+        color: var(--nova-error);
+        border-left: 3px solid var(--nova-error);
         padding-left: 9px !important;
       }
 
@@ -334,12 +336,12 @@ export class DiffModal {
       }
 
       .diff-line-hunk .line-content {
-        color: #a78bfa;
+        color: var(--nova-accent);
       }
 
       /* File headers (--- +++) */
       .diff-line-file-header .line-content {
-        color: #6b7280;
+        color: var(--nova-text-secondary);
         font-weight: bold;
       }
     `;

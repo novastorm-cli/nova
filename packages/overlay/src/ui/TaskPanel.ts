@@ -244,13 +244,13 @@ export class TaskPanel {
   private getIcon(status: TaskEntry['status']): string {
     switch (status) {
       case 'pending':
-        return '<svg class="task-spinner" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="30 14" stroke-linecap="round"/></svg>';
+        return '<svg class="task-spinner" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="30 14" stroke-linecap="round"/></svg>';
       case 'executing':
-        return '<svg class="task-spinner task-spinner-fast" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="30 14" stroke-linecap="round"/></svg>';
+        return '<svg class="task-spinner task-spinner-fast" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="30 14" stroke-linecap="round"/></svg>';
       case 'completed':
-        return '<svg class="task-check" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="#22c55e" opacity="0.15"/><circle cx="9" cy="9" r="8" fill="none" stroke="#22c55e" stroke-width="1.5"/><path class="checkmark" d="M5 9.5L7.5 12L13 6.5" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        return '<svg class="task-check" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor" opacity="0.15"/><circle cx="9" cy="9" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><path class="checkmark" d="M5 9.5L7.5 12L13 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       case 'failed':
-        return '<svg class="task-fail" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="#ef4444" opacity="0.15"/><circle cx="9" cy="9" r="8" fill="none" stroke="#ef4444" stroke-width="1.5"/><path d="M6 6L12 12M12 6L6 12" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/></svg>';
+        return '<svg class="task-fail" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="currentColor" opacity="0.15"/><circle cx="9" cy="9" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 6L12 12M12 6L6 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
     }
   }
 
@@ -313,7 +313,9 @@ export class TaskPanel {
   private getStyles(): string {
     return `
       .task-panel {
-        background: #1a1a1aee;
+        background: var(--nova-panel-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-radius: 10px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         max-width: 400px;
@@ -336,7 +338,7 @@ export class TaskPanel {
         padding: 12px 16px 8px;
         font-size: 13px;
         font-weight: 600;
-        color: #9ca3af;
+        color: var(--nova-text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
@@ -355,8 +357,8 @@ export class TaskPanel {
         padding: 6px 8px;
         border-radius: 6px;
         font-size: 13px;
-        color: #f9fafb;
-        background: rgba(255, 255, 255, 0.04);
+        color: var(--nova-text-primary);
+        background: var(--nova-surface-subtle);
       }
 
       .task-icon {
@@ -378,52 +380,63 @@ export class TaskPanel {
         flex-shrink: 0;
         font-size: 11px;
         font-family: "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        color: #6b7280;
+        color: var(--nova-text-secondary);
       }
 
       /* Pending: spinning loader */
       .task-spinner {
         animation: spin 1s linear infinite;
+        color: var(--nova-accent);
       }
 
       /* Executing: faster spinning loader */
       .task-spinner.task-spinner-fast {
         animation: spin 0.6s linear infinite;
+        color: var(--nova-accent);
       }
 
       /* Completed: checkmark draw animation */
+      .task-check {
+        color: var(--nova-success);
+      }
+
       .task-check .checkmark {
         stroke-dasharray: 20;
         stroke-dashoffset: 20;
         animation: checkmark-draw 0.4s ease forwards;
       }
 
+      /* Failed: red X */
+      .task-fail {
+        color: var(--nova-error);
+      }
+
       .status-executing {
-        color: #60a5fa;
+        color: var(--nova-accent);
       }
 
       /* Completed: green */
       .status-completed {
-        color: #6ee7b7;
+        color: var(--nova-success);
       }
 
       .status-completed .task-meta {
-        color: #4b5563;
+        color: var(--nova-text-secondary);
       }
 
       /* Failed: red */
       .status-failed {
-        color: #fca5a5;
+        color: var(--nova-error);
       }
 
       .status-failed .task-meta {
-        color: #ef4444;
+        color: var(--nova-error);
       }
 
       .task-stream {
         margin-top: 4px;
         padding: 4px 6px;
-        background: #111;
+        background: var(--nova-surface-subtle);
         border-radius: 4px;
         font-family: "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-size: 11px;
@@ -432,16 +445,16 @@ export class TaskPanel {
         overflow-x: hidden;
         white-space: pre-wrap;
         word-break: break-all;
-        color: #e5e7eb;
+        color: var(--nova-text-primary);
       }
 
       .task-stream.phase-reasoning {
-        color: #9ca3af;
+        color: var(--nova-text-secondary);
         font-style: italic;
       }
 
       .task-stream.phase-code {
-        color: #e5e7eb;
+        color: var(--nova-text-primary);
         font-style: normal;
       }
 

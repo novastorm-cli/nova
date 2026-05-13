@@ -348,12 +348,14 @@ export class ActivityLog {
     return `
       .activity-panel {
         width: 350px;
-        background: rgba(26, 26, 26, 0.4);
+        background: var(--nova-panel-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--nova-panel-border);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 11px;
-        color: #ffffff;
+        color: var(--nova-text-primary);
         pointer-events: auto;
         transition: background 0.3s ease, opacity 0.3s ease;
         display: flex;
@@ -366,7 +368,7 @@ export class ActivityLog {
       }
 
       .activity-panel:hover {
-        background: rgba(26, 26, 26, 0.95);
+        background: var(--nova-panel-bg);
       }
 
       .activity-title {
@@ -375,8 +377,8 @@ export class ActivityLog {
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: rgba(255, 255, 255, 0.5);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--nova-text-secondary);
+        border-bottom: 1px solid var(--nova-panel-border);
         flex-shrink: 0;
         display: flex;
         align-items: center;
@@ -386,13 +388,13 @@ export class ActivityLog {
       }
 
       .activity-title:hover {
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--nova-text-primary);
       }
 
       .collapse-btn {
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--nova-text-secondary);
         font-size: 12px;
         cursor: pointer;
         padding: 0 2px;
@@ -401,7 +403,7 @@ export class ActivityLog {
       }
 
       .collapse-btn:hover {
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--nova-text-primary);
       }
 
       .activity-log {
@@ -426,13 +428,13 @@ export class ActivityLog {
       }
 
       .activity-log::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
+        background: var(--nova-panel-border);
         border-radius: 2px;
       }
 
       .entry {
         padding: 3px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid var(--nova-panel-border);
         display: flex;
         gap: 6px;
         align-items: flex-start;
@@ -440,7 +442,7 @@ export class ActivityLog {
       }
 
       .timestamp {
-        color: rgba(255, 255, 255, 0.3);
+        color: var(--nova-text-secondary);
         font-size: 10px;
         flex-shrink: 0;
         font-variant-numeric: tabular-nums;
@@ -451,11 +453,11 @@ export class ActivityLog {
         line-height: 1.3;
       }
 
-      .entry-info .message { color: #d1d5db; }
-      .entry-thinking .message { color: #fbbf24; font-style: italic; }
-      .entry-success .message { color: #34d399; }
-      .entry-error .message { color: #f87171; }
-      .entry-code .message { color: #9ca3af; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+      .entry-info .message { color: var(--nova-text-primary); }
+      .entry-thinking .message { color: var(--nova-warning); font-style: italic; }
+      .entry-success .message { color: var(--nova-success); }
+      .entry-error .message { color: var(--nova-error); }
+      .entry-code .message { color: var(--nova-text-secondary); font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
 
       .diff-link {
         cursor: pointer;
@@ -464,7 +466,7 @@ export class ActivityLog {
         text-underline-offset: 2px;
       }
       .diff-link:hover {
-        color: #fff;
+        color: var(--nova-text-primary);
       }
 
       .collapsible-wrap {
@@ -479,16 +481,16 @@ export class ActivityLog {
         text-underline-offset: 2px;
       }
       .collapsible-summary:hover {
-        color: #fff;
+        color: var(--nova-text-primary);
       }
       .collapsible-details {
         margin-top: 4px;
         padding: 6px 8px;
-        background: rgba(0, 0, 0, 0.3);
+        background: var(--nova-surface-subtle);
         border-radius: 4px;
         font-size: 10px;
         line-height: 1.3;
-        color: #9ca3af;
+        color: var(--nova-text-secondary);
         font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
         white-space: pre-wrap;
         word-break: break-all;
