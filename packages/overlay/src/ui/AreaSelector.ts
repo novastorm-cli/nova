@@ -20,11 +20,6 @@ export class AreaSelector implements IAreaSelector {
   private readonly boundMouseMove = this.handleMouseMove.bind(this);
   private readonly boundMouseUp = this.handleMouseUp.bind(this);
   private readonly boundKeyDown = this.handleKeyDown.bind(this);
-  private readonly boundGlobalKeyDown = this.handleGlobalKeyDown.bind(this);
-
-  constructor() {
-    document.addEventListener('keydown', this.boundGlobalKeyDown, true);
-  }
 
   activate(): void {
     if (this.active) return;
@@ -68,12 +63,6 @@ export class AreaSelector implements IAreaSelector {
     document.removeEventListener('mousemove', this.boundMouseMove, true);
     document.removeEventListener('mouseup', this.boundMouseUp, true);
     document.removeEventListener('keydown', this.boundKeyDown, true);
-  }
-
-  /** Removes all event listeners including the global hotkey. Call when fully disposing. */
-  destroy(): void {
-    this.deactivate();
-    document.removeEventListener('keydown', this.boundGlobalKeyDown, true);
   }
 
   isActive(): boolean {
@@ -163,20 +152,6 @@ export class AreaSelector implements IAreaSelector {
       this.selectionRect = null;
       this.deactivate();
       this.cancelHandler?.();
-    }
-  }
-
-  /** Global hotkey: Option+A (Mac) / Alt+A (Win) toggles activation. */
-  private handleGlobalKeyDown(e: KeyboardEvent): void {
-    if (e.altKey && (e.key === 'a' || e.key === 'A')) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (this.active) {
-        this.deactivate();
-        this.cancelHandler?.();
-      } else {
-        this.activate();
-      }
     }
   }
 }

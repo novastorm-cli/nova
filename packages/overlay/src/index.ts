@@ -22,6 +22,7 @@ import { ActivityLog } from './ui/ActivityLog.js';
 import { DiffModal } from './ui/DiffModal.js';
 import { ElementInspector } from './ui/ElementInspector.js';
 import { MultiElementSelector } from './ui/MultiElementSelector.js';
+import { AreaSelector } from './ui/AreaSelector.js';
 import { SecretConsole } from './ui/SecretConsole.js';
 import { OverlayStateMachine, type FsmState, type StateChangeEvent } from './ui/state-machine.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
@@ -119,6 +120,7 @@ function boot(): void {
   const diffModal = new DiffModal();
   const elementInspector = new ElementInspector();
   const multiSelector = new MultiElementSelector();
+  const areaSelector = new AreaSelector();
   const secretConsole = new SecretConsole();
 
   // Transport
@@ -905,57 +907,93 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     // ── All Alt+ shortcuts suppressed inside editable fields ──
     if (e.altKey && isEditableTarget(e.target)) return;
 
+    // ── Alt+KeyI → Quick Edit toggle ──
     if (e.altKey && e.code === 'KeyI') {
-      // Quick Edit toggled via keyboard — sync state
-      setTimeout(() => {
-        if (elementInspector.isActive()) {
-          multiSelector.deactivate();
-          pill.setActiveMode('quickEdit');
-        } else {
-          pill.setActiveMode('none');
+      e.preventDefault();
+      if (!elementInspector.isActive()) {
+        // Mutual exclusion: deactivate multi-selector and area selector
+        multiSelector.deactivate();
+        areaSelector.deactivate();
+        // Reset FSM to idle if currently in another mode
+        if (fsm.state === 'multi-edit') {
+          fsm.send({ type: 'multi_edit_end' });
+        } else if (fsm.state === 'gesture') {
+          fsm.send({ type: 'gesture_mode_end' });
         }
-        updateCursorTracking();
-      }, 10);
+        pill.setActiveMode('none');
+      }
+      elementInspector.toggle();
+      if (elementInspector.isActive()) {
+        fsm.send({ type: 'quick_edit_start' });
+        pill.setActiveMode('quickEdit');
+        statusToast.show(strings.quickEditModeOn, 'info', 2000);
+      } else {
+        fsm.send({ type: 'quick_edit_end' });
+        pill.setActiveMode('none');
+      }
+      updateCursorTracking();
+      return;
     }
+
+    // ── Alt+KeyK → Multi-Edit toggle ──
     if (e.altKey && e.code === 'KeyK') {
-      // Multi-Edit toggled via keyboard — sync state
-      setTimeout(() => {
-        if (multiSelector.isActive()) {
-          elementInspector.deactivate();
-          pill.setActiveMode('multiEdit');
-        } else {
-          pill.setActiveMode('none');
+      e.preventDefault();
+      if (!multiSelector.isActive()) {
+        // Mutual exclusion: deactivate inspector and area selector
+        elementInspector.deactivate();
+        areaSelector.deactivate();
+        // Reset FSM to idle if currently in another mode
+        if (fsm.state === 'quick-edit') {
+          fsm.send({ type: 'quick_edit_end' });
+        } else if (fsm.state === 'gesture') {
+          fsm.send({ type: 'gesture_mode_end' });
         }
-        updateCursorTracking();
-      }, 10);
+        pill.setActiveMode('none');
+      }
+      multiSelector.toggle();
+      if (multiSelector.isActive()) {
+        fsm.send({ type: 'multi_edit_start' });
+        pill.setActiveMode('multiEdit');
+        statusToast.show(strings.multiEditModeOn, 'info', 2000);
+      } else {
+        fsm.send({ type: 'multi_edit_end' });
+        pill.setActiveMode('none');
+      }
+      updateCursorTracking();
+      return;
     }
+
+    // ── Alt+KeyM → Project Map ──
     if (e.altKey && e.code === 'KeyM') {
       e.preventDefault();
       window.open('/nova-project-map', '_blank');
+      return;
     }
+
+    // ── Alt+KeyA → Area Selector toggle ──
     if (e.altKey && e.code === 'KeyA') {
       e.preventDefault();
-      // Area Selector toggle (layout-independent)
-      fsm.send({
-        type: fsm.state === 'gesture' ? 'gesture_mode_end' : 'gesture_mode_start',
-      });
-      statusToast.show(
-        fsm.state === 'gesture' ? strings.gestureModeOn : strings.gestureModeOff,
-        'info',
-        2000,
-      );
-    }
-    if (e.altKey && e.code === 'KeyG') {
-      e.preventDefault();
-      gestureModeEnabled = !gestureModeEnabled;
-      localStorage.setItem('nova-gesture-mode', String(gestureModeEnabled));
-      pill.setGestureModeActive(gestureModeEnabled);
-      updateCursorTracking();
-      if (gestureModeEnabled) {
-        statusToast.show(strings.gestureModeOn, 'info', 2000);
-      } else {
+      if (areaSelector.isActive()) {
+        areaSelector.deactivate();
+        fsm.send({ type: 'gesture_mode_end' });
         statusToast.show(strings.gestureModeOff, 'info', 1500);
+      } else {
+        // Mutual exclusion: deactivate inspector and multi-selector
+        elementInspector.deactivate();
+        multiSelector.deactivate();
+        // Reset FSM to idle if currently in another mode
+        if (fsm.state === 'quick-edit') {
+          fsm.send({ type: 'quick_edit_end' });
+        } else if (fsm.state === 'multi-edit') {
+          fsm.send({ type: 'multi_edit_end' });
+        }
+        pill.setActiveMode('none');
+        areaSelector.activate();
+        fsm.send({ type: 'gesture_mode_start' });
+        statusToast.show(strings.gestureModeOn, 'info', 2000);
       }
+      updateCursorTracking();
+      return;
     }
   });
 

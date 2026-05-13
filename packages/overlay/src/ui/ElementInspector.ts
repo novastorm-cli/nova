@@ -88,19 +88,7 @@ export class ElementInspector {
   }
 
   private bindGlobalEvents(): void {
-    // Option+I (Mac) or Alt+I (Win/Linux) toggles inspector mode
-    // Use e.code ('KeyI') because Option+I on Mac produces a special character for e.key
     this.keydownHandler = (e: KeyboardEvent) => {
-      if (e.altKey && e.code === 'KeyI') {
-        e.preventDefault();
-        e.stopPropagation();
-        if (this.popupVisible) return;
-        if (this.active) {
-          this.deactivate();
-        } else {
-          this.activate();
-        }
-      }
       // Escape deactivates
       if (e.key === 'Escape' && this.active && !this.popupVisible) {
         this.deactivate();

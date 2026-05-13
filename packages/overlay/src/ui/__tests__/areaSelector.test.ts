@@ -45,7 +45,7 @@ describe('AreaSelector', () => {
   it('should start inactive', async () => {
     const selector = await createSelector();
     expect(selector.isActive()).toBe(false);
-    selector.destroy();
+    selector.deactivate();
   });
 
   it('should become active on activate() and inactive on deactivate()', async () => {
@@ -56,7 +56,7 @@ describe('AreaSelector', () => {
 
     selector.deactivate();
     expect(selector.isActive()).toBe(false);
-    selector.destroy();
+    selector.deactivate();
   });
 
   it('should create overlay element on activate', async () => {
@@ -69,7 +69,7 @@ describe('AreaSelector', () => {
     selector.deactivate();
     const overlayAfter = document.querySelector('[data-nova-area-selector]');
     expect(overlayAfter).toBeNull();
-    selector.destroy();
+    selector.deactivate();
   });
 
   it('should not double-activate', async () => {
@@ -82,7 +82,7 @@ describe('AreaSelector', () => {
     expect(overlays.length).toBe(1);
 
     selector.deactivate();
-    selector.destroy();
+    selector.deactivate();
   });
 
   it('should call onCancel when Escape is pressed', async () => {
@@ -101,7 +101,7 @@ describe('AreaSelector', () => {
 
     expect(cancelFn).toHaveBeenCalledOnce();
     expect(selector.isActive()).toBe(false);
-    selector.destroy();
+    selector.deactivate();
   });
 
   it('should call onSelect with correct normalized coordinates on drag', async () => {
@@ -148,7 +148,7 @@ describe('AreaSelector', () => {
       width: 100,
       height: 150,
     });
-    selector.destroy();
+    selector.deactivate();
   });
 
   it('should normalize coordinates when dragging from bottom-right to top-left', async () => {
@@ -185,7 +185,7 @@ describe('AreaSelector', () => {
       width: 200,
       height: 200,
     });
-    selector.destroy();
+    selector.deactivate();
   });
 
   it('should ignore selections smaller than 10x10', async () => {
@@ -220,35 +220,6 @@ describe('AreaSelector', () => {
     // Should still be active (not deactivated on tiny selection)
     expect(selector.isActive()).toBe(true);
     selector.deactivate();
-    selector.destroy();
-  });
-
-  it('should toggle on Alt+A hotkey', async () => {
-    const selector = await createSelector();
-
-    // Alt+A to activate
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'a',
-        altKey: true,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-
-    expect(selector.isActive()).toBe(true);
-
-    // Alt+A again to deactivate
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'a',
-        altKey: true,
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-
-    expect(selector.isActive()).toBe(false);
-    selector.destroy();
+    selector.deactivate();
   });
 });

@@ -133,14 +133,6 @@ export class MultiElementSelector {
 
   private bindGlobalEvents(): void {
     this.keydownHandler = (e: KeyboardEvent) => {
-      // Option+K (Mac) / Alt+K (Win) toggles mode
-      if (e.altKey && e.code === 'KeyK') {
-        e.preventDefault();
-        e.stopPropagation();
-        this.toggle();
-        return;
-      }
-
       // Escape cancels
       if (e.key === 'Escape' && this.active) {
         e.preventDefault();
