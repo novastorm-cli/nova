@@ -59,6 +59,7 @@ export class TaskPanel {
 
     this.panelEl = document.createElement('div');
     this.panelEl.className = 'task-panel hidden';
+    this.panelEl.setAttribute('data-nova', 'task-panel');
 
     // Title bar with close button
     const titleBar = document.createElement('div');
@@ -72,6 +73,7 @@ export class TaskPanel {
     // Close button (×)
     const closeBtn = document.createElement('button');
     closeBtn.className = 'task-panel-close';
+    closeBtn.setAttribute('data-nova', 'close');
     closeBtn.setAttribute('aria-label', strings.taskPanelCloseAriaLabel);
     closeBtn.innerHTML = strings.closeX;
     closeBtn.addEventListener('click', (e) => {

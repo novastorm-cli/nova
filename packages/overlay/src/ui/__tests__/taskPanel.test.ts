@@ -69,13 +69,14 @@ describe('TaskPanel', () => {
     expect(hostEl!.shadowRoot).not.toBeNull();
   });
 
-  it('panel starts hidden after mount', () => {
+  it('panel starts hidden after mount and has data-nova="task-panel"', () => {
     taskPanel.mount(container);
     const hostEl = container.querySelector('[data-nova-task-panel]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel');
     expect(panelEl).not.toBeNull();
     expect(panelEl!.classList.contains('hidden')).toBe(true);
+    expect(panelEl!.getAttribute('data-nova')).toBe('task-panel');
   });
 
   it('unmount() removes element from container', () => {
@@ -87,13 +88,14 @@ describe('TaskPanel', () => {
 
   // ── Close button ────────────────────────────────────────────
 
-  it('renders a close button with aria-label', () => {
+  it('renders a close button with aria-label and data-nova attribute', () => {
     taskPanel.mount(container);
     const hostEl = container.querySelector('[data-nova-task-panel]')!;
     const shadow = hostEl.shadowRoot!;
     const closeBtn = shadow.querySelector('.task-panel-close');
     expect(closeBtn).not.toBeNull();
     expect(closeBtn!.getAttribute('aria-label')).toBe('Close task panel');
+    expect(closeBtn!.getAttribute('data-nova')).toBe('close');
   });
 
   it('close button hides the panel immediately', () => {
