@@ -93,6 +93,17 @@ export const strings = {
   toastExecute: 'Execute',
   toastCancel: 'Cancel',
 
+  // ── FSM state labels (used by status line + aria-live) ──
+  stateIdle: 'Idle',
+  stateListening: 'Listening',
+  stateThinking: 'Thinking',
+  stateApplying: 'Applying',
+  stateAwaitingConfirmation: 'Awaiting confirmation',
+  stateQuickEdit: 'Quick Edit active',
+  stateMultiEdit: 'Multi-Edit active',
+  stateGesture: 'Gesture mode',
+  stateError: 'Error',
+
   // ── Status messages ──────────────────────────────────────
   aiThinking: '\u{1F9E0} AI is thinking\u2026 please wait',
   thinkingPhase: 'Thinking\u2026',

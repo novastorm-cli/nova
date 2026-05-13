@@ -23,10 +23,12 @@ import { DiffModal } from './ui/DiffModal.js';
 import { ElementInspector } from './ui/ElementInspector.js';
 import { MultiElementSelector } from './ui/MultiElementSelector.js';
 import { SecretConsole } from './ui/SecretConsole.js';
+import { OverlayStateMachine, type FsmState, type StateChangeEvent } from './ui/state-machine.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 import { strings } from './ui/strings.js';
 import { restoreTheme } from './ui/theme.js';
+import { Z_INDEX } from './ui/styles.js';
 
 const DEFAULT_PORT = 3001;
 
@@ -69,6 +71,9 @@ function boot(): void {
   const domCapture = new DomCapture();
   const voiceCapture = new VoiceCapture();
   const consoleCapture = new ConsoleCapture();
+
+  // FSM — single source of truth for overlay state
+  const fsm = new OverlayStateMachine();
 
   // UI modules
   const pill = new OverlayPill();
@@ -156,8 +161,88 @@ function boot(): void {
   // Apply theme early so CSS custom properties are available when components mount
   restoreTheme();
 
+  // ── Status line (next to pill) ─────────────────────────────────
+  const statusLine = document.createElement('div');
+  statusLine.setAttribute('data-nova', 'status-line');
+  statusLine.style.position = 'fixed';
+  statusLine.style.zIndex = String(Z_INDEX.pill);
+  statusLine.style.pointerEvents = 'none';
+  statusLine.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  statusLine.style.fontSize = '12px';
+  statusLine.style.fontWeight = '500';
+  statusLine.style.color = 'var(--nova-text-primary)';
+  statusLine.style.background = 'var(--nova-panel-bg)';
+  statusLine.style.backdropFilter = 'blur(8px)';
+  (statusLine.style as unknown as Record<string, string>).webkitBackdropFilter = 'blur(8px)';
+  statusLine.style.borderRadius = '10px';
+  statusLine.style.padding = '4px 12px';
+  statusLine.style.whiteSpace = 'nowrap';
+  statusLine.style.transition = 'opacity 0.2s ease';
+  statusLine.style.boxShadow = '0 2px 8px var(--nova-pill-shadow)';
+  statusLine.textContent = fsm.label;
+  novaRoot.appendChild(statusLine);
+
+  // ── aria-live region for screen readers ────────────────────────
+  const ariaLive = document.createElement('div');
+  ariaLive.setAttribute('data-nova', 'status-live');
+  ariaLive.setAttribute('aria-live', 'polite');
+  ariaLive.setAttribute('aria-atomic', 'true');
+  ariaLive.style.position = 'absolute';
+  ariaLive.style.width = '1px';
+  ariaLive.style.height = '1px';
+  ariaLive.style.padding = '0';
+  ariaLive.style.margin = '-1px';
+  ariaLive.style.overflow = 'hidden';
+  ariaLive.style.clip = 'rect(0, 0, 0, 0)';
+  ariaLive.style.whiteSpace = 'nowrap';
+  ariaLive.style.border = '0';
+  ariaLive.textContent = fsm.label;
+  novaRoot.appendChild(ariaLive);
+
+  /** Derive the pill's visual state from the FSM state. */
+  function fsmStateToPillState(s: FsmState): 'idle' | 'listening' | 'processing' | 'error' {
+    switch (s) {
+      case 'idle':
+      case 'awaiting-confirmation':
+      case 'quick-edit':
+      case 'multi-edit':
+      case 'gesture':
+        return 'idle';
+      case 'listening':
+        return 'listening';
+      case 'thinking':
+      case 'applying':
+        return 'processing';
+      case 'error':
+        return 'error';
+    }
+  }
+
+  /** Position the status line adjacent to the pill. */
+  function positionStatusLine(): void {
+    const pillHost = document.querySelector('[data-nova-pill]');
+    if (!pillHost || !statusLine) return;
+    const pillRect = pillHost.getBoundingClientRect();
+    const statusHeight = statusLine.getBoundingClientRect().height || 24;
+    statusLine.style.left = `${pillRect.right + 10}px`;
+    statusLine.style.top = `${pillRect.top + pillRect.height / 2 - statusHeight / 2}px`;
+    statusLine.style.right = 'auto';
+    statusLine.style.bottom = 'auto';
+  }
+
+  // Subscribe to FSM changes → update pill, status line, and aria-live
+  fsm.onStateChange((ev: StateChangeEvent) => {
+    pill.setState(fsmStateToPillState(ev.next));
+    statusLine.textContent = ev.label;
+    ariaLive.textContent = ev.label;
+    // Re-position status line after pill may have been updated
+    requestAnimationFrame(() => positionStatusLine());
+  });
+
   // Mount UI into the indestructible nova-root
   pill.mount(novaRoot);
+  // Position status line after pill is mounted
+  requestAnimationFrame(() => positionStatusLine());
   transcriptBar.mount(novaRoot);
   taskPanel.mount(novaRoot);
   activityLog.mount(novaRoot);
@@ -503,7 +588,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
     voiceCapture.stop();
     voiceStarted = false;
-    pill.setState('idle');
+    fsm.send({ type: 'voice_stopped' });
     transcriptBar.setListening(false);
     updateCursorTracking();
 
@@ -548,7 +633,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       lastTranscript = '';
       voiceCapture.start();
       voiceStarted = true;
-      pill.setState('listening');
+      fsm.send({ type: 'voice_started' });
       updateCursorTracking();
       resetSilenceTimer();
     } else {
@@ -597,7 +682,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         wsClient.sendRaw({ type: 'confirm' });
       }
       statusToast.show(strings.confirmed, 'success', 2000);
-      pill.setState('processing');
+      fsm.send({ type: 'thinking_started' });
     }
   });
 
@@ -611,7 +696,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       awaitingConfirmation = false;
       wsClient.sendRaw({ type: 'cancel' });
       statusToast.show(strings.cancelled, 'info', 2000);
-      pill.setState('listening');
+      fsm.send({ type: 'cancelled' });
     }
   });
 
@@ -622,6 +707,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   }
 
   // Start with mic OFF — user clicks mic button to enable
+  // FSM starts in idle state by default — sync pill
   pill.setState('idle');
   transcriptBar.setListening(false);
 
@@ -643,7 +729,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     }
 
     isProcessing = true;
-    pill.setState('processing');
+    fsm.send({ type: 'thinking_started' });
 
     try {
       const screenshotBlob = await screenshotCapture.captureViewport();
@@ -676,13 +762,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       autoExecute = false; // Reset after sending
       cursorTracker.clear();
       temporalCorrelator.clear();
-      pill.setState('processing');
       executingToastId = statusToast.show(strings.aiThinking, 'info', 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[Nova] Failed to send observation:', message);
       statusToast.show(`${strings.sendFailed}${message}`, 'error');
-      pill.setState('error');
+      fsm.send({ type: 'error_occurred' });
     } finally {
       isProcessing = false;
     }
@@ -812,13 +897,13 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
   // Element selector cancelled — voice stays on
   elementSelector.onCancel(() => {
-    pill.setState('listening');
+    fsm.send({ type: 'voice_started' });
   });
 
   // Command input closed — voice stays on
   commandInput.onClose(() => {
     commandInput.hide();
-    pill.setState('listening');
+    fsm.send({ type: 'voice_started' });
     selectedElement = null;
   });
 
@@ -847,7 +932,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             statusToast.dismiss(executingToastId);
             executingToastId = null;
           }
-          pill.setState('listening');
+          fsm.send({ type: 'applying_complete' });
           statusToast.show(strings.allTasksCompleted, 'success');
           totalTasks = 0;
           completedTasks = 0;
@@ -870,14 +955,14 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             statusToast.dismiss(executingToastId);
             executingToastId = null;
           }
-          pill.setState('error');
+          fsm.send({ type: 'error_occurred' });
           statusToast.show(strings.someTasksFailed, 'error');
           totalTasks = 0;
           completedTasks = 0;
         }
         break;
       case 'task_started':
-        pill.setState('processing');
+        fsm.send({ type: 'thinking_started' });
         taskPanel.setTaskStarted(event.data.taskId);
         activityLog.addEntry(`Starting: ${event.data.taskId}`, 'info', false, ts);
         codeBuffer = '';
@@ -978,7 +1063,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           executingToastId = null;
         }
         awaitingConfirmation = true;
-        pill.setState('idle');
+        fsm.send({ type: 'awaiting_confirmation' });
 
         const { tasks: pendingTaskList, message } = event.data;
 
@@ -1009,7 +1094,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             statusToast.dismiss(executingToastId);
             executingToastId = null;
           }
-          pill.setState('idle');
+          fsm.send({ type: 'thinking_complete' });
           const question = msg.slice('question:'.length).trim();
           activityLog.addEntry(`AI asks: ${question}`, 'thinking', false, ts);
 
@@ -1032,7 +1117,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             executingToastId = null;
           }
           awaitingConfirmation = true;
-          pill.setState('idle');
+          fsm.send({ type: 'awaiting_confirmation' });
 
           // Show task panel if structured tasks are included
           const statusTasks = (
@@ -1050,7 +1135,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           transcriptBar.showConfirmation(shortMsg);
         } else if (msg === 'autofix_start') {
           autofixInProgress = true;
-          pill.setState('processing');
+          fsm.send({ type: 'thinking_started' });
           autofixToastId = statusToast.show(strings.fixingBuildErrors, 'info', 0);
         } else if (msg === 'autofix_end') {
           autofixInProgress = false;
@@ -1058,7 +1143,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             statusToast.dismiss(autofixToastId);
             autofixToastId = null;
           }
-          pill.setState('idle');
+          fsm.send({ type: 'applying_complete' });
           statusToast.show(strings.buildFixApplied, 'success', 3000);
           // Reload page after short delay to pick up hot-reload changes
           scheduleReload();
@@ -1068,10 +1153,10 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             statusToast.dismiss(autofixToastId);
             autofixToastId = null;
           }
-          pill.setState('error');
+          fsm.send({ type: 'error_occurred' });
           statusToast.show(strings.buildFixFailed, 'error');
         } else if (msg.startsWith('Confirmed!')) {
-          pill.setState('processing');
+          fsm.send({ type: 'thinking_started' });
           executingToastId = statusToast.show(msg, 'info', 0);
         } else {
           statusToast.show(msg, 'info');
