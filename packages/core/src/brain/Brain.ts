@@ -1,6 +1,13 @@
 import type { IBrain } from '../contracts/IBrain.js';
 import { BrainError } from '../contracts/IBrain.js';
-import type { LlmClient, Observation, ProjectMap, TaskItem, Lane, TaskType } from '../models/types.js';
+import type {
+  LlmClient,
+  Observation,
+  ProjectMap,
+  TaskItem,
+  Lane,
+  TaskType,
+} from '../models/types.js';
 import type { EventBus } from '../models/events.js';
 import { LaneClassifier } from './LaneClassifier.js';
 import { PromptBuilder } from './PromptBuilder.js';
@@ -46,42 +53,55 @@ export class Brain implements IBrain {
 
     const transcript = observation.transcript ?? 'click';
     console.log(`[Nova] Brain: analyzing "${transcript}" at ${observation.currentUrl}`);
-    this.status(`Thinking about: "${transcript.slice(0, 60)}${transcript.length > 60 ? '...' : ''}"`);
+    this.status(
+      `Thinking about: "${transcript.slice(0, 60)}${transcript.length > 60 ? '...' : ''}"`,
+    );
 
     let lastError: unknown;
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       try {
-        const images = observation.screenshot && observation.screenshot.length > 0
-          ? [observation.screenshot]
-          : [];
+        const images =
+          observation.screenshot && observation.screenshot.length > 0
+            ? [observation.screenshot]
+            : [];
 
         const attemptLabel = attempt > 0 ? ` (retry ${attempt + 1}/${MAX_ATTEMPTS})` : '';
         console.log(`[Nova] Brain: sending to LLM${attemptLabel}...`);
         this.status(`Sending to AI${attemptLabel}...`);
 
-        const response = images.length > 0
-          ? await this.llm.chatWithVision(messages, images, { responseFormat: 'json', model: this.modelName })
-          : await this.llm.chat(messages, { responseFormat: 'json', model: this.modelName });
+        const response =
+          images.length > 0
+            ? await this.llm.chatWithVision(messages, images, {
+                responseFormat: 'json',
+                model: this.modelName,
+              })
+            : await this.llm.chat(messages, { responseFormat: 'json', model: this.modelName });
 
-        console.log(`[Nova] Brain: response (${response.length} chars)`);
+        const responseText = response.content;
+
+        console.log(`[Nova] Brain: response (${responseText.length} chars)`);
 
         // Show LLM reasoning in overlay if it contains text before JSON
-        const jsonStart = response.indexOf('[');
+        const jsonStart = responseText.indexOf('[');
         if (jsonStart > 10) {
-          const reasoning = response.slice(0, jsonStart).trim();
+          const reasoning = responseText.slice(0, jsonStart).trim();
           if (reasoning.length > 5) {
             console.log(`[Nova] Brain reasoning: ${reasoning.slice(0, 300)}`);
-            this.status(`AI thinks: ${reasoning.slice(0, 120)}${reasoning.length > 120 ? '...' : ''}`);
+            this.status(
+              `AI thinks: ${reasoning.slice(0, 120)}${reasoning.length > 120 ? '...' : ''}`,
+            );
           }
         }
 
-        const raw = this.parseJsonArray(response);
+        const raw = this.parseJsonArray(responseText);
 
         // Show what tasks were identified
         const taskNames = raw.map((t) => t.description ?? '').filter(Boolean);
         if (taskNames.length > 0) {
-          this.status(`Found ${taskNames.length} task(s): ${taskNames[0]?.slice(0, 60)}${taskNames.length > 1 ? ` +${taskNames.length - 1} more` : ''}`);
+          this.status(
+            `Found ${taskNames.length} task(s): ${taskNames[0]?.slice(0, 60)}${taskNames.length > 1 ? ` +${taskNames.length - 1} more` : ''}`,
+          );
         }
 
         return this.toTaskItems(raw);
@@ -113,7 +133,9 @@ export class Brain implements IBrain {
     try {
       const direct = JSON.parse(trimmed);
       if (Array.isArray(direct)) return direct as RawTask[];
-    } catch { /* try extraction */ }
+    } catch {
+      /* try extraction */
+    }
 
     // Find all JSON arrays in the response and use the last valid one
     // (Claude CLI sometimes outputs multiple: first attempt + "let me reconsider" + second attempt)
@@ -131,7 +153,9 @@ export class Brain implements IBrain {
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed as RawTask[];
         }
-      } catch { /* try next */ }
+      } catch {
+        /* try next */
+      }
     }
 
     throw new Error('No valid JSON array found in response');
@@ -145,7 +169,8 @@ export class Brain implements IBrain {
       return []; // No tasks — question sent via status event
     }
 
-    const BINARY_PATTERN = /\b(image|photo|picture|icon|svg|png|jpg|jpeg|gif|webp|favicon|font|woff|video|mp4|audio|mp3)\b/i;
+    const BINARY_PATTERN =
+      /\b(image|photo|picture|icon|svg|png|jpg|jpeg|gif|webp|favicon|font|woff|video|mp4|audio|mp3)\b/i;
 
     return raw
       .map((item) => {
@@ -153,9 +178,8 @@ export class Brain implements IBrain {
         if (item.question && !item.description) return null;
         const description = item.description ?? '';
         const files = Array.isArray(item.files) ? item.files : [];
-        const type: TaskType = (typeof item.type === 'string' && isValidTaskType(item.type))
-          ? item.type
-          : 'single_file';
+        const type: TaskType =
+          typeof item.type === 'string' && isValidTaskType(item.type) ? item.type : 'single_file';
 
         const lane: Lane = this.laneClassifier.classify(description, files);
 
@@ -172,9 +196,10 @@ export class Brain implements IBrain {
       .filter((task) => {
         // Filter out tasks that try to create/add binary files
         const hasBinaryFiles = task.files.some((f) =>
-          /\.(png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot|mp4|mp3|wav)$/i.test(f)
+          /\.(png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot|mp4|mp3|wav)$/i.test(f),
         );
-        const descAsksBinary = BINARY_PATTERN.test(task.description) &&
+        const descAsksBinary =
+          BINARY_PATTERN.test(task.description) &&
           /\b(add|create|download|upload|place|put)\b/i.test(task.description) &&
           !/\b(component|style|css|layout|section)\b/i.test(task.description);
 

@@ -61,7 +61,7 @@ describe('OpenAIProvider', () => {
 
       const result = await provider.chat(userMessages);
 
-      expect(result).toBe('Hello back!');
+      expect(result).toEqual({ content: 'Hello back!' });
       expect(mockCompletionsCreate).toHaveBeenCalledOnce();
 
       const args = mockCompletionsCreate.mock.calls[0][0];
@@ -107,7 +107,7 @@ describe('OpenAIProvider', () => {
 
       const result = await provider.chatWithVision(userMessages, [imageBuffer]);
 
-      expect(result).toBe('I see an image');
+      expect(result).toEqual({ content: 'I see an image' });
       const args = mockCompletionsCreate.mock.calls[0][0];
       const bodyStr = JSON.stringify(args);
 
@@ -125,15 +125,17 @@ describe('OpenAIProvider', () => {
         { choices: [{ delta: { content: ' world' } }] },
       ];
 
-      mockCompletionsCreate.mockResolvedValueOnce((async function* () {
-        for (const chunk of chunks) {
-          yield chunk;
-        }
-      })());
+      mockCompletionsCreate.mockResolvedValueOnce(
+        (async function* () {
+          for (const chunk of chunks) {
+            yield chunk;
+          }
+        })(),
+      );
 
       const result: string[] = [];
       for await (const chunk of provider.stream(userMessages)) {
-        result.push(chunk);
+        result.push(chunk.content);
       }
 
       expect(result).toEqual(['Hello', ' world']);
@@ -179,7 +181,7 @@ describe('OpenAIProvider', () => {
         });
 
       const result = await provider.chat(userMessages);
-      expect(result).toBe('Success after retry');
+      expect(result).toEqual({ content: 'Success after retry' });
       expect(mockCompletionsCreate).toHaveBeenCalledTimes(2);
     }, 10_000);
 

@@ -65,8 +65,8 @@ function createProjectMap(
 
 function createMockLlmClient(diffResponse: string): LlmClient {
   return {
-    chat: vi.fn().mockResolvedValue(diffResponse),
-    chatWithVision: vi.fn().mockResolvedValue(''),
+    chat: vi.fn().mockResolvedValue({ content: diffResponse }),
+    chatWithVision: vi.fn().mockResolvedValue({ content: '' }),
     stream: vi.fn(),
   };
 }

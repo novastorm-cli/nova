@@ -15,16 +15,17 @@ export async function streamWithEvents(
   const chunks: string[] = [];
   let inCodeBlock = false;
 
-  for await (const chunk of llmClient.stream(messages, options)) {
-    chunks.push(chunk);
+  for await (const streamChunk of llmClient.stream(messages, options)) {
+    const text = streamChunk.content;
+    chunks.push(text);
 
     // Detect phase: before first === FILE: is reasoning, after is code
-    if (chunk.includes('=== FILE:')) inCodeBlock = true;
+    if (text.includes('=== FILE:')) inCodeBlock = true;
     const phase = inCodeBlock ? 'code' : 'reasoning';
 
     eventBus?.emit({
       type: 'llm_chunk',
-      data: { text: chunk, phase, taskId },
+      data: { text, phase, taskId },
     });
   }
 

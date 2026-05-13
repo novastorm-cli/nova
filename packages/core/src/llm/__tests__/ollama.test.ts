@@ -62,8 +62,8 @@ describe('OllamaProvider', () => {
       });
 
       const result = await provider.chat(userMessages);
-      expect(typeof result).toBe('string');
-      expect(result).toBe('Parsed response');
+      expect(typeof result.content).toBe('string');
+      expect(result).toEqual({ content: 'Parsed response' });
     });
 
     it('options.model overrides default model', async () => {
@@ -136,7 +136,7 @@ describe('OllamaProvider', () => {
       const readableStream = new ReadableStream({
         pull(controller) {
           if (lineIndex < lines.length) {
-            controller.enqueue(encoder.encode(lines[lineIndex]!));
+            controller.enqueue(encoder.encode(lines[lineIndex]));
             lineIndex++;
           } else {
             controller.close();
@@ -152,7 +152,7 @@ describe('OllamaProvider', () => {
 
       const result: string[] = [];
       for await (const chunk of provider.stream(userMessages)) {
-        result.push(chunk);
+        result.push(chunk.content);
       }
 
       expect(result).toEqual(['Hello', ' world']);
@@ -216,7 +216,7 @@ describe('OllamaProvider', () => {
         });
 
       const result = await provider.chat(userMessages);
-      expect(result).toBe('Success after retry');
+      expect(result).toEqual({ content: 'Success after retry' });
       expect(fetchMock).toHaveBeenCalledTimes(2);
     }, 10_000);
 

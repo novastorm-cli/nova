@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { LlmClient, LlmOptions, Message } from '../models/types.js';
+import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 
 const DEFAULT_MODEL = 'gpt-4o';
@@ -20,7 +20,7 @@ function toOpenAIMessages(
 
 function findLastIndex<T>(arr: T[], predicate: (item: T) => boolean): number {
   for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i]!)) return i;
+    if (predicate(arr[i])) return i;
   }
   return -1;
 }
@@ -72,7 +72,7 @@ export class OpenAIProvider implements LlmClient {
     this.defaultModel = defaultModel;
   }
 
-  async chat(messages: Message[], options?: LlmOptions): Promise<string> {
+  async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
     const jsonMode = options?.responseFormat === 'json';
     const request: OpenAI.ChatCompletionCreateParamsNonStreaming = {
       model: options?.model ?? this.defaultModel,
@@ -82,17 +82,19 @@ export class OpenAIProvider implements LlmClient {
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
     };
 
-    return this.executeWithRetry(async () => {
+    const content = await this.executeWithRetry(async () => {
       const response = await this.client.chat.completions.create(request);
       return response.choices[0]?.message?.content ?? '';
     });
+
+    return { content };
   }
 
   async chatWithVision(
     messages: Message[],
     images: Buffer[],
     options?: LlmOptions,
-  ): Promise<string> {
+  ): Promise<ChatResponse> {
     const jsonMode = options?.responseFormat === 'json';
     const lastUserIdx = findLastIndex(messages, (m) => m.role === 'user');
     if (lastUserIdx === -1) {
@@ -120,7 +122,7 @@ export class OpenAIProvider implements LlmClient {
       }
       const content =
         jsonMode && m.role === 'user' ? `${m.content}\n\nRespond with valid JSON only.` : m.content;
-      return { role: m.role, content } as OpenAI.ChatCompletionMessageParam;
+      return { role: m.role, content };
     });
 
     const request: OpenAI.ChatCompletionCreateParamsNonStreaming = {
@@ -131,13 +133,15 @@ export class OpenAIProvider implements LlmClient {
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
     };
 
-    return this.executeWithRetry(async () => {
+    const content = await this.executeWithRetry(async () => {
       const response = await this.client.chat.completions.create(request);
       return response.choices[0]?.message?.content ?? '';
     });
+
+    return { content };
   }
 
-  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<string> {
+  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk> {
     const jsonMode = options?.responseFormat === 'json';
     const request: OpenAI.ChatCompletionCreateParamsStreaming = {
       model: options?.model ?? this.defaultModel,
@@ -170,7 +174,7 @@ export class OpenAIProvider implements LlmClient {
 
   protected async *executeStreamWithRetry(
     request: OpenAI.ChatCompletionCreateParamsStreaming,
-  ): AsyncIterable<string> {
+  ): AsyncIterable<StreamChunk> {
     try {
       yield* this.doStream(request);
     } catch (err) {
@@ -190,12 +194,12 @@ export class OpenAIProvider implements LlmClient {
 
   protected async *doStream(
     request: OpenAI.ChatCompletionCreateParamsStreaming,
-  ): AsyncIterable<string> {
+  ): AsyncIterable<StreamChunk> {
     const stream = await this.client.chat.completions.create(request);
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) {
-        yield delta;
+        yield { content: delta };
       }
     }
   }

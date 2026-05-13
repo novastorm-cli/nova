@@ -2,7 +2,12 @@ import { describe, it, expect, afterAll, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import type { TaskItem, ProjectMap, LlmClient, MiniContext } from '../../packages/core/src/models/types.js';
+import type {
+  TaskItem,
+  ProjectMap,
+  LlmClient,
+  MiniContext,
+} from '../../packages/core/src/models/types.js';
 import type { IGitManager } from '../../packages/core/src/contracts/IGitManager.js';
 import type { EventBus } from '../../packages/core/src/models/events.js';
 
@@ -20,7 +25,11 @@ function trackTmp(): string {
 
 afterAll(() => {
   for (const dir of tmpDirsToClean) {
-    try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   }
 });
 
@@ -32,7 +41,9 @@ function createDotnetProject(dir: string, files: Record<string, string>): void {
   }
 }
 
-function makeTask(overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>): TaskItem {
+function makeTask(
+  overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>,
+): TaskItem {
   return {
     id: crypto.randomUUID(),
     status: 'pending',
@@ -58,10 +69,10 @@ function makeDotnetProjectMap(overrides: Partial<ProjectMap> = {}): ProjectMap {
 
 function makeMockLlm(chatResponse: string, streamResponse?: string): LlmClient {
   return {
-    chat: vi.fn(async () => chatResponse),
-    chatWithVision: vi.fn(async () => chatResponse),
+    chat: vi.fn(async () => ({ content: chatResponse })),
+    chatWithVision: vi.fn(async () => ({ content: chatResponse })),
     stream: vi.fn(async function* () {
-      yield streamResponse ?? chatResponse;
+      yield { content: streamResponse ?? chatResponse };
     }),
   };
 }
@@ -90,7 +101,6 @@ function makeMockEventBus(): EventBus {
 // ============================================================================
 
 describe.concurrent('StackDetector -- .NET structures', () => {
-
   it.concurrent('a) standard .csproj in root -> detects dotnet/csharp', async () => {
     const { StackDetector } = await import('../../packages/core/src/indexer/StackDetector.js');
     const detector = new StackDetector();
@@ -129,23 +139,26 @@ describe.concurrent('StackDetector -- .NET structures', () => {
     expect(stack.language).toBe('typescript');
   });
 
-  it.concurrent('c) both .csproj and package.json -> package.json wins (checked first)', async () => {
-    const { StackDetector } = await import('../../packages/core/src/indexer/StackDetector.js');
-    const detector = new StackDetector();
+  it.concurrent(
+    'c) both .csproj and package.json -> package.json wins (checked first)',
+    async () => {
+      const { StackDetector } = await import('../../packages/core/src/indexer/StackDetector.js');
+      const detector = new StackDetector();
 
-    const tmp = trackTmp();
-    createDotnetProject(tmp, {
-      'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
+      const tmp = trackTmp();
+      createDotnetProject(tmp, {
+        'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
 </Project>`,
-      'package.json': JSON.stringify({
-        dependencies: { vite: '5.0.0' },
-      }),
-    });
+        'package.json': JSON.stringify({
+          dependencies: { vite: '5.0.0' },
+        }),
+      });
 
-    const stack = await detector.detectStack(tmp);
-    expect(stack.framework).toBe('vite');
-  });
+      const stack = await detector.detectStack(tmp);
+      expect(stack.framework).toBe('vite');
+    },
+  );
 });
 
 // ============================================================================
@@ -153,9 +166,9 @@ describe.concurrent('StackDetector -- .NET structures', () => {
 // ============================================================================
 
 describe.concurrent('EndpointExtractor -- .NET endpoints', () => {
-
   it.concurrent('a) standard Controller with [Route] and [Http*] attrs', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+    const { EndpointExtractor } =
+      await import('../../packages/core/src/indexer/EndpointExtractor.js');
     const extractor = new EndpointExtractor();
     const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
@@ -177,14 +190,15 @@ public class UsersController : ControllerBase
     const endpoints = await extractor.extract(tmp, stack);
     expect(endpoints.length).toBe(2);
 
-    const getPaths = endpoints.filter(e => e.method === 'GET').map(e => e.path);
-    const postPaths = endpoints.filter(e => e.method === 'POST').map(e => e.path);
+    const getPaths = endpoints.filter((e) => e.method === 'GET').map((e) => e.path);
+    const postPaths = endpoints.filter((e) => e.method === 'POST').map((e) => e.path);
     expect(getPaths).toContain('/api/users');
     expect(postPaths).toContain('/api/users');
   });
 
   it.concurrent('b) Controller WITHOUT [Route] attr -- full path on each method', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+    const { EndpointExtractor } =
+      await import('../../packages/core/src/indexer/EndpointExtractor.js');
     const extractor = new EndpointExtractor();
     const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
@@ -203,14 +217,15 @@ public class UsersController : ControllerBase
     const endpoints = await extractor.extract(tmp, stack);
     expect(endpoints.length).toBe(2);
 
-    const paths = endpoints.map(e => e.path);
+    const paths = endpoints.map((e) => e.path);
     expect(paths).toContain('/api/items');
-    expect(endpoints.find(e => e.method === 'GET')).toBeDefined();
-    expect(endpoints.find(e => e.method === 'POST')).toBeDefined();
+    expect(endpoints.find((e) => e.method === 'GET')).toBeDefined();
+    expect(endpoints.find((e) => e.method === 'POST')).toBeDefined();
   });
 
   it.concurrent('c) Minimal API with MapGet/MapPost/MapPut/MapDelete', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+    const { EndpointExtractor } =
+      await import('../../packages/core/src/indexer/EndpointExtractor.js');
     const extractor = new EndpointExtractor();
     const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
@@ -226,14 +241,15 @@ app.MapDelete("/api/products/{id}", (int id) => Results.NoContent());`,
     const endpoints = await extractor.extract(tmp, stack);
     expect(endpoints.length).toBe(4);
 
-    const methods = endpoints.map(e => e.method).sort();
+    const methods = endpoints.map((e) => e.method).sort();
     expect(methods).toEqual(['DELETE', 'GET', 'POST', 'PUT']);
-    expect(endpoints.find(e => e.method === 'GET')!.path).toBe('/api/products');
-    expect(endpoints.find(e => e.method === 'DELETE')!.path).toBe('/api/products/{id}');
+    expect(endpoints.find((e) => e.method === 'GET')!.path).toBe('/api/products');
+    expect(endpoints.find((e) => e.method === 'DELETE')!.path).toBe('/api/products/{id}');
   });
 
   it.concurrent('d) Mixed: Controllers + Minimal API in same project', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+    const { EndpointExtractor } =
+      await import('../../packages/core/src/indexer/EndpointExtractor.js');
     const extractor = new EndpointExtractor();
     const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
@@ -254,23 +270,26 @@ app.MapGet("/api/health", () => Results.Ok());`,
     const endpoints = await extractor.extract(tmp, stack);
     expect(endpoints.length).toBe(2);
 
-    const paths = endpoints.map(e => e.path).sort();
+    const paths = endpoints.map((e) => e.path).sort();
     expect(paths).toContain('/api/health');
     expect(paths).toContain('/api/users');
   });
 
-  it.concurrent('e) Weird formatting -- extra whitespace, newlines between attr and method', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
-    const extractor = new EndpointExtractor();
-    const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
+  it.concurrent(
+    'e) Weird formatting -- extra whitespace, newlines between attr and method',
+    async () => {
+      const { EndpointExtractor } =
+        await import('../../packages/core/src/indexer/EndpointExtractor.js');
+      const extractor = new EndpointExtractor();
+      const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
-    const tmp = trackTmp();
-    // Note: The httpAttrRegex expects [HttpGet("path")] with no spaces inside parens.
-    // Spaces inside parens like [HttpGet(  "active"  )] will NOT match.
-    // But [HttpPost] (no parens) and [HttpGet("active")] (no extra spaces) work fine.
-    // Also, extra blank lines between attr and method are handled by \s* in the regex.
-    createDotnetProject(tmp, {
-      'Controllers/WeirdController.cs': `[ApiController]
+      const tmp = trackTmp();
+      // Note: The httpAttrRegex expects [HttpGet("path")] with no spaces inside parens.
+      // Spaces inside parens like [HttpGet(  "active"  )] will NOT match.
+      // But [HttpPost] (no parens) and [HttpGet("active")] (no extra spaces) work fine.
+      // Also, extra blank lines between attr and method are handled by \s* in the regex.
+      createDotnetProject(tmp, {
+        'Controllers/WeirdController.cs': `[ApiController]
 [Route("api/[controller]")]
 public class   WeirdController : ControllerBase
 {
@@ -283,18 +302,20 @@ public class   WeirdController : ControllerBase
 
     public IActionResult Create() => Ok();
 }`,
-    });
+      });
 
-    const endpoints = await extractor.extract(tmp, stack);
-    expect(endpoints.length).toBe(2);
+      const endpoints = await extractor.extract(tmp, stack);
+      expect(endpoints.length).toBe(2);
 
-    const getMethods = endpoints.filter(e => e.method === 'GET');
-    expect(getMethods.length).toBe(1);
-    expect(getMethods[0].path).toContain('/api/weird');
-  });
+      const getMethods = endpoints.filter((e) => e.method === 'GET');
+      expect(getMethods.length).toBe(1);
+      expect(getMethods[0].path).toContain('/api/weird');
+    },
+  );
 
   it.concurrent('f) Custom route with subpath and parameters', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+    const { EndpointExtractor } =
+      await import('../../packages/core/src/indexer/EndpointExtractor.js');
     const extractor = new EndpointExtractor();
     const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
@@ -317,14 +338,15 @@ public class OrdersController : ControllerBase
     const endpoints = await extractor.extract(tmp, stack);
     expect(endpoints.length).toBe(3);
 
-    const paths = endpoints.map(e => e.path).sort();
+    const paths = endpoints.map((e) => e.path).sort();
     expect(paths).toContain('/custom/v2/orders');
     expect(paths).toContain('/custom/v2/orders/{id}');
     expect(paths).toContain('/custom/v2/orders/batch');
   });
 
   it.concurrent('g) Empty .cs file and file with no endpoints -> empty array', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+    const { EndpointExtractor } =
+      await import('../../packages/core/src/indexer/EndpointExtractor.js');
     const extractor = new EndpointExtractor();
     const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
@@ -346,29 +368,31 @@ public class Product { public int Id { get; set; } public string Name { get; set
 // ============================================================================
 
 describe.concurrent('RouteExtractor -- .NET routes', () => {
+  it.concurrent(
+    'a) [Route("api/[controller]")] on Controller -> extracted as API route',
+    async () => {
+      const { RouteExtractor } = await import('../../packages/core/src/indexer/RouteExtractor.js');
+      const extractor = new RouteExtractor();
+      const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
-  it.concurrent('a) [Route("api/[controller]")] on Controller -> extracted as API route', async () => {
-    const { RouteExtractor } = await import('../../packages/core/src/indexer/RouteExtractor.js');
-    const extractor = new RouteExtractor();
-    const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
-
-    const tmp = trackTmp();
-    createDotnetProject(tmp, {
-      'Controllers/UsersController.cs': `[ApiController]
+      const tmp = trackTmp();
+      createDotnetProject(tmp, {
+        'Controllers/UsersController.cs': `[ApiController]
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
 {
     [HttpGet]
     public IActionResult GetAll() => Ok();
 }`,
-    });
+      });
 
-    const routes = await extractor.extract(tmp, stack);
-    // RouteExtractor.extractDotnetRoutes matches [Route("...")] pattern
-    const routePaths = routes.map(r => r.path);
-    expect(routePaths).toContain('/api/[controller]');
-    expect(routes[0].type).toBe('api');
-  });
+      const routes = await extractor.extract(tmp, stack);
+      // RouteExtractor.extractDotnetRoutes matches [Route("...")] pattern
+      const routePaths = routes.map((r) => r.path);
+      expect(routePaths).toContain('/api/[controller]');
+      expect(routes[0].type).toBe('api');
+    },
+  );
 
   it.concurrent('b) Minimal API MapGet/MapPost -> extracted as API routes', async () => {
     const { RouteExtractor } = await import('../../packages/core/src/indexer/RouteExtractor.js');
@@ -389,40 +413,43 @@ app.MapPost("/api/orders");`,
     const routes = await extractor.extract(tmp, stack);
     expect(routes.length).toBe(2);
 
-    const getRoute = routes.find(r => r.methods?.includes('GET'));
-    const postRoute = routes.find(r => r.methods?.includes('POST'));
+    const getRoute = routes.find((r) => r.methods?.includes('GET'));
+    const postRoute = routes.find((r) => r.methods?.includes('POST'));
     expect(getRoute).toBeDefined();
     expect(postRoute).toBeDefined();
     expect(getRoute!.path).toBe('/api/products');
     expect(postRoute!.path).toBe('/api/orders');
   });
 
-  it.concurrent('c) .cs files in non-standard folders (Endpoints/, Features/) -> still found', async () => {
-    const { RouteExtractor } = await import('../../packages/core/src/indexer/RouteExtractor.js');
-    const extractor = new RouteExtractor();
-    const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
+  it.concurrent(
+    'c) .cs files in non-standard folders (Endpoints/, Features/) -> still found',
+    async () => {
+      const { RouteExtractor } = await import('../../packages/core/src/indexer/RouteExtractor.js');
+      const extractor = new RouteExtractor();
+      const stack = { framework: 'dotnet', language: 'csharp', typescript: false };
 
-    const tmp = trackTmp();
-    // RouteExtractor scans ALL .cs files recursively regardless of folder name.
-    // [Route("...")] attrs are detected via routeAttrRegex.
-    // Minimal API MapGet uses mapRegex which requires MapGet("path") form (no lambda args).
-    createDotnetProject(tmp, {
-      'Features/Users/UsersEndpoint.cs': `[Route("api/users")]
+      const tmp = trackTmp();
+      // RouteExtractor scans ALL .cs files recursively regardless of folder name.
+      // [Route("...")] attrs are detected via routeAttrRegex.
+      // Minimal API MapGet uses mapRegex which requires MapGet("path") form (no lambda args).
+      createDotnetProject(tmp, {
+        'Features/Users/UsersEndpoint.cs': `[Route("api/users")]
 public class UsersEndpoint : ControllerBase
 {
     [HttpGet]
     public IActionResult GetAll() => Ok();
 }`,
-      'Endpoints/HealthEndpoint.cs': `app.MapGet("/api/health");`,
-    });
+        'Endpoints/HealthEndpoint.cs': `app.MapGet("/api/health");`,
+      });
 
-    const routes = await extractor.extract(tmp, stack);
-    expect(routes.length).toBeGreaterThanOrEqual(2);
+      const routes = await extractor.extract(tmp, stack);
+      expect(routes.length).toBeGreaterThanOrEqual(2);
 
-    const paths = routes.map(r => r.path);
-    expect(paths).toContain('/api/users');
-    expect(paths).toContain('/api/health');
-  });
+      const paths = routes.map((r) => r.path);
+      expect(paths).toContain('/api/users');
+      expect(paths).toContain('/api/health');
+    },
+  );
 });
 
 // ============================================================================
@@ -430,7 +457,6 @@ public class UsersEndpoint : ControllerBase
 // ============================================================================
 
 describe.concurrent('ProjectIndexer -- .NET structures', () => {
-
   it.concurrent('a) standard structure with Controllers/ and .csproj', async () => {
     const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
 
@@ -455,18 +481,20 @@ public class UsersController : ControllerBase
     expect(projectMap.stack.framework).toBe('dotnet');
     expect(projectMap.stack.language).toBe('csharp');
     expect(projectMap.endpoints.length).toBeGreaterThanOrEqual(1);
-    expect(projectMap.endpoints.some(e => e.path === '/api/users')).toBe(true);
+    expect(projectMap.endpoints.some((e) => e.path === '/api/users')).toBe(true);
   });
 
-  it.concurrent('b) chaotic AI structure: controllers in various folders + Minimal API', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+  it.concurrent(
+    'b) chaotic AI structure: controllers in various folders + Minimal API',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
 
-    const tmp = trackTmp();
-    createDotnetProject(tmp, {
-      'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
+      const tmp = trackTmp();
+      createDotnetProject(tmp, {
+        'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
 </Project>`,
-      'Api/ProductsController.cs': `using Microsoft.AspNetCore.Mvc;
+        'Api/ProductsController.cs': `using Microsoft.AspNetCore.Mvc;
 [ApiController]
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
@@ -474,7 +502,7 @@ public class ProductsController : ControllerBase
     [HttpGet]
     public IActionResult GetAll() => Ok();
 }`,
-      'Features/Users/UsersController.cs': `using Microsoft.AspNetCore.Mvc;
+        'Features/Users/UsersController.cs': `using Microsoft.AspNetCore.Mvc;
 [ApiController]
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
@@ -482,21 +510,22 @@ public class UsersController : ControllerBase
     [HttpGet]
     public IActionResult GetAll() => Ok();
 }`,
-      'Program.cs': `var app = builder.Build();
+        'Program.cs': `var app = builder.Build();
 app.MapGet("/api/health", () => Results.Ok());`,
-    });
+      });
 
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
 
-    expect(projectMap.stack.framework).toBe('dotnet');
-    expect(projectMap.endpoints.length).toBeGreaterThanOrEqual(3);
+      expect(projectMap.stack.framework).toBe('dotnet');
+      expect(projectMap.endpoints.length).toBeGreaterThanOrEqual(3);
 
-    const endpointPaths = projectMap.endpoints.map(e => e.path);
-    expect(endpointPaths).toContain('/api/products');
-    expect(endpointPaths).toContain('/api/users');
-    expect(endpointPaths).toContain('/api/health');
-  });
+      const endpointPaths = projectMap.endpoints.map((e) => e.path);
+      expect(endpointPaths).toContain('/api/products');
+      expect(endpointPaths).toContain('/api/users');
+      expect(endpointPaths).toContain('/api/health');
+    },
+  );
 
   it.concurrent('c) minimal project: only .csproj + Program.cs with Minimal API', async () => {
     const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
@@ -518,8 +547,8 @@ app.Run();`,
 
     expect(projectMap.stack.framework).toBe('dotnet');
     expect(projectMap.endpoints.length).toBe(2);
-    expect(projectMap.endpoints.some(e => e.method === 'GET')).toBe(true);
-    expect(projectMap.endpoints.some(e => e.method === 'POST')).toBe(true);
+    expect(projectMap.endpoints.some((e) => e.method === 'GET')).toBe(true);
+    expect(projectMap.endpoints.some((e) => e.method === 'POST')).toBe(true);
   });
 });
 
@@ -528,7 +557,6 @@ app.Run();`,
 // ============================================================================
 
 describe.concurrent('fileBlocks -- parsing .NET code', () => {
-
   it.concurrent('a) parseMixedBlocks -- FILE block with new Controller', async () => {
     const { parseMixedBlocks } = await import('../../packages/core/src/executor/fileBlocks.js');
 
@@ -640,8 +668,8 @@ public class OrdersController : ControllerBase
     const blocks = parseMixedBlocks(response);
     expect(blocks).toHaveLength(3);
 
-    const fileBlocks = blocks.filter(b => b.type === 'file');
-    const diffBlocks = blocks.filter(b => b.type === 'diff');
+    const fileBlocks = blocks.filter((b) => b.type === 'file');
+    const diffBlocks = blocks.filter((b) => b.type === 'diff');
     expect(fileBlocks).toHaveLength(2);
     expect(diffBlocks).toHaveLength(1);
 
@@ -659,14 +687,15 @@ public class OrdersController : ControllerBase
 // ============================================================================
 
 describe.concurrent('Lane3Executor -- .NET backend generation', () => {
+  it.concurrent(
+    'a) LLM returns FILE for new ProductsController.cs -> written to disk',
+    async () => {
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-  it.concurrent('a) LLM returns FILE for new ProductsController.cs -> written to disk', async () => {
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+      const tmp = trackTmp();
+      const eventBus = makeMockEventBus();
 
-    const tmp = trackTmp();
-    const eventBus = makeMockEventBus();
-
-    const llmResponse = `=== FILE: Controllers/ProductsController.cs ===
+      const llmResponse = `=== FILE: Controllers/ProductsController.cs ===
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebApp.Controllers;
@@ -692,30 +721,31 @@ public class ProductsController : ControllerBase
 }
 === END FILE ===`;
 
-    const llm = makeMockLlm('', llmResponse);
-    const git = makeMockGit();
+      const llm = makeMockLlm('', llmResponse);
+      const git = makeMockGit();
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
 
-    const task = makeTask({
-      description: 'create Products CRUD controller',
-      files: ['Controllers/ProductsController.cs'],
-      type: 'multi_file',
-      lane: 3,
-    });
+      const task = makeTask({
+        description: 'create Products CRUD controller',
+        files: ['Controllers/ProductsController.cs'],
+        type: 'multi_file',
+        lane: 3,
+      });
 
-    const projectMap = makeDotnetProjectMap();
-    const result = await executor.execute(task, projectMap);
+      const projectMap = makeDotnetProjectMap();
+      const result = await executor.execute(task, projectMap);
 
-    expect(result.success).toBe(true);
-    expect(result.commitHash).toBe('abc1234');
-    expect(git.commit).toHaveBeenCalledTimes(1);
+      expect(result.success).toBe(true);
+      expect(result.commitHash).toBe('abc1234');
+      expect(git.commit).toHaveBeenCalledTimes(1);
 
-    const written = readFileSync(path.join(tmp, 'Controllers', 'ProductsController.cs'), 'utf-8');
-    expect(written).toContain('ProductsController');
-    expect(written).toContain('[HttpGet]');
-    expect(written).toContain('[HttpPost]');
-  });
+      const written = readFileSync(path.join(tmp, 'Controllers', 'ProductsController.cs'), 'utf-8');
+      expect(written).toContain('ProductsController');
+      expect(written).toContain('[HttpGet]');
+      expect(written).toContain('[HttpPost]');
+    },
+  );
 
   it.concurrent('b) LLM returns DIFF adding [HttpDelete] to existing Controller', async () => {
     const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
@@ -823,21 +853,23 @@ app.Run();
     expect(written).toContain('MapControllers');
   });
 
-  it.concurrent('d) LLM returns 3 files at once (Model + Controller + Program update)', async () => {
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+  it.concurrent(
+    'd) LLM returns 3 files at once (Model + Controller + Program update)',
+    async () => {
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-    const tmp = trackTmp();
-    const eventBus = makeMockEventBus();
+      const tmp = trackTmp();
+      const eventBus = makeMockEventBus();
 
-    const originalProgram = `var builder = WebApplication.CreateBuilder(args);
+      const originalProgram = `var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 app.Run();`;
 
-    createDotnetProject(tmp, {
-      'Program.cs': originalProgram,
-    });
+      createDotnetProject(tmp, {
+        'Program.cs': originalProgram,
+      });
 
-    const llmResponse = `=== FILE: Models/Product.cs ===
+      const llmResponse = `=== FILE: Models/Product.cs ===
 namespace WebApp.Models;
 public class Product { public int Id { get; set; } public string Name { get; set; } = ""; }
 === END FILE ===
@@ -864,43 +896,47 @@ public class ProductsController : ControllerBase
  app.Run();
 === END DIFF ===`;
 
-    const llm = makeMockLlm('', llmResponse);
-    const git = makeMockGit();
+      const llm = makeMockLlm('', llmResponse);
+      const git = makeMockGit();
 
-    const fileContexts = new Map<string, MiniContext>();
-    fileContexts.set('Program.cs', {
-      filePath: 'Program.cs',
-      content: originalProgram,
-      importedTypes: '',
-    });
+      const fileContexts = new Map<string, MiniContext>();
+      fileContexts.set('Program.cs', {
+        filePath: 'Program.cs',
+        content: originalProgram,
+        importedTypes: '',
+      });
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
 
-    const task = makeTask({
-      description: 'add Products model, controller, and register in Program.cs',
-      files: ['Models/Product.cs', 'Controllers/ProductsController.cs', 'Program.cs'],
-      type: 'multi_file',
-      lane: 3,
-    });
+      const task = makeTask({
+        description: 'add Products model, controller, and register in Program.cs',
+        files: ['Models/Product.cs', 'Controllers/ProductsController.cs', 'Program.cs'],
+        type: 'multi_file',
+        lane: 3,
+      });
 
-    const projectMap = makeDotnetProjectMap({ fileContexts });
-    const result = await executor.execute(task, projectMap);
+      const projectMap = makeDotnetProjectMap({ fileContexts });
+      const result = await executor.execute(task, projectMap);
 
-    expect(result.success).toBe(true);
+      expect(result.success).toBe(true);
 
-    expect(existsSync(path.join(tmp, 'Models', 'Product.cs'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'Controllers', 'ProductsController.cs'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'Models', 'Product.cs'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'Controllers', 'ProductsController.cs'))).toBe(true);
 
-    const model = readFileSync(path.join(tmp, 'Models', 'Product.cs'), 'utf-8');
-    expect(model).toContain('Product');
+      const model = readFileSync(path.join(tmp, 'Models', 'Product.cs'), 'utf-8');
+      expect(model).toContain('Product');
 
-    const controller = readFileSync(path.join(tmp, 'Controllers', 'ProductsController.cs'), 'utf-8');
-    expect(controller).toContain('ProductsController');
+      const controller = readFileSync(
+        path.join(tmp, 'Controllers', 'ProductsController.cs'),
+        'utf-8',
+      );
+      expect(controller).toContain('ProductsController');
 
-    const program = readFileSync(path.join(tmp, 'Program.cs'), 'utf-8');
-    expect(program).toContain('AddControllers');
-    expect(program).toContain('MapControllers');
-  });
+      const program = readFileSync(path.join(tmp, 'Program.cs'), 'utf-8');
+      expect(program).toContain('AddControllers');
+      expect(program).toContain('MapControllers');
+    },
+  );
 });
 
 // ============================================================================
@@ -908,7 +944,6 @@ public class ProductsController : ControllerBase
 // ============================================================================
 
 describe.concurrent('DiffApplier -- .NET files', () => {
-
   it.concurrent('a) add new method to Controller', async () => {
     const { DiffApplier } = await import('../../packages/core/src/executor/DiffApplier.js');
     const applier = new DiffApplier();
@@ -989,8 +1024,10 @@ public class UsersController : ControllerBase
 
     const tmp = trackTmp();
     // Use actual CRLF (\r\n) line endings as LLM might generate on Windows
-    const beforeContent = 'using System;\r\nnamespace WebApp;\r\npublic class Test\r\n{\r\n    public int Id { get; set; }\r\n}';
-    const afterContent = 'using System;\r\nnamespace WebApp;\r\npublic class Test\r\n{\r\n    public int Id { get; set; }\r\n    public string Name { get; set; } = "";\r\n}';
+    const beforeContent =
+      'using System;\r\nnamespace WebApp;\r\npublic class Test\r\n{\r\n    public int Id { get; set; }\r\n}';
+    const afterContent =
+      'using System;\r\nnamespace WebApp;\r\npublic class Test\r\n{\r\n    public int Id { get; set; }\r\n    public string Name { get; set; } = "";\r\n}';
 
     const filePath = path.join(tmp, 'Test.cs');
     writeFileSync(filePath, beforeContent, 'utf-8');
@@ -1009,13 +1046,16 @@ public class UsersController : ControllerBase
 // ============================================================================
 
 describe.concurrent('Brain + TaskDecomposer -- .NET', () => {
-
   it.concurrent('a) Brain.analyze: "add Products CRUD API" with dotnet ProjectMap', async () => {
     const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
     const llmResponse = JSON.stringify([
       { description: 'Create Products model', files: ['Models/Product.cs'], type: 'single_file' },
-      { description: 'Create ProductsController with CRUD endpoints', files: ['Controllers/ProductsController.cs', 'Program.cs'], type: 'multi_file' },
+      {
+        description: 'Create ProductsController with CRUD endpoints',
+        files: ['Controllers/ProductsController.cs', 'Program.cs'],
+        type: 'multi_file',
+      },
     ]);
 
     const llm = makeMockLlm(llmResponse);
@@ -1048,7 +1088,11 @@ describe.concurrent('Brain + TaskDecomposer -- .NET', () => {
 
     const decomposedResponse = JSON.stringify([
       { description: 'Create Order model', files: ['Models/Order.cs'], type: 'single_file' },
-      { description: 'Create OrdersController', files: ['Controllers/OrdersController.cs'], type: 'single_file' },
+      {
+        description: 'Create OrdersController',
+        files: ['Controllers/OrdersController.cs'],
+        type: 'single_file',
+      },
     ]);
 
     const llm = makeMockLlm(decomposedResponse);
@@ -1073,30 +1117,37 @@ describe.concurrent('Brain + TaskDecomposer -- .NET', () => {
     }
   });
 
-  it.concurrent('c) Brain.analyze: "change the GET endpoint response format" -> lane 2', async () => {
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
+  it.concurrent(
+    'c) Brain.analyze: "change the GET endpoint response format" -> lane 2',
+    async () => {
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
-    const llmResponse = JSON.stringify([
-      { description: 'change the GET endpoint response format in UsersController', files: ['Controllers/UsersController.cs'], type: 'single_file' },
-    ]);
+      const llmResponse = JSON.stringify([
+        {
+          description: 'change the GET endpoint response format in UsersController',
+          files: ['Controllers/UsersController.cs'],
+          type: 'single_file',
+        },
+      ]);
 
-    const llm = makeMockLlm(llmResponse);
-    const brain = new Brain(llm);
+      const llm = makeMockLlm(llmResponse);
+      const brain = new Brain(llm);
 
-    const observation = {
-      screenshot: Buffer.from(''),
-      transcript: 'change the GET endpoint response format',
-      currentUrl: 'http://localhost:5000/',
-      timestamp: Date.now(),
-    };
+      const observation = {
+        screenshot: Buffer.from(''),
+        transcript: 'change the GET endpoint response format',
+        currentUrl: 'http://localhost:5000/',
+        timestamp: Date.now(),
+      };
 
-    const projectMap = makeDotnetProjectMap();
-    const tasks = await brain.analyze(observation, projectMap);
+      const projectMap = makeDotnetProjectMap();
+      const tasks = await brain.analyze(observation, projectMap);
 
-    expect(tasks.length).toBe(1);
-    // single file, no style keyword, no add keyword -> lane 2
-    expect(tasks[0].lane).toBe(2);
-  });
+      expect(tasks.length).toBe(1);
+      // single file, no style keyword, no add keyword -> lane 2
+      expect(tasks[0].lane).toBe(2);
+    },
+  );
 });
 
 // ============================================================================
@@ -1104,18 +1155,19 @@ describe.concurrent('Brain + TaskDecomposer -- .NET', () => {
 // ============================================================================
 
 describe.concurrent('Full E2E pipeline -- .NET', () => {
+  it.concurrent(
+    'a) Index -> Brain.analyze -> Lane3 execute -> re-index -> new endpoints visible',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
-  it.concurrent('a) Index -> Brain.analyze -> Lane3 execute -> re-index -> new endpoints visible', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
-
-    const tmp = trackTmp();
-    createDotnetProject(tmp, {
-      'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
+      const tmp = trackTmp();
+      createDotnetProject(tmp, {
+        'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
 </Project>`,
-      'Controllers/UsersController.cs': `using Microsoft.AspNetCore.Mvc;
+        'Controllers/UsersController.cs': `using Microsoft.AspNetCore.Mvc;
 [ApiController]
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
@@ -1123,33 +1175,37 @@ public class UsersController : ControllerBase
     [HttpGet]
     public IActionResult GetAll() => Ok();
 }`,
-    });
+      });
 
-    // Step 1: Index
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
-    expect(projectMap.stack.framework).toBe('dotnet');
-    expect(projectMap.endpoints.some(e => e.path === '/api/users')).toBe(true);
+      // Step 1: Index
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
+      expect(projectMap.stack.framework).toBe('dotnet');
+      expect(projectMap.endpoints.some((e) => e.path === '/api/users')).toBe(true);
 
-    // Step 2: Brain.analyze with mock
-    const brainResponse = JSON.stringify([
-      { description: 'Create Products CRUD controller', files: ['Controllers/ProductsController.cs'], type: 'single_file' },
-    ]);
-    const brainLlm = makeMockLlm(brainResponse);
-    const brain = new Brain(brainLlm);
+      // Step 2: Brain.analyze with mock
+      const brainResponse = JSON.stringify([
+        {
+          description: 'Create Products CRUD controller',
+          files: ['Controllers/ProductsController.cs'],
+          type: 'single_file',
+        },
+      ]);
+      const brainLlm = makeMockLlm(brainResponse);
+      const brain = new Brain(brainLlm);
 
-    const observation = {
-      screenshot: Buffer.from(''),
-      transcript: 'add a Products API',
-      currentUrl: 'http://localhost:5000/',
-      timestamp: Date.now(),
-    };
+      const observation = {
+        screenshot: Buffer.from(''),
+        transcript: 'add a Products API',
+        currentUrl: 'http://localhost:5000/',
+        timestamp: Date.now(),
+      };
 
-    const tasks = await brain.analyze(observation, projectMap);
-    expect(tasks.length).toBeGreaterThan(0);
+      const tasks = await brain.analyze(observation, projectMap);
+      expect(tasks.length).toBeGreaterThan(0);
 
-    // Step 3: Lane3 executes with mock LLM
-    const lane3Response = `=== FILE: Controllers/ProductsController.cs ===
+      // Step 3: Lane3 executes with mock LLM
+      const lane3Response = `=== FILE: Controllers/ProductsController.cs ===
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebApp.Controllers;
@@ -1166,37 +1222,40 @@ public class ProductsController : ControllerBase
 }
 === END FILE ===`;
 
-    const lane3Llm = makeMockLlm('', lane3Response);
-    const git = makeMockGit();
-    const eventBus = makeMockEventBus();
+      const lane3Llm = makeMockLlm('', lane3Response);
+      const git = makeMockGit();
+      const eventBus = makeMockEventBus();
 
-    const executor = new Lane3Executor(tmp, lane3Llm, git, eventBus, 1);
-    const task = makeTask({
-      description: tasks[0].description,
-      files: ['Controllers/ProductsController.cs'],
-      type: 'multi_file',
-      lane: 3,
-    });
+      const executor = new Lane3Executor(tmp, lane3Llm, git, eventBus, 1);
+      const task = makeTask({
+        description: tasks[0].description,
+        files: ['Controllers/ProductsController.cs'],
+        type: 'multi_file',
+        lane: 3,
+      });
 
-    const result = await executor.execute(task, projectMap);
-    expect(result.success).toBe(true);
+      const result = await executor.execute(task, projectMap);
+      expect(result.success).toBe(true);
 
-    // Step 4: Re-index
-    const indexer2 = new ProjectIndexer();
-    const updatedMap = await indexer2.index(tmp);
+      // Step 4: Re-index
+      const indexer2 = new ProjectIndexer();
+      const updatedMap = await indexer2.index(tmp);
 
-    // Verify new endpoints visible
-    const endpointPaths = updatedMap.endpoints.map(e => e.path);
-    expect(endpointPaths).toContain('/api/users');
-    expect(endpointPaths).toContain('/api/products');
-  });
+      // Verify new endpoints visible
+      const endpointPaths = updatedMap.endpoints.map((e) => e.path);
+      expect(endpointPaths).toContain('/api/users');
+      expect(endpointPaths).toContain('/api/products');
+    },
+  );
 
-  it.concurrent('b) Existing Controller -> Index -> DIFF task -> file updated -> re-index -> new endpoint', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+  it.concurrent(
+    'b) Existing Controller -> Index -> DIFF task -> file updated -> re-index -> new endpoint',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-    const tmp = trackTmp();
-    const originalContent = `using Microsoft.AspNetCore.Mvc;
+      const tmp = trackTmp();
+      const originalContent = `using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -1206,21 +1265,21 @@ public class UsersController : ControllerBase
     public IActionResult GetAll() => Ok();
 }`;
 
-    createDotnetProject(tmp, {
-      'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
+      createDotnetProject(tmp, {
+        'WebApp.csproj': `<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
 </Project>`,
-      'Controllers/UsersController.cs': originalContent,
-    });
+        'Controllers/UsersController.cs': originalContent,
+      });
 
-    // Step 1: Index
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
-    expect(projectMap.endpoints.length).toBe(1);
-    expect(projectMap.endpoints[0].method).toBe('GET');
+      // Step 1: Index
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
+      expect(projectMap.endpoints.length).toBe(1);
+      expect(projectMap.endpoints[0].method).toBe('GET');
 
-    // Step 2: Lane3 with DIFF that adds POST endpoint
-    const diffResponse = `=== DIFF: Controllers/UsersController.cs ===
+      // Step 2: Lane3 with DIFF that adds POST endpoint
+      const diffResponse = `=== DIFF: Controllers/UsersController.cs ===
 --- a/Controllers/UsersController.cs
 +++ b/Controllers/UsersController.cs
 @@ -7,4 +7,7 @@
@@ -1232,36 +1291,37 @@ public class UsersController : ControllerBase
  }
 === END DIFF ===`;
 
-    const llm = makeMockLlm('', diffResponse);
-    const git = makeMockGit();
-    const eventBus = makeMockEventBus();
+      const llm = makeMockLlm('', diffResponse);
+      const git = makeMockGit();
+      const eventBus = makeMockEventBus();
 
-    const fileContexts = new Map<string, MiniContext>();
-    fileContexts.set('Controllers/UsersController.cs', {
-      filePath: 'Controllers/UsersController.cs',
-      content: originalContent,
-      importedTypes: '',
-    });
+      const fileContexts = new Map<string, MiniContext>();
+      fileContexts.set('Controllers/UsersController.cs', {
+        filePath: 'Controllers/UsersController.cs',
+        content: originalContent,
+        importedTypes: '',
+      });
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
-    const task = makeTask({
-      description: 'add POST endpoint to UsersController',
-      files: ['Controllers/UsersController.cs'],
-      type: 'multi_file',
-      lane: 3,
-    });
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const task = makeTask({
+        description: 'add POST endpoint to UsersController',
+        files: ['Controllers/UsersController.cs'],
+        type: 'multi_file',
+        lane: 3,
+      });
 
-    const pMap = makeDotnetProjectMap({ fileContexts });
-    const result = await executor.execute(task, pMap);
-    expect(result.success).toBe(true);
+      const pMap = makeDotnetProjectMap({ fileContexts });
+      const result = await executor.execute(task, pMap);
+      expect(result.success).toBe(true);
 
-    // Step 3: Re-index
-    const indexer2 = new ProjectIndexer();
-    const updatedMap = await indexer2.index(tmp);
+      // Step 3: Re-index
+      const indexer2 = new ProjectIndexer();
+      const updatedMap = await indexer2.index(tmp);
 
-    // Verify both GET and POST endpoints
-    expect(updatedMap.endpoints.length).toBe(2);
-    const methods = updatedMap.endpoints.map(e => e.method).sort();
-    expect(methods).toEqual(['GET', 'POST']);
-  });
+      // Verify both GET and POST endpoints
+      expect(updatedMap.endpoints.length).toBe(2);
+      const methods = updatedMap.endpoints.map((e) => e.method).sort();
+      expect(methods).toEqual(['GET', 'POST']);
+    },
+  );
 });

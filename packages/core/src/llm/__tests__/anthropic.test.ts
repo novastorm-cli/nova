@@ -64,7 +64,7 @@ describe('AnthropicProvider', () => {
 
       const result = await provider.chat(userMessages);
 
-      expect(result).toBe('Hello back!');
+      expect(result).toEqual({ content: 'Hello back!' });
       expect(mockCreate).toHaveBeenCalledOnce();
 
       const args = mockCreate.mock.calls[0][0];
@@ -112,7 +112,7 @@ describe('AnthropicProvider', () => {
 
       const result = await provider.chatWithVision(userMessages, [imageBuffer]);
 
-      expect(result).toBe('I see an image');
+      expect(result).toEqual({ content: 'I see an image' });
       const args = mockCreate.mock.calls[0][0];
       const bodyStr = JSON.stringify(args);
 
@@ -132,15 +132,17 @@ describe('AnthropicProvider', () => {
         { type: 'message_stop' },
       ];
 
-      mockStream.mockReturnValueOnce((async function* () {
-        for (const event of events) {
-          yield event;
-        }
-      })());
+      mockStream.mockReturnValueOnce(
+        (async function* () {
+          for (const event of events) {
+            yield event;
+          }
+        })(),
+      );
 
       const result: string[] = [];
       for await (const chunk of provider.stream(userMessages)) {
-        result.push(chunk);
+        result.push(chunk.content);
       }
 
       expect(result).toEqual(['Hello', ' world']);
@@ -151,9 +153,7 @@ describe('AnthropicProvider', () => {
 
   describe('error handling', () => {
     it('HTTP 401 throws ProviderError with statusCode=401', async () => {
-      mockCreate.mockRejectedValueOnce(
-        new APIError(401, undefined, 'Invalid API key', undefined),
-      );
+      mockCreate.mockRejectedValueOnce(new APIError(401, undefined, 'Invalid API key', undefined));
 
       try {
         await provider.chat(userMessages);
@@ -186,14 +186,12 @@ describe('AnthropicProvider', () => {
         });
 
       const result = await provider.chat(userMessages);
-      expect(result).toBe('Success after retry');
+      expect(result).toEqual({ content: 'Success after retry' });
       expect(mockCreate).toHaveBeenCalledTimes(2);
     }, 10_000);
 
     it('HTTP 500 throws ProviderError', async () => {
-      mockCreate.mockRejectedValueOnce(
-        new APIError(500, undefined, 'Server error', undefined),
-      );
+      mockCreate.mockRejectedValueOnce(new APIError(500, undefined, 'Server error', undefined));
 
       await expect(provider.chat(userMessages)).rejects.toThrow(ProviderError);
     });

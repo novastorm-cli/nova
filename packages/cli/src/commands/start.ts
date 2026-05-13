@@ -198,7 +198,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         machineId,
         gitAuthors90d: license.devCount,
         projectHash,
-        cliVersion: (cliPkg.default as { version: string }).version ?? '0.0.1',
+        cliVersion: cliPkg.default.version ?? '0.0.1',
         os: process.platform,
         timestamp: new Date().toISOString(),
         licenseKey: config.license?.key ?? process.env['NOVA_LICENSE_KEY'] ?? null,
@@ -353,10 +353,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
             let tomlContent: Record<string, unknown> = {};
             if (existsSync(novaTomlPath)) {
               const { readFileSync } = await import('node:fs');
-              tomlContent = TOML.parse(readFileSync(novaTomlPath, 'utf-8')) as Record<
-                string,
-                unknown
-              >;
+              tomlContent = TOML.parse(readFileSync(novaTomlPath, 'utf-8'));
             }
             const project = (tomlContent['project'] as Record<string, unknown>) ?? {};
             project['devCommand'] = devCommand;
@@ -727,7 +724,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
                   );
 
                   // Extract JSON from response (strip markdown fences if present)
-                  let fixed = response.trim();
+                  let fixed = response.content.trim();
                   const fenceMatch = fixed.match(/```(?:json)?\n([\s\S]*?)```/);
                   if (fenceMatch) fixed = fenceMatch[1].trim();
 
@@ -771,7 +768,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
                 const fileBlockRegex = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
                 let match;
                 let filesWritten = 0;
-                while ((match = fileBlockRegex.exec(response)) !== null) {
+                while ((match = fileBlockRegex.exec(response.content)) !== null) {
                   const filePath = join(cwd, match[1].trim());
                   const fileContent = match[2];
                   const { mkdirSync, writeFileSync: writeSync } = await import('node:fs');
@@ -947,7 +944,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
                 ],
                 { temperature: 0, maxTokens: 4096 },
               );
-              let fixed = resp.trim();
+              let fixed = resp.content.trim();
               const fence = fixed.match(/```(?:json)?\n([\s\S]*?)```/);
               if (fence) fixed = fence[1].trim();
               JSON.parse(fixed);
@@ -990,7 +987,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
             const fileBlockRegex = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
             let fMatch;
             let filesWritten = 0;
-            while ((fMatch = fileBlockRegex.exec(response)) !== null) {
+            while ((fMatch = fileBlockRegex.exec(response.content)) !== null) {
               const filePath = join(cwd, fMatch[1].trim());
               const { mkdirSync, writeFileSync: writeSync } = await import('node:fs');
               const { dirname } = await import('node:path');
@@ -1082,7 +1079,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     wsServer.sendEvent({
       type: 'analysis_complete',
       data: { fileCount: analysis.fileCount, methodCount: analysis.methods.length },
-    } as NovaEvent);
+    });
   }, 2000);
 
   // ── 7. Open browser ────────────────────────────────────────────────
@@ -1198,7 +1195,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     wsServer.sendEvent({
       type: 'status',
       data: { message: `Saved ${Object.keys(secrets).length} secret(s) to .env.local` },
-    } as NovaEvent);
+    });
   });
 
   // Wire browser errors from overlay to autoFixer
@@ -1234,7 +1231,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         wsServer.sendEvent({
           type: 'status',
           data: { message: 'Reverting last commit...' },
-        } as NovaEvent);
+        });
         try {
           const log = await gitManager.getLog();
           if (log.length > 0) {
@@ -1247,17 +1244,17 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
             wsServer.sendEvent({
               type: 'status',
               data: { message: `Reverted: ${lastCommit.message.slice(0, 80)}` },
-            } as NovaEvent);
+            });
             // Reload overlay
             setTimeout(() => {
-              wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } } as NovaEvent);
+              wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
             }, 1500);
           } else {
             console.log(chalk.yellow('[Nova] No commits to revert'));
             wsServer.sendEvent({
               type: 'status',
               data: { message: 'No commits to revert.' },
-            } as NovaEvent);
+            });
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -1265,7 +1262,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
           wsServer.sendEvent({
             type: 'status',
             data: { message: `Revert failed: ${msg}` },
-          } as NovaEvent);
+          });
         }
         return;
       }
@@ -1274,7 +1271,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       wsServer.sendEvent({
         type: 'status',
         data: { message: `🧠 AI is thinking about: "${transcript.slice(0, 80)}"...` },
-      } as NovaEvent);
+      });
 
       const analyzeSpinner = ora({
         text: chalk.yellow('AI is thinking...'),
@@ -1314,7 +1311,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         wsServer.sendEvent({
           type: 'status',
           data: { message: `Executing ${tasks.length} task(s)...` },
-        } as NovaEvent);
+        });
         executeTasks(tasks);
       } else {
         // Awaiting confirmation: push to pendingTasks, emit pending_tasks event
@@ -1334,11 +1331,11 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
             })),
             message: pendingMessage,
           },
-        } as NovaEvent);
+        });
         wsServer.sendEvent({
           type: 'status',
           data: { message: 'Awaiting confirmation' },
-        } as NovaEvent);
+        });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -1346,7 +1343,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       wsServer.sendEvent({
         type: 'status',
         data: { message: `Analysis error: ${message}` },
-      } as NovaEvent);
+      });
     }
   });
 
@@ -1360,7 +1357,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     wsServer.sendEvent({
       type: 'status',
       data: { message: `Executing ${pendingTasks.length} task(s)...` },
-    } as NovaEvent);
+    });
     const tasksToRun = [...pendingTasks];
     pendingTasks = [];
     executeTasks(tasksToRun);
@@ -1376,7 +1373,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     wsServer.sendEvent({
       type: 'status',
       data: { message: `Executing ${pendingTasks.length} task(s)...` },
-    } as NovaEvent);
+    });
     const tasksToRun = [...pendingTasks];
     pendingTasks = [];
     executeTasks(tasksToRun);
@@ -1388,7 +1385,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       return;
     }
     console.log(chalk.yellow(`Cancelled ${pendingTasks.length} task(s).`));
-    wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } } as NovaEvent);
+    wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } });
     pendingTasks = [];
   });
 
@@ -1412,7 +1409,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     wsServer.sendEvent({
       type: 'status',
       data: { message: `Re-analyzing with: "${text}"...` },
-    } as NovaEvent);
+    });
 
     try {
       logger.logAnalyzing(mergedTranscript);
@@ -1423,7 +1420,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         wsServer.sendEvent({
           type: 'status',
           data: { message: 'No tasks generated.' },
-        } as NovaEvent);
+        });
         return;
       }
 
@@ -1442,18 +1439,18 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
           })),
           message: pendingMessage,
         },
-      } as NovaEvent);
+      });
       wsServer.sendEvent({
         type: 'status',
         data: { message: 'Awaiting confirmation' },
-      } as NovaEvent);
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(chalk.red(`Analysis error: ${message}`));
       wsServer.sendEvent({
         type: 'status',
         data: { message: `Analysis error: ${message}` },
-      } as NovaEvent);
+      });
     }
   });
 
@@ -1472,7 +1469,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         return await pool.execute(task, projectMap);
       } catch {
         // Error already emitted by executor pool
-        return { success: false, taskId: task.id, error: 'Execution failed' } as ExecutionResult;
+        return { success: false, taskId: task.id, error: 'Execution failed' };
       }
     });
 
@@ -1486,7 +1483,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   eventBus.on('task_created', (event) => {
     taskMap.set(event.data.id, event.data);
     logger.logTaskStarted(event.data);
-    wsServer.sendEvent(event as NovaEvent);
+    wsServer.sendEvent(event);
   });
 
   eventBus.on('task_completed', (event) => {
@@ -1495,7 +1492,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       task.commitHash = event.data.commitHash;
       logger.logTaskCompleted(task);
     }
-    wsServer.sendEvent(event as NovaEvent);
+    wsServer.sendEvent(event);
 
     // After task completes, check site health (wait for hot reload)
     setTimeout(async () => {
@@ -1522,7 +1519,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
           wsServer.sendEvent({
             type: 'status',
             data: { message: 'Post-task check: fixing build errors...' },
-          } as NovaEvent);
+          });
           autoFixer.forceFixNow(errorLines);
           return;
         }
@@ -1546,7 +1543,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
           wsServer.sendEvent({
             type: 'status',
             data: { message: `Site returned ${res.statusCode}, auto-fixing...` },
-          } as NovaEvent);
+          });
           autoFixer?.forceFixNow(`Dev server returned HTTP ${res.statusCode} after code changes`);
         }
       } catch {
@@ -1561,7 +1558,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       task.error = event.data.error;
       logger.logTaskFailed(task);
     }
-    wsServer.sendEvent(event as NovaEvent);
+    wsServer.sendEvent(event);
   });
 
   eventBus.on('file_changed', (event) => {
@@ -1569,17 +1566,17 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   });
 
   eventBus.on('llm_chunk', (event) => {
-    wsServer.sendEvent(event as NovaEvent);
+    wsServer.sendEvent(event);
   });
 
   // Forward secrets_required events to overlay
   eventBus.on('secrets_required', (event) => {
-    wsServer.sendEvent(event as NovaEvent);
+    wsServer.sendEvent(event);
   });
 
   // Forward all status events from Brain/Executor to overlay
   eventBus.on('status', (event) => {
-    wsServer.sendEvent(event as NovaEvent);
+    wsServer.sendEvent(event);
   });
 
   console.log(chalk.bold.green('\nReady! Click elements or speak to start building.'));
@@ -1620,7 +1617,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       wsServer.sendEvent({
         type: 'status',
         data: { message: 'Executing 1 task(s)...' },
-      } as NovaEvent);
+      });
       executeTasks([fixTask]);
     } else {
       const pendingMessage = `Press Y to execute, N to discard — ${fixTask.description.slice(0, 200)}`;
@@ -1632,11 +1629,11 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
           tasks: [{ id: fixTask.id, description: 'Fix startup build errors', lane: 3 }],
           message: pendingMessage,
         },
-      } as NovaEvent);
+      });
       wsServer.sendEvent({
         type: 'status',
         data: { message: 'Awaiting confirmation' },
-      } as NovaEvent);
+      });
     }
   }, 4000);
 
@@ -1675,7 +1672,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       wsServer.sendEvent({
         type: 'status',
         data: { message: `Dev server error: ${error}` },
-      } as NovaEvent);
+      });
     }
   });
 
@@ -1687,7 +1684,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       case 'text': {
         // Create a synthetic observation from terminal text
         if (!brain) {
-          chat!.log(
+          chat.log(
             chalk.yellow('AI not configured. Run /settings apiKeys.provider <provider> to set up.'),
           );
           return;
@@ -1708,14 +1705,14 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
       case 'confirm': {
         if (pendingTasks.length === 0) {
-          chat!.log(chalk.dim('No pending tasks to confirm.'));
+          chat.log(chalk.dim('No pending tasks to confirm.'));
           return;
         }
-        chat!.log(chalk.green(`Confirmed ${pendingTasks.length} task(s). Executing...`));
+        chat.log(chalk.green(`Confirmed ${pendingTasks.length} task(s). Executing...`));
         wsServer.sendEvent({
           type: 'status',
           data: { message: `Executing ${pendingTasks.length} task(s)...` },
-        } as NovaEvent);
+        });
         for (const task of pendingTasks) {
           eventBus.emit({ type: 'task_created', data: task });
         }
@@ -1725,23 +1722,23 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
       case 'cancel': {
         if (pendingTasks.length === 0) {
-          chat!.log(chalk.dim('No pending tasks to cancel.'));
+          chat.log(chalk.dim('No pending tasks to cancel.'));
           return;
         }
-        chat!.log(chalk.yellow(`Cancelled ${pendingTasks.length} task(s).`));
-        wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } } as NovaEvent);
+        chat.log(chalk.yellow(`Cancelled ${pendingTasks.length} task(s).`));
+        wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } });
         pendingTasks = [];
         break;
       }
 
       case 'settings': {
         const result = await handleSettingsCommand(cmd.args, config, configReader, cwd);
-        chat!.log(result);
+        chat.log(result);
         break;
       }
 
       case 'help': {
-        chat!.log(
+        chat.log(
           [
             chalk.bold('\nNova Commands\n'),
             `  ${chalk.cyan('any text')}        Send as a code change request (like voice in UI)`,
@@ -1774,13 +1771,13 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         parts.push(`  ${chalk.dim('RAG:')} ${ragIndexer ? 'active' : 'disabled'}`);
         parts.push(`  ${chalk.dim('Pending tasks:')} ${pendingTasks.length}`);
         parts.push('');
-        chat!.log(parts.join('\n'));
+        chat.log(parts.join('\n'));
         break;
       }
 
       case 'map': {
         const url = `http://localhost:${proxyPort}/nova-project-map`;
-        chat!.log(chalk.cyan(`Opening project map: ${url}`));
+        chat.log(chalk.cyan(`Opening project map: ${url}`));
         const { exec: execCmd } = await import('node:child_process');
         if (process.platform === 'darwin') {
           execCmd(`open "${url}"`);
@@ -1824,9 +1821,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   //   - Pipe: exits when the writing end closes
   //   - TTY: stays alive (interactive or service mode)
   if (isNonInteractive(options) && !process.stdin.isTTY) {
-    console.log(
-      chalk.dim('Non-interactive mode -- will exit cleanly after startup.'),
-    );
+    console.log(chalk.dim('Non-interactive mode -- will exit cleanly after startup.'));
 
     // If the stdin stream has already ended (e.g. fd opened to /dev/null),
     // exit after a brief startup grace period.
@@ -1843,9 +1838,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         process.stdin.on('end', resolve);
       });
 
-      const safetyTimeout = new Promise<void>((resolve) =>
-        setTimeout(resolve, 30_000),
-      );
+      const safetyTimeout = new Promise<void>((resolve) => setTimeout(resolve, 30_000));
 
       await Promise.race([stdinClosed, safetyTimeout]);
       await shutdown();

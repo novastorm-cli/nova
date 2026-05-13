@@ -41,7 +41,7 @@ export class TaskDecomposer implements ITaskDecomposer {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       try {
         const response = await this.llm.chat(messages, { responseFormat: 'json' });
-        const raw = this.parseJsonArray(response);
+        const raw = this.parseJsonArray(response.content);
         return this.toTaskItems(raw);
       } catch (error) {
         lastError = error;
@@ -68,9 +68,8 @@ export class TaskDecomposer implements ITaskDecomposer {
     return raw.map((item) => {
       const description = item.description ?? '';
       const files = Array.isArray(item.files) ? item.files : [];
-      const type: TaskType = (typeof item.type === 'string' && isValidTaskType(item.type))
-        ? item.type
-        : 'single_file';
+      const type: TaskType =
+        typeof item.type === 'string' && isValidTaskType(item.type) ? item.type : 'single_file';
 
       const lane: Lane = this.laneClassifier.classify(description, files);
 

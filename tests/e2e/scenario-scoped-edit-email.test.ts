@@ -2,7 +2,13 @@ import { describe, it, expect, afterAll, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import type { LlmClient, ProjectMap, Observation, TaskItem, MiniContext } from '../../packages/core/src/models/types.js';
+import type {
+  LlmClient,
+  ProjectMap,
+  Observation,
+  TaskItem,
+  MiniContext,
+} from '../../packages/core/src/models/types.js';
 import type { NovaEvent, EventBus } from '../../packages/core/src/models/events.js';
 import type { IGitManager } from '../../packages/core/src/contracts/IGitManager.js';
 
@@ -20,7 +26,11 @@ function trackTmp(): string {
 
 afterAll(() => {
   for (const dir of tmpDirsToClean) {
-    try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   }
 });
 
@@ -32,10 +42,10 @@ function createFile(dir: string, filePath: string, content: string): void {
 
 function makeMockLlm(chatResponse: string, streamResponse?: string): LlmClient {
   return {
-    chat: vi.fn(async () => chatResponse),
-    chatWithVision: vi.fn(async () => chatResponse),
+    chat: vi.fn(async () => ({ content: chatResponse })),
+    chatWithVision: vi.fn(async () => ({ content: chatResponse })),
     stream: vi.fn(async function* () {
-      yield streamResponse ?? chatResponse;
+      yield { content: streamResponse ?? chatResponse };
     }),
   };
 }
@@ -59,7 +69,9 @@ function makeMockEventBus(): EventBus {
   return { emit: vi.fn(), on: vi.fn(), off: vi.fn() };
 }
 
-function makeTask(overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>): TaskItem {
+function makeTask(
+  overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>,
+): TaskItem {
   return {
     id: crypto.randomUUID(),
     status: 'pending',
@@ -67,7 +79,10 @@ function makeTask(overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 
   };
 }
 
-function makeProjectMap(fileContexts: Map<string, MiniContext>, overrides?: Partial<ProjectMap>): ProjectMap {
+function makeProjectMap(
+  fileContexts: Map<string, MiniContext>,
+  overrides?: Partial<ProjectMap>,
+): ProjectMap {
   return {
     stack: { framework: 'next.js', language: 'typescript', typescript: true },
     devCommand: 'npm run dev',
@@ -83,14 +98,15 @@ function makeProjectMap(fileContexts: Map<string, MiniContext>, overrides?: Part
   };
 }
 
-function makeFullstackProjectMap(fileContexts: Map<string, MiniContext>, overrides?: Partial<ProjectMap>): ProjectMap {
+function makeFullstackProjectMap(
+  fileContexts: Map<string, MiniContext>,
+  overrides?: Partial<ProjectMap>,
+): ProjectMap {
   return {
     stack: { framework: 'next.js', language: 'typescript', typescript: true },
     devCommand: 'npm run dev',
     port: 3000,
-    routes: [
-      { path: '/', filePath: 'app/page.tsx', type: 'page' },
-    ],
+    routes: [{ path: '/', filePath: 'app/page.tsx', type: 'page' }],
     components: [
       { name: 'Header', filePath: 'components/Header.tsx', type: 'component', exports: ['Header'] },
     ],
@@ -108,17 +124,47 @@ function makeFullstackProjectMap(fileContexts: Map<string, MiniContext>, overrid
 // ---------------------------------------------------------------------------
 
 function createFullstackProject(dir: string): void {
-  createFile(dir, 'package.json', JSON.stringify({
-    name: 'my-app',
-    dependencies: { next: '14.0.0', react: '18.2.0', 'react-dom': '18.2.0', nodemailer: '6.9.0' },
-    devDependencies: { typescript: '5.0.0', tailwindcss: '3.4.0', '@types/react': '18.2.0', '@types/node': '20.0.0', '@types/nodemailer': '6.4.0' },
-    scripts: { dev: 'next dev' },
-  }, null, 2));
-  createFile(dir, 'tsconfig.json', '{"compilerOptions":{"target":"es5","lib":["dom"],"jsx":"preserve"}}');
-  createFile(dir, 'app/layout.tsx', `export default function RootLayout({ children }: { children: React.ReactNode }) {
+  createFile(
+    dir,
+    'package.json',
+    JSON.stringify(
+      {
+        name: 'my-app',
+        dependencies: {
+          next: '14.0.0',
+          react: '18.2.0',
+          'react-dom': '18.2.0',
+          nodemailer: '6.9.0',
+        },
+        devDependencies: {
+          typescript: '5.0.0',
+          tailwindcss: '3.4.0',
+          '@types/react': '18.2.0',
+          '@types/node': '20.0.0',
+          '@types/nodemailer': '6.4.0',
+        },
+        scripts: { dev: 'next dev' },
+      },
+      null,
+      2,
+    ),
+  );
+  createFile(
+    dir,
+    'tsconfig.json',
+    '{"compilerOptions":{"target":"es5","lib":["dom"],"jsx":"preserve"}}',
+  );
+  createFile(
+    dir,
+    'app/layout.tsx',
+    `export default function RootLayout({ children }: { children: React.ReactNode }) {
   return <html><body>{children}</body></html>;
-}`);
-  createFile(dir, 'app/page.tsx', `export default function Home() {
+}`,
+  );
+  createFile(
+    dir,
+    'app/page.tsx',
+    `export default function Home() {
   return (
     <main>
       <h1>Welcome to My App</h1>
@@ -138,22 +184,42 @@ function createFullstackProject(dir: string): void {
       </div>
     </main>
   );
-}`);
-  createFile(dir, 'app/globals.css', `@tailwind base;\n@tailwind components;\n@tailwind utilities;\nbody { font-family: sans-serif; }`);
-  createFile(dir, 'components/Header.tsx', `export function Header() {
+}`,
+  );
+  createFile(
+    dir,
+    'app/globals.css',
+    `@tailwind base;\n@tailwind components;\n@tailwind utilities;\nbody { font-family: sans-serif; }`,
+  );
+  createFile(
+    dir,
+    'components/Header.tsx',
+    `export function Header() {
   return <header className="bg-blue-600 text-white p-4"><h1>My App</h1></header>;
-}`);
+}`,
+  );
 
   // C# backend files
-  createFile(dir, 'backend/WebApp.csproj', `<Project Sdk="Microsoft.NET.Sdk.Web">
+  createFile(
+    dir,
+    'backend/WebApp.csproj',
+    `<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
-</Project>`);
-  createFile(dir, 'backend/Program.cs', `var builder = WebApplication.CreateBuilder(args);
+</Project>`,
+  );
+  createFile(
+    dir,
+    'backend/Program.cs',
+    `var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 var app = builder.Build();
 app.MapControllers();
-app.Run();`);
-  createFile(dir, 'backend/Controllers/UsersController.cs', `using Microsoft.AspNetCore.Mvc;
+app.Run();`,
+  );
+  createFile(
+    dir,
+    'backend/Controllers/UsersController.cs',
+    `using Microsoft.AspNetCore.Mvc;
 namespace WebApp.Controllers;
 [ApiController]
 [Route("api/[controller]")]
@@ -161,7 +227,8 @@ public class UsersController : ControllerBase
 {
     [HttpGet]
     public IActionResult GetAll() => Ok(new[] { new { Id = 1, Name = "John" } });
-}`);
+}`,
+  );
 }
 
 function buildFullstackFileContexts(dir: string): Map<string, MiniContext> {
@@ -190,7 +257,8 @@ function makeScopedEditObservation(overrides?: Partial<Observation>): Observatio
     screenshot: Buffer.from('fake-screenshot'),
     clickCoords: { x: 450, y: 600 },
     domSnapshot: DOM_SNAPSHOT,
-    transcript: '\u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 \u043d\u0430 \u044d\u0442\u0443 \u043a\u043b\u0430\u0432\u0438\u0448\u0443 \u0434\u043e\u043b\u0436\u0435\u043d \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0442\u044c\u0441\u044f email',
+    transcript:
+      '\u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 \u043d\u0430 \u044d\u0442\u0443 \u043a\u043b\u0430\u0432\u0438\u0448\u0443 \u0434\u043e\u043b\u0436\u0435\u043d \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0442\u044c\u0441\u044f email',
     currentUrl: 'http://127.0.0.1:3001/',
     timestamp: Date.now(),
     ...overrides,
@@ -319,11 +387,9 @@ public class EmailRequest
 // ---------------------------------------------------------------------------
 
 function buildContactPageStreamResponse(): string {
-  return [
-    '=== FILE: app/contact/page.tsx ===',
-    CONTACT_PAGE_CONTENT,
-    '=== END FILE ===',
-  ].join('\n');
+  return ['=== FILE: app/contact/page.tsx ===', CONTACT_PAGE_CONTENT, '=== END FILE ==='].join(
+    '\n',
+  );
 }
 
 function buildApiContactRouteStreamResponse(): string {
@@ -364,33 +430,33 @@ function buildPageSubmitHandlerDiffStreamResponse(): string {
     '--- a/app/page.tsx',
     '+++ b/app/page.tsx',
     '@@ -1,4 +1,30 @@',
-    "-export default function Home() {",
+    '-export default function Home() {',
     "+\\'use client\\';",
-    "+",
+    '+',
     "+import { useState } from \\'react\\';",
-    "+",
-    "+export default function Home() {",
+    '+',
+    '+export default function Home() {',
     "+  const [status, setStatus] = useState<\\'idle\\' | \\'sending\\' | \\'sent\\' | \\'error\\'>(\\'idle\\');",
-    "+",
-    "+  async function handleSubmit(e: React.FormEvent) {",
-    "+    e.preventDefault();",
+    '+',
+    '+  async function handleSubmit(e: React.FormEvent) {',
+    '+    e.preventDefault();',
     "+    setStatus(\\'sending\\');",
-    "+    try {",
-    "+      const form = e.target as HTMLFormElement;",
+    '+    try {',
+    '+      const form = e.target as HTMLFormElement;',
     "+      const subject = (form.elements.namedItem(\\'feature-subject\\') as HTMLInputElement).value;",
     "+      const message = (form.elements.namedItem(\\'feature-message\\') as HTMLTextAreaElement).value;",
     "+      const res = await fetch(\\'/api/contact\\', {",
     "+        method: \\'POST\\',",
     "+        headers: { \\'Content-Type\\': \\'application/json\\' },",
-    "+        body: JSON.stringify({ subject, message }),",
-    "+      });",
+    '+        body: JSON.stringify({ subject, message }),',
+    '+      });',
     "+      if (!res.ok) throw new Error(\\'Failed\\');",
     "+      setStatus(\\'sent\\');",
-    "+    } catch {",
+    '+    } catch {',
     "+      setStatus(\\'error\\');",
-    "+    }",
-    "+  }",
-    "+",
+    '+    }',
+    '+  }',
+    '+',
     '   return (',
     '=== END DIFF ===',
   ].join('\n');
@@ -417,46 +483,56 @@ function buildProgramCsEmailDiffStreamResponse(): string {
 // ============================================================================
 
 describe.concurrent('Brain -- Scoped Edit Analysis (email scenario)', () => {
+  it.concurrent(
+    'a) Brain returns clarifying question when LLM says form already has email',
+    async () => {
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
-  it.concurrent('a) Brain returns clarifying question when LLM says form already has email', async () => {
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
-
-    const llmResponse = `The form already has email sending functionality wired up \u2014 handleQuickMessage calls POST /api/contact which sends an email via nodemailer.
+      const llmResponse = `The form already has email sending functionality wired up \u2014 handleQuickMessage calls POST /api/contact which sends an email via nodemailer.
 
 \`\`\`json
 [{"question":"The Quick Message form already sends an email when the Send button is clicked (via the handleQuickMessage handler that calls POST /api/contact). Could you clarify what additional change you'd like?"}]
 \`\`\``;
 
-    const llm = makeMockLlm(llmResponse);
-    const eventBus = makeMockEventBus();
-    const brain = new Brain(llm, eventBus);
+      const llm = makeMockLlm(llmResponse);
+      const eventBus = makeMockEventBus();
+      const brain = new Brain(llm, eventBus);
 
-    const observation = makeScopedEditObservation();
-    const projectMap = makeProjectMap(new Map());
-    const tasks = await brain.analyze(observation, projectMap);
+      const observation = makeScopedEditObservation();
+      const projectMap = makeProjectMap(new Map());
+      const tasks = await brain.analyze(observation, projectMap);
 
-    expect(tasks).toHaveLength(0);
+      expect(tasks).toHaveLength(0);
 
-    // EventBus should have been called with a status containing "question:"
-    expect(eventBus.emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'status',
-        data: expect.objectContaining({
-          message: expect.stringContaining('question:'),
+      // EventBus should have been called with a status containing "question:"
+      expect(eventBus.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'status',
+          data: expect.objectContaining({
+            message: expect.stringContaining('question:'),
+          }),
         }),
-      }),
-    );
+      );
 
-    // chatWithVision should be used since screenshot is non-empty
-    expect(llm.chatWithVision).toHaveBeenCalledTimes(1);
-  });
+      // chatWithVision should be used since screenshot is non-empty
+      expect(llm.chatWithVision).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it.concurrent('b) Brain returns actual tasks when LLM says form needs email wiring', async () => {
     const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
     const llmResponse = JSON.stringify([
-      { description: 'Add email sending handler to Quick Message form onSubmit', files: ['app/page.tsx'], type: 'single_file' },
-      { description: 'Create API route for sending email via nodemailer', files: ['app/api/contact/route.ts'], type: 'single_file' },
+      {
+        description: 'Add email sending handler to Quick Message form onSubmit',
+        files: ['app/page.tsx'],
+        type: 'single_file',
+      },
+      {
+        description: 'Create API route for sending email via nodemailer',
+        files: ['app/api/contact/route.ts'],
+        type: 'single_file',
+      },
     ]);
 
     const llm = makeMockLlm(llmResponse);
@@ -485,7 +561,11 @@ describe.concurrent('Brain -- Scoped Edit Analysis (email scenario)', () => {
     const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
     const llmResponse = JSON.stringify([
-      { description: 'Add onClick handler to Send button that triggers form submission', files: ['app/page.tsx'], type: 'single_file' },
+      {
+        description: 'Add onClick handler to Send button that triggers form submission',
+        files: ['app/page.tsx'],
+        type: 'single_file',
+      },
     ]);
 
     const llm = makeMockLlm(llmResponse);
@@ -546,7 +626,7 @@ describe.concurrent('Brain -- Scoped Edit Analysis (email scenario)', () => {
 
     expect(messages.length).toBeGreaterThan(0);
 
-    const fullText = messages.map(m => m.content).join('\n');
+    const fullText = messages.map((m) => m.content).join('\n');
 
     // domSnapshot should be in the prompt
     expect(fullText).toContain('DOM snapshot');
@@ -568,7 +648,6 @@ describe.concurrent('Brain -- Scoped Edit Analysis (email scenario)', () => {
 // ============================================================================
 
 describe.concurrent('Frontend -- Email Form Generation', () => {
-
   it.concurrent('a) Lane3 generates contact form page with email sending', async () => {
     const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
@@ -657,33 +736,33 @@ describe.concurrent('Frontend -- Email Form Generation', () => {
       '--- a/app/page.tsx',
       '+++ b/app/page.tsx',
       '@@ -1,4 +1,22 @@',
-      "-export default function Home() {",
+      '-export default function Home() {',
       "+'use client';",
-      "+",
+      '+',
       "+import { useState } from 'react';",
-      "+",
-      "+export default function Home() {",
+      '+',
+      '+export default function Home() {',
       "+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');",
-      "+",
-      "+  async function handleSubmit(e: React.FormEvent) {",
-      "+    e.preventDefault();",
+      '+',
+      '+  async function handleSubmit(e: React.FormEvent) {',
+      '+    e.preventDefault();',
       "+    setStatus('sending');",
-      "+    try {",
-      "+      const form = e.target as HTMLFormElement;",
+      '+    try {',
+      '+      const form = e.target as HTMLFormElement;',
       "+      const subject = (form.elements.namedItem('feature-subject') as HTMLInputElement).value;",
       "+      const message = (form.elements.namedItem('feature-message') as HTMLTextAreaElement).value;",
       "+      const res = await fetch('/api/contact', {",
       "+        method: 'POST',",
       "+        headers: { 'Content-Type': 'application/json' },",
-      "+        body: JSON.stringify({ subject, message }),",
-      "+      });",
+      '+        body: JSON.stringify({ subject, message }),',
+      '+      });',
       "+      if (!res.ok) throw new Error('Failed');",
       "+      setStatus('sent');",
-      "+    } catch {",
+      '+    } catch {',
       "+      setStatus('error');",
-      "+    }",
-      "+  }",
-      "+",
+      '+    }',
+      '+  }',
+      '+',
       '   return (',
     ].join('\n');
 
@@ -763,7 +842,6 @@ describe.concurrent('Frontend -- Email Form Generation', () => {
 // ============================================================================
 
 describe.concurrent('Backend -- C# Email API', () => {
-
   it.concurrent('a) Lane3 generates EmailController + EmailRequest model', async () => {
     const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
@@ -793,7 +871,10 @@ describe.concurrent('Backend -- C# Email API', () => {
     expect(result.commitHash).toBe('abc1234');
 
     // Verify EmailController
-    const controller = readFileSync(path.join(tmp, 'backend', 'Controllers', 'EmailController.cs'), 'utf-8');
+    const controller = readFileSync(
+      path.join(tmp, 'backend', 'Controllers', 'EmailController.cs'),
+      'utf-8',
+    );
     expect(controller).toContain('[HttpPost("send")]');
     expect(controller).toContain('EmailController');
     expect(controller).toContain('[ApiController]');
@@ -807,119 +888,136 @@ describe.concurrent('Backend -- C# Email API', () => {
     expect(model).toContain('ReplyTo');
   });
 
-  it.concurrent('b) EndpointExtractor finds POST /api/email/send in generated controller', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+  it.concurrent(
+    'b) EndpointExtractor finds POST /api/email/send in generated controller',
+    async () => {
+      const { EndpointExtractor } =
+        await import('../../packages/core/src/indexer/EndpointExtractor.js');
 
-    const tmp = trackTmp();
-    createFile(tmp, 'Controllers/EmailController.cs', EMAIL_CONTROLLER_CONTENT);
+      const tmp = trackTmp();
+      createFile(tmp, 'Controllers/EmailController.cs', EMAIL_CONTROLLER_CONTENT);
 
-    const extractor = new EndpointExtractor();
-    const endpoints = await extractor.extract(tmp, {
-      framework: 'dotnet',
-      language: 'csharp',
-      typescript: false,
-    });
+      const extractor = new EndpointExtractor();
+      const endpoints = await extractor.extract(tmp, {
+        framework: 'dotnet',
+        language: 'csharp',
+        typescript: false,
+      });
 
-    const sendEndpoint = endpoints.find(
-      (e) => e.method === 'POST' && e.path.includes('send'),
-    );
-    expect(sendEndpoint).toBeDefined();
-    expect(sendEndpoint!.method).toBe('POST');
-    expect(sendEndpoint!.path).toContain('email');
-  });
+      const sendEndpoint = endpoints.find((e) => e.method === 'POST' && e.path.includes('send'));
+      expect(sendEndpoint).toBeDefined();
+      expect(sendEndpoint!.method).toBe('POST');
+      expect(sendEndpoint!.path).toContain('email');
+    },
+  );
 
-  it.concurrent('c) Lane3 applies DIFF to Program.cs -- adds email service registration', async () => {
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+  it.concurrent(
+    'c) Lane3 applies DIFF to Program.cs -- adds email service registration',
+    async () => {
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
-    const eventBus = makeMockEventBus();
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
+      const eventBus = makeMockEventBus();
 
-    const streamResponse = buildProgramCsEmailDiffStreamResponse();
-    const llm = makeMockLlm('', streamResponse);
-    const git = makeMockGit();
+      const streamResponse = buildProgramCsEmailDiffStreamResponse();
+      const llm = makeMockLlm('', streamResponse);
+      const git = makeMockGit();
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
 
-    const fileContexts = buildFullstackFileContexts(tmp);
-    const programContent = readFileSync(path.join(tmp, 'backend', 'Program.cs'), 'utf-8');
-    fileContexts.set('backend/Program.cs', {
-      filePath: 'backend/Program.cs',
-      content: programContent,
-      importedTypes: '',
-    });
+      const fileContexts = buildFullstackFileContexts(tmp);
+      const programContent = readFileSync(path.join(tmp, 'backend', 'Program.cs'), 'utf-8');
+      fileContexts.set('backend/Program.cs', {
+        filePath: 'backend/Program.cs',
+        content: programContent,
+        importedTypes: '',
+      });
 
-    const projectMap = makeFullstackProjectMap(fileContexts);
+      const projectMap = makeFullstackProjectMap(fileContexts);
 
-    const task = makeTask({
-      description: 'Add email service registration to Program.cs',
-      files: ['backend/Program.cs'],
-      type: 'single_file',
-      lane: 3,
-    });
+      const task = makeTask({
+        description: 'Add email service registration to Program.cs',
+        files: ['backend/Program.cs'],
+        type: 'single_file',
+        lane: 3,
+      });
 
-    const result = await executor.execute(task, projectMap);
+      const result = await executor.execute(task, projectMap);
 
-    expect(result.success).toBe(true);
+      expect(result.success).toBe(true);
 
-    const updated = readFileSync(path.join(tmp, 'backend', 'Program.cs'), 'utf-8');
-    expect(updated).toContain('IEmailService');
-    expect(updated).toContain('SmtpEmailService');
-    // Original lines should still be there
-    expect(updated).toContain('AddControllers');
-    expect(updated).toContain('MapControllers');
-  });
+      const updated = readFileSync(path.join(tmp, 'backend', 'Program.cs'), 'utf-8');
+      expect(updated).toContain('IEmailService');
+      expect(updated).toContain('SmtpEmailService');
+      // Original lines should still be there
+      expect(updated).toContain('AddControllers');
+      expect(updated).toContain('MapControllers');
+    },
+  );
 
-  it.concurrent('d) Full .NET email pipeline: create -> index -> Brain -> Lane3 -> re-index finds endpoint', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+  it.concurrent(
+    'd) Full .NET email pipeline: create -> index -> Brain -> Lane3 -> re-index finds endpoint',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
 
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
 
-    // Brain returns EmailController task
-    const brainResponse = JSON.stringify([
-      { description: 'Create EmailController with send endpoint', files: ['backend/Controllers/EmailController.cs', 'backend/Models/EmailRequest.cs'], type: 'multi_file' },
-    ]);
+      // Brain returns EmailController task
+      const brainResponse = JSON.stringify([
+        {
+          description: 'Create EmailController with send endpoint',
+          files: ['backend/Controllers/EmailController.cs', 'backend/Models/EmailRequest.cs'],
+          type: 'multi_file',
+        },
+      ]);
 
-    const emailStreamResponse = buildEmailControllerStreamResponse();
-    const llm = makeMockLlm(brainResponse, emailStreamResponse);
-    const git = makeMockGit();
-    const eventBus = makeMockEventBus();
+      const emailStreamResponse = buildEmailControllerStreamResponse();
+      const llm = makeMockLlm(brainResponse, emailStreamResponse);
+      const git = makeMockGit();
+      const eventBus = makeMockEventBus();
 
-    const brain = new Brain(llm);
-    const tasks = await brain.analyze(
-      { screenshot: Buffer.from('fake'), currentUrl: 'http://localhost:3000/', transcript: 'add email sending API', timestamp: Date.now() },
-      projectMap,
-    );
+      const brain = new Brain(llm);
+      const tasks = await brain.analyze(
+        {
+          screenshot: Buffer.from('fake'),
+          currentUrl: 'http://localhost:3000/',
+          transcript: 'add email sending API',
+          timestamp: Date.now(),
+        },
+        projectMap,
+      );
 
-    expect(tasks.length).toBeGreaterThan(0);
+      expect(tasks.length).toBeGreaterThan(0);
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
-    const result = await executor.execute(tasks[0], projectMap);
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const result = await executor.execute(tasks[0], projectMap);
 
-    expect(result.success).toBe(true);
-    expect(existsSync(path.join(tmp, 'backend', 'Controllers', 'EmailController.cs'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'backend', 'Models', 'EmailRequest.cs'))).toBe(true);
+      expect(result.success).toBe(true);
+      expect(existsSync(path.join(tmp, 'backend', 'Controllers', 'EmailController.cs'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'backend', 'Models', 'EmailRequest.cs'))).toBe(true);
 
-    // Re-index and find the endpoint
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
-    const extractor = new EndpointExtractor();
-    const endpoints = await extractor.extract(tmp, {
-      framework: 'dotnet',
-      language: 'csharp',
-      typescript: false,
-    });
+      // Re-index and find the endpoint
+      const { EndpointExtractor } =
+        await import('../../packages/core/src/indexer/EndpointExtractor.js');
+      const extractor = new EndpointExtractor();
+      const endpoints = await extractor.extract(tmp, {
+        framework: 'dotnet',
+        language: 'csharp',
+        typescript: false,
+      });
 
-    const sendEndpoint = endpoints.find(
-      (e) => e.method === 'POST' && e.path.includes('send'),
-    );
-    expect(sendEndpoint).toBeDefined();
-  }, 30_000);
+      const sendEndpoint = endpoints.find((e) => e.method === 'POST' && e.path.includes('send'));
+      expect(sendEndpoint).toBeDefined();
+    },
+    30_000,
+  );
 });
 
 // ============================================================================
@@ -927,86 +1025,104 @@ describe.concurrent('Backend -- C# Email API', () => {
 // ============================================================================
 
 describe.concurrent('Full E2E -- Scoped Edit Flow', () => {
+  it.concurrent(
+    'a) Scoped edit observation -> Brain returns clarifying question -> 0 tasks',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
-  it.concurrent('a) Scoped edit observation -> Brain returns clarifying question -> 0 tasks', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
 
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
+      const llmResponse = JSON.stringify([
+        {
+          question:
+            'The Quick Message form already has a Send button. Do you want it to send an email to a specific address, or show a success message?',
+        },
+      ]);
 
-    const llmResponse = JSON.stringify([
-      { question: 'The Quick Message form already has a Send button. Do you want it to send an email to a specific address, or show a success message?' },
-    ]);
+      const llm = makeMockLlm(llmResponse);
+      const eventBus = makeMockEventBus();
+      const brain = new Brain(llm, eventBus);
 
-    const llm = makeMockLlm(llmResponse);
-    const eventBus = makeMockEventBus();
-    const brain = new Brain(llm, eventBus);
+      const observation = makeScopedEditObservation();
+      const tasks = await brain.analyze(observation, projectMap);
 
-    const observation = makeScopedEditObservation();
-    const tasks = await brain.analyze(observation, projectMap);
+      expect(tasks).toHaveLength(0);
 
-    expect(tasks).toHaveLength(0);
-
-    expect(eventBus.emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'status',
-        data: expect.objectContaining({
-          message: expect.stringContaining('question:'),
+      expect(eventBus.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'status',
+          data: expect.objectContaining({
+            message: expect.stringContaining('question:'),
+          }),
         }),
-      }),
-    );
-  }, 30_000);
+      );
+    },
+    30_000,
+  );
 
-  it.concurrent('b) Scoped edit that generates code: observation -> Brain -> execute -> files written', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+  it.concurrent(
+    'b) Scoped edit that generates code: observation -> Brain -> execute -> files written',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
 
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
 
-    // Brain returns 2 tasks
-    const brainResponse = JSON.stringify([
-      { description: 'Create contact form page with email sending', files: ['app/contact/page.tsx'], type: 'single_file' },
-      { description: 'Create API route for sending email', files: ['app/api/contact/route.ts'], type: 'single_file' },
-    ]);
+      // Brain returns 2 tasks
+      const brainResponse = JSON.stringify([
+        {
+          description: 'Create contact form page with email sending',
+          files: ['app/contact/page.tsx'],
+          type: 'single_file',
+        },
+        {
+          description: 'Create API route for sending email',
+          files: ['app/api/contact/route.ts'],
+          type: 'single_file',
+        },
+      ]);
 
-    const contactStreamResponse = buildContactPageStreamResponse();
-    const apiStreamResponse = buildApiContactRouteStreamResponse();
+      const contactStreamResponse = buildContactPageStreamResponse();
+      const apiStreamResponse = buildApiContactRouteStreamResponse();
 
-    const brainLlm = makeMockLlm(brainResponse);
-    const eventBus = makeMockEventBus();
-    const git = makeMockGit();
+      const brainLlm = makeMockLlm(brainResponse);
+      const eventBus = makeMockEventBus();
+      const git = makeMockGit();
 
-    const brain = new Brain(brainLlm);
-    const observation = makeScopedEditObservation();
-    const tasks = await brain.analyze(observation, projectMap);
+      const brain = new Brain(brainLlm);
+      const observation = makeScopedEditObservation();
+      const tasks = await brain.analyze(observation, projectMap);
 
-    expect(tasks).toHaveLength(2);
+      expect(tasks).toHaveLength(2);
 
-    // Execute task 1: contact page
-    const llm1 = makeMockLlm('', contactStreamResponse);
-    const exec1 = new Lane3Executor(tmp, llm1, git, eventBus, 1);
-    const r1 = await exec1.execute(tasks[0], projectMap);
-    expect(r1.success).toBe(true);
+      // Execute task 1: contact page
+      const llm1 = makeMockLlm('', contactStreamResponse);
+      const exec1 = new Lane3Executor(tmp, llm1, git, eventBus, 1);
+      const r1 = await exec1.execute(tasks[0], projectMap);
+      expect(r1.success).toBe(true);
 
-    // Execute task 2: API route
-    const llm2 = makeMockLlm('', apiStreamResponse);
-    const exec2 = new Lane3Executor(tmp, llm2, git, eventBus, 1);
-    const r2 = await exec2.execute(tasks[1], projectMap);
-    expect(r2.success).toBe(true);
+      // Execute task 2: API route
+      const llm2 = makeMockLlm('', apiStreamResponse);
+      const exec2 = new Lane3Executor(tmp, llm2, git, eventBus, 1);
+      const r2 = await exec2.execute(tasks[1], projectMap);
+      expect(r2.success).toBe(true);
 
-    // Verify files exist
-    expect(existsSync(path.join(tmp, 'app', 'contact', 'page.tsx'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'app', 'api', 'contact', 'route.ts'))).toBe(true);
-  }, 30_000);
+      // Verify files exist
+      expect(existsSync(path.join(tmp, 'app', 'contact', 'page.tsx'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'app', 'api', 'contact', 'route.ts'))).toBe(true);
+    },
+    30_000,
+  );
 
   it.concurrent('c) Scoped edit with click coordinates: PromptBuilder includes x/y', async () => {
     const { PromptBuilder } = await import('../../packages/core/src/brain/PromptBuilder.js');
@@ -1019,101 +1135,110 @@ describe.concurrent('Full E2E -- Scoped Edit Flow', () => {
     const projectMap = makeProjectMap(new Map());
     const messages = promptBuilder.buildAnalysisPrompt(observation, projectMap);
 
-    const fullText = messages.map(m => m.content).join('\n');
+    const fullText = messages.map((m) => m.content).join('\n');
     expect(fullText).toContain('x=320');
     expect(fullText).toContain('y=480');
   });
 
-  it.concurrent('d) Scoped edit with console errors: PromptBuilder passes them through', async () => {
-    const { PromptBuilder } = await import('../../packages/core/src/brain/PromptBuilder.js');
+  it.concurrent(
+    'd) Scoped edit with console errors: PromptBuilder passes them through',
+    async () => {
+      const { PromptBuilder } = await import('../../packages/core/src/brain/PromptBuilder.js');
 
-    const promptBuilder = new PromptBuilder();
-    const observation = makeScopedEditObservation({
-      consoleErrors: ['TypeError: Cannot read property "submit" of null', 'Uncaught ReferenceError: handleSubmit is not defined'],
-    });
+      const promptBuilder = new PromptBuilder();
+      const observation = makeScopedEditObservation({
+        consoleErrors: [
+          'TypeError: Cannot read property "submit" of null',
+          'Uncaught ReferenceError: handleSubmit is not defined',
+        ],
+      });
 
-    const projectMap = makeProjectMap(new Map());
-    const messages = promptBuilder.buildAnalysisPrompt(observation, projectMap);
+      const projectMap = makeProjectMap(new Map());
+      const messages = promptBuilder.buildAnalysisPrompt(observation, projectMap);
 
-    const fullText = messages.map(m => m.content).join('\n');
+      const fullText = messages.map((m) => m.content).join('\n');
 
-    // The DOM snapshot and transcript should still be present
-    expect(fullText).toContain('Quick Message');
-    expect(fullText).toContain('DOM snapshot');
+      // The DOM snapshot and transcript should still be present
+      expect(fullText).toContain('Quick Message');
+      expect(fullText).toContain('DOM snapshot');
 
-    // NOTE: PromptBuilder currently does NOT include consoleErrors in the prompt.
-    // This verifies current behavior — consoleErrors are available on the Observation
-    // but not yet forwarded to LLM. When this is implemented, update these assertions.
-    expect(observation.consoleErrors).toHaveLength(2);
-    expect(observation.consoleErrors![0]).toContain('TypeError');
-    expect(observation.consoleErrors![1]).toContain('handleSubmit');
-  });
+      // NOTE: PromptBuilder currently does NOT include consoleErrors in the prompt.
+      // This verifies current behavior — consoleErrors are available on the Observation
+      // but not yet forwarded to LLM. When this is implemented, update these assertions.
+      expect(observation.consoleErrors).toHaveLength(2);
+      expect(observation.consoleErrors![0]).toContain('TypeError');
+      expect(observation.consoleErrors![1]).toContain('handleSubmit');
+    },
+  );
 
-  it.concurrent('e) Email sending quality check: generated contact form has all required elements', async () => {
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+  it.concurrent(
+    'e) Email sending quality check: generated contact form has all required elements',
+    async () => {
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
-    const eventBus = makeMockEventBus();
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
+      const eventBus = makeMockEventBus();
 
-    const streamResponse = buildContactPageAndApiStreamResponse();
-    const llm = makeMockLlm('', streamResponse);
-    const git = makeMockGit();
+      const streamResponse = buildContactPageAndApiStreamResponse();
+      const llm = makeMockLlm('', streamResponse);
+      const git = makeMockGit();
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
 
-    const fileContexts = buildFullstackFileContexts(tmp);
-    const projectMap = makeFullstackProjectMap(fileContexts);
+      const fileContexts = buildFullstackFileContexts(tmp);
+      const projectMap = makeFullstackProjectMap(fileContexts);
 
-    const task = makeTask({
-      description: 'Create contact form and API for email sending',
-      files: ['app/contact/page.tsx', 'app/api/contact/route.ts'],
-      type: 'multi_file',
-      lane: 3,
-    });
+      const task = makeTask({
+        description: 'Create contact form and API for email sending',
+        files: ['app/contact/page.tsx', 'app/api/contact/route.ts'],
+        type: 'multi_file',
+        lane: 3,
+      });
 
-    const result = await executor.execute(task, projectMap);
-    expect(result.success).toBe(true);
+      const result = await executor.execute(task, projectMap);
+      expect(result.success).toBe(true);
 
-    const contactPage = readFileSync(path.join(tmp, 'app', 'contact', 'page.tsx'), 'utf-8');
+      const contactPage = readFileSync(path.join(tmp, 'app', 'contact', 'page.tsx'), 'utf-8');
 
-    // Has form with onSubmit
-    expect(contactPage).toContain('<form');
-    expect(contactPage).toContain('onSubmit');
-    expect(contactPage).toContain('handleSubmit');
+      // Has form with onSubmit
+      expect(contactPage).toContain('<form');
+      expect(contactPage).toContain('onSubmit');
+      expect(contactPage).toContain('handleSubmit');
 
-    // Has fetch to API endpoint
-    expect(contactPage).toContain("fetch('/api/contact'");
-    expect(contactPage).toContain("'POST'");
+      // Has fetch to API endpoint
+      expect(contactPage).toContain("fetch('/api/contact'");
+      expect(contactPage).toContain("'POST'");
 
-    // Has loading/success/error states
-    expect(contactPage).toContain("'sending'");
-    expect(contactPage).toContain("'sent'");
-    expect(contactPage).toContain("'error'");
-    expect(contactPage).toContain('Sending...');
-    expect(contactPage).toContain('Message sent!');
-    expect(contactPage).toContain('Failed to send');
+      // Has loading/success/error states
+      expect(contactPage).toContain("'sending'");
+      expect(contactPage).toContain("'sent'");
+      expect(contactPage).toContain("'error'");
+      expect(contactPage).toContain('Sending...');
+      expect(contactPage).toContain('Message sent!');
+      expect(contactPage).toContain('Failed to send');
 
-    // Has proper input labels and types
-    expect(contactPage).toContain('<label');
-    expect(contactPage).toContain('htmlFor=');
-    expect(contactPage).toContain('type="text"');
-    expect(contactPage).toContain('<textarea');
+      // Has proper input labels and types
+      expect(contactPage).toContain('<label');
+      expect(contactPage).toContain('htmlFor=');
+      expect(contactPage).toContain('type="text"');
+      expect(contactPage).toContain('<textarea');
 
-    // Does NOT have hardcoded email addresses in frontend code
-    expect(contactPage).not.toMatch(/[\w.-]+@[\w.-]+\.\w+/);
+      // Does NOT have hardcoded email addresses in frontend code
+      expect(contactPage).not.toMatch(/[\w.-]+@[\w.-]+\.\w+/);
 
-    // Does NOT have exposed SMTP credentials
-    expect(contactPage).not.toContain('SMTP_');
-    expect(contactPage).not.toContain('smtp');
-    expect(contactPage).not.toContain('nodemailer');
+      // Does NOT have exposed SMTP credentials
+      expect(contactPage).not.toContain('SMTP_');
+      expect(contactPage).not.toContain('smtp');
+      expect(contactPage).not.toContain('nodemailer');
 
-    // Verify API route uses env vars for secrets
-    const apiRoute = readFileSync(path.join(tmp, 'app', 'api', 'contact', 'route.ts'), 'utf-8');
-    expect(apiRoute).toContain('process.env.SMTP_HOST');
-    expect(apiRoute).toContain('process.env.SMTP_USER');
-    expect(apiRoute).toContain('process.env.SMTP_PASS');
-    // API route should NOT have hardcoded passwords
-    expect(apiRoute).not.toMatch(/pass(?:word)?:\s*['"][^'"]*['"]/i);
-  });
+      // Verify API route uses env vars for secrets
+      const apiRoute = readFileSync(path.join(tmp, 'app', 'api', 'contact', 'route.ts'), 'utf-8');
+      expect(apiRoute).toContain('process.env.SMTP_HOST');
+      expect(apiRoute).toContain('process.env.SMTP_USER');
+      expect(apiRoute).toContain('process.env.SMTP_PASS');
+      // API route should NOT have hardcoded passwords
+      expect(apiRoute).not.toMatch(/pass(?:word)?:\s*['"][^'"]*['"]/i);
+    },
+  );
 });

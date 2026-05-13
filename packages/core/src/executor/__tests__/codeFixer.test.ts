@@ -13,24 +13,17 @@ function createMockLlmClient(fixedResponse: string): {
   const capturedMessages: Message[][] = [];
 
   const client: LlmClient = {
-    async chat(messages: Message[], _options?: LlmOptions): Promise<string> {
+    async chat(messages: Message[], _options?: LlmOptions) {
       capturedMessages.push([...messages]);
-      return fixedResponse;
+      return { content: fixedResponse };
     },
-    async chatWithVision(
-      messages: Message[],
-      _images: Buffer[],
-      _options?: LlmOptions,
-    ): Promise<string> {
+    async chatWithVision(messages: Message[], _images: Buffer[], _options?: LlmOptions) {
       capturedMessages.push([...messages]);
-      return fixedResponse;
+      return { content: fixedResponse };
     },
-    async *stream(
-      messages: Message[],
-      _options?: LlmOptions,
-    ): AsyncIterable<string> {
+    async *stream(messages: Message[], _options?: LlmOptions) {
       capturedMessages.push([...messages]);
-      yield fixedResponse;
+      yield { content: fixedResponse };
     },
   };
 
@@ -39,9 +32,7 @@ function createMockLlmClient(fixedResponse: string): {
 
 /** Helper: build a standard LLM response with file blocks. */
 function buildFileBlockResponse(files: Array<{ path: string; content: string }>): string {
-  return files
-    .map((f) => `=== FILE: ${f.path} ===\n${f.content}\n=== END FILE ===`)
-    .join('\n\n');
+  return files.map((f) => `=== FILE: ${f.path} ===\n${f.content}\n=== END FILE ===`).join('\n\n');
 }
 
 function defaultContext(overrides: Partial<ProjectContext> = {}): ProjectContext {
@@ -65,12 +56,14 @@ describe('CodeFixer', () => {
       const fixer = new CodeFixer(client);
 
       const errors: FixableError[] = [
-        { file: 'src/app.ts', line: 1, message: "Type 'number' is not assignable to type 'string'." },
+        {
+          file: 'src/app.ts',
+          line: 1,
+          message: "Type 'number' is not assignable to type 'string'.",
+        },
       ];
 
-      const files: FileBlock[] = [
-        { path: 'src/app.ts', content: 'const x: string = 42;' },
-      ];
+      const files: FileBlock[] = [{ path: 'src/app.ts', content: 'const x: string = 42;' }];
 
       await fixer.fixErrors(files, errors, defaultContext());
 
@@ -131,9 +124,7 @@ describe('CodeFixer', () => {
       const { client } = createMockLlmClient(fixedCode);
       const fixer = new CodeFixer(client);
 
-      const errors: FixableError[] = [
-        { file: 'src/broken.ts', line: 1, message: 'type error' },
-      ];
+      const errors: FixableError[] = [{ file: 'src/broken.ts', line: 1, message: 'type error' }];
       const files: FileBlock[] = [
         { path: 'src/broken.ts', content: 'const x: string = 42;' },
         { path: 'src/ok.ts', content: 'const y: number = 1;' },
@@ -157,9 +148,7 @@ describe('CodeFixer', () => {
 
   describe('prompt formatting', () => {
     it('includes error messages in file:line format in the prompt', async () => {
-      const fixedCode = buildFileBlockResponse([
-        { path: 'src/index.ts', content: 'const a = 1;' },
-      ]);
+      const fixedCode = buildFileBlockResponse([{ path: 'src/index.ts', content: 'const a = 1;' }]);
       const { client, capturedMessages } = createMockLlmClient(fixedCode);
       const fixer = new CodeFixer(client);
 
@@ -167,9 +156,7 @@ describe('CodeFixer', () => {
         { file: 'src/index.ts', line: 5, message: "Property 'foo' does not exist on type 'Bar'." },
         { file: 'src/index.ts', line: 12, message: "Cannot find name 'unknown_var'." },
       ];
-      const files: FileBlock[] = [
-        { path: 'src/index.ts', content: 'const placeholder = true;' },
-      ];
+      const files: FileBlock[] = [{ path: 'src/index.ts', content: 'const placeholder = true;' }];
 
       await fixer.fixErrors(files, errors, defaultContext());
 
@@ -197,19 +184,13 @@ describe('CodeFixer', () => {
       const errors: FixableError[] = [
         { file: 'src/app.ts', line: 1, message: "Cannot find module 'lodash'." },
       ];
-      const files: FileBlock[] = [
-        { path: 'src/app.ts', content: 'import lodash from "lodash";' },
-      ];
+      const files: FileBlock[] = [{ path: 'src/app.ts', content: 'import lodash from "lodash";' }];
       const packageJsonStr = JSON.stringify({
         name: 'my-project',
         dependencies: { react: '^18.0.0' },
       });
 
-      await fixer.fixErrors(
-        files,
-        errors,
-        defaultContext({ packageJson: packageJsonStr }),
-      );
+      await fixer.fixErrors(files, errors, defaultContext({ packageJson: packageJsonStr }));
 
       const allContent = capturedMessages[0].map((m) => m.content).join('\n');
 
@@ -219,18 +200,12 @@ describe('CodeFixer', () => {
     });
 
     it('does not include dependency content when packageJson is not provided', async () => {
-      const fixedCode = buildFileBlockResponse([
-        { path: 'src/app.ts', content: 'const x = 1;' },
-      ]);
+      const fixedCode = buildFileBlockResponse([{ path: 'src/app.ts', content: 'const x = 1;' }]);
       const { client, capturedMessages } = createMockLlmClient(fixedCode);
       const fixer = new CodeFixer(client);
 
-      const errors: FixableError[] = [
-        { file: 'src/app.ts', line: 1, message: 'some error' },
-      ];
-      const files: FileBlock[] = [
-        { path: 'src/app.ts', content: 'const x: string = 42;' },
-      ];
+      const errors: FixableError[] = [{ file: 'src/app.ts', line: 1, message: 'some error' }];
+      const files: FileBlock[] = [{ path: 'src/app.ts', content: 'const x: string = 42;' }];
 
       await fixer.fixErrors(files, errors, defaultContext());
 

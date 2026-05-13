@@ -83,9 +83,13 @@ function buildPrompt(task: TaskItem, projectMap: ProjectMap, existingFiles: Set<
     if (ctx) {
       if (existingFiles.has(filePath)) {
         // Existing file: show with line numbers so LLM can produce accurate diffs
-        parts.push(`\nExisting file ${filePath} (use === DIFF === for changes):\n\`\`\`\n${addLineNumbers(ctx.content)}\n\`\`\``);
+        parts.push(
+          `\nExisting file ${filePath} (use === DIFF === for changes):\n\`\`\`\n${addLineNumbers(ctx.content)}\n\`\`\``,
+        );
       } else {
-        parts.push(`\nNew file ${filePath} (use === FILE === for full content):\n\`\`\`\n${ctx.content}\n\`\`\``);
+        parts.push(
+          `\nNew file ${filePath} (use === FILE === for full content):\n\`\`\`\n${ctx.content}\n\`\`\``,
+        );
       }
     }
   }
@@ -97,7 +101,9 @@ function buildPrompt(task: TaskItem, projectMap: ProjectMap, existingFiles: Set<
       const pkg = JSON.parse(pkgCtx.content);
       const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).join(', ');
       parts.push(`\nAvailable packages: ${deps}`);
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
 
   return parts.join('\n');
@@ -127,7 +133,10 @@ export class Lane3Executor {
     try {
       console.log(`[Nova] Developer: task "${task.description}"`);
       console.log(`[Nova] Developer: sending to LLM...`);
-      this.eventBus?.emit({ type: 'status', data: { message: `Generating code for: ${task.description.slice(0, 80)}...` } });
+      this.eventBus?.emit({
+        type: 'status',
+        data: { message: `Generating code for: ${task.description.slice(0, 80)}...` },
+      });
 
       // Determine which files already exist on disk.
       // Must cover task.files AND the same key files that buildPrompt will render.
@@ -191,7 +200,11 @@ export class Lane3Executor {
       // Fallback: if no mixed blocks found, try legacy FILE-only parsing
       if (mixedBlocks.length === 0) {
         const legacyBlocks = parseFileBlocks(response);
-        mixedBlocks = legacyBlocks.map(b => ({ type: 'file' as const, path: b.path, content: b.content }));
+        mixedBlocks = legacyBlocks.map((b) => ({
+          type: 'file' as const,
+          path: b.path,
+          content: b.content,
+        }));
       }
 
       if (mixedBlocks.length === 0) {
@@ -220,11 +233,17 @@ export class Lane3Executor {
       // Retry failed diffs by requesting full file content from LLM
       if (failedDiffPaths.length > 0) {
         try {
-          const retriedBlocks = await this.retryFailedDiffsAsFullFiles(failedDiffPaths, task, developerPrompt);
+          const retriedBlocks = await this.retryFailedDiffsAsFullFiles(
+            failedDiffPaths,
+            task,
+            developerPrompt,
+          );
           fileBlocks.push(...retriedBlocks);
         } catch (retryErr) {
           console.log(`[Nova] Warning: retry failed diffs threw, continuing with existing blocks`);
-          console.log(`[Nova]   Reason: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+          console.log(
+            `[Nova]   Reason: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+          );
         }
       }
 
@@ -248,28 +267,41 @@ export class Lane3Executor {
           // Extract added lines from diffs (lines starting with +, excluding +++ header)
           const addedLines = block.diff
             .split('\n')
-            .filter(line => line.startsWith('+') && !line.startsWith('+++'))
-            .map(line => line.substring(1))
+            .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+            .map((line) => line.substring(1))
             .join('\n');
           if (addedLines) generatedFileContents.push(addedLines);
         }
       }
       const missingVars = envDetector.detectMissing(this.projectPath, generatedFileContents);
       if (missingVars.length > 0 && this.eventBus) {
-        this.eventBus.emit({ type: 'secrets_required', data: { envVars: missingVars, taskId: task.id } });
+        this.eventBus.emit({
+          type: 'secrets_required',
+          data: { envVars: missingVars, taskId: task.id },
+        });
       }
 
       // TESTER/DIRECTOR loop
       // Quick syntax check: verify brackets are balanced in generated files
       for (const fb of fileBlocks) {
         if (fb.path.match(/\.[tj]sx?$/) && !this.hasBalancedBrackets(fb.content)) {
-          console.log(`[Nova] Syntax check failed for ${fb.path} — unbalanced brackets, marking for retry`);
+          console.log(
+            `[Nova] Syntax check failed for ${fb.path} — unbalanced brackets, marking for retry`,
+          );
           // Re-ask LLM for the full file
           try {
-            const response = await this.llmClient.chat([
-              { role: 'user', content: `The file ${fb.path} has broken syntax (unbalanced brackets). Output the COMPLETE corrected file content. No diff, no explanation.\n\n=== FILE: ${fb.path} ===\n${fb.content}\n=== END FILE ===` },
-            ], { temperature: 0, maxTokens: 4096, model: this.modelName });
-            const fileMatch = response.match(/=== FILE: .+? ===\n([\s\S]*?)=== END FILE ===/);
+            const response = await this.llmClient.chat(
+              [
+                {
+                  role: 'user',
+                  content: `The file ${fb.path} has broken syntax (unbalanced brackets). Output the COMPLETE corrected file content. No diff, no explanation.\n\n=== FILE: ${fb.path} ===\n${fb.content}\n=== END FILE ===`,
+                },
+              ],
+              { temperature: 0, maxTokens: 4096, model: this.modelName },
+            );
+            const fileMatch = response.content.match(
+              /=== FILE: .+? ===\n([\s\S]*?)=== END FILE ===/,
+            );
             if (fileMatch) {
               fb.content = fileMatch[1].trimEnd();
               const absPath = join(this.projectPath, fb.path);
@@ -282,7 +314,9 @@ export class Lane3Executor {
         }
       }
 
-      const skipValidation = this.forceSkipValidation || (fileBlocks.length === 1 && fileBlocks[0].content.length < 3000);
+      const skipValidation =
+        this.forceSkipValidation ||
+        (fileBlocks.length === 1 && fileBlocks[0].content.length < 3000);
       const tscSkip = this.shouldSkipTsc(fileBlocks);
       const validator = new CodeValidator(this.projectPath);
       const fixer = new CodeFixer(this.llmClient, this.eventBus, this.modelName);
@@ -297,8 +331,13 @@ export class Lane3Executor {
 
       for (let iteration = 1; !skipValidation && iteration <= this.maxFixIterations; iteration++) {
         // TESTER phase
-        console.log(`[Nova] Tester: validating (iteration ${iteration}/${this.maxFixIterations})...`);
-        this.eventBus?.emit({ type: 'status', data: { message: `Validating code (${iteration}/${this.maxFixIterations})...` } });
+        console.log(
+          `[Nova] Tester: validating (iteration ${iteration}/${this.maxFixIterations})...`,
+        );
+        this.eventBus?.emit({
+          type: 'status',
+          data: { message: `Validating code (${iteration}/${this.maxFixIterations})...` },
+        });
 
         try {
           errors = await validator.validateFiles(currentBlocks, {
@@ -306,9 +345,13 @@ export class Lane3Executor {
             skipImportCheck: tscSkip.skipImportCheck,
           });
         } catch (validationCrash: unknown) {
-          const msg = validationCrash instanceof Error ? validationCrash.message : String(validationCrash);
+          const msg =
+            validationCrash instanceof Error ? validationCrash.message : String(validationCrash);
           console.log(`[Nova] Tester: validation crashed, skipping validation: ${msg}`);
-          this.eventBus?.emit({ type: 'status', data: { message: 'Validation unavailable, committing as-is...' } });
+          this.eventBus?.emit({
+            type: 'status',
+            data: { message: 'Validation unavailable, committing as-is...' },
+          });
           break;
         }
 
@@ -322,17 +365,30 @@ export class Lane3Executor {
         for (const err of errors.slice(0, 5)) {
           console.log(`[Nova]   ${err.file}${err.line ? ':' + err.line : ''} — ${err.message}`);
         }
-        this.eventBus?.emit({ type: 'status', data: { message: `Found ${errors.length} error(s) in generated code, auto-fixing...` } });
+        this.eventBus?.emit({
+          type: 'status',
+          data: { message: `Found ${errors.length} error(s) in generated code, auto-fixing...` },
+        });
 
         if (iteration >= this.maxFixIterations) {
           console.log(`[Nova] Director: max iterations reached, committing with warnings`);
-          this.eventBus?.emit({ type: 'status', data: { message: `Committing with ${errors.length} remaining warnings` } });
+          this.eventBus?.emit({
+            type: 'status',
+            data: { message: `Committing with ${errors.length} remaining warnings` },
+          });
           break;
         }
 
         // DIRECTOR phase — fix errors
-        console.log(`[Nova] Director: requesting fixes (attempt ${iteration}/${this.maxFixIterations})...`);
-        this.eventBus?.emit({ type: 'status', data: { message: `Fixing ${errors.length} errors (attempt ${iteration}/${this.maxFixIterations})...` } });
+        console.log(
+          `[Nova] Director: requesting fixes (attempt ${iteration}/${this.maxFixIterations})...`,
+        );
+        this.eventBus?.emit({
+          type: 'status',
+          data: {
+            message: `Fixing ${errors.length} errors (attempt ${iteration}/${this.maxFixIterations})...`,
+          },
+        });
 
         const pkgContent = projectMap.fileContexts.get('package.json')?.content;
         const fixedBlocks = await fixer.fixErrors(currentBlocks, errors, {
@@ -342,25 +398,28 @@ export class Lane3Executor {
         });
 
         // Write fixed files in parallel (each block targets a different path)
-        await Promise.all(fixedBlocks.map(async (block) => {
-          const absPath = join(this.projectPath, block.path);
-          await this.pathGuard?.check(absPath);
-          await mkdir(dirname(absPath), { recursive: true });
-          await writeFile(absPath, block.content, 'utf-8');
-        }));
+        await Promise.all(
+          fixedBlocks.map(async (block) => {
+            const absPath = join(this.projectPath, block.path);
+            await this.pathGuard?.check(absPath);
+            await mkdir(dirname(absPath), { recursive: true });
+            await writeFile(absPath, block.content, 'utf-8');
+          }),
+        );
 
         currentBlocks = fixedBlocks;
       }
 
       // Collect final file list for commit
-      const writtenFiles = currentBlocks.map(b => b.path);
+      const writtenFiles = currentBlocks.map((b) => b.path);
 
       // Commit all changes (serialized via queue for parallel safety)
-      const safeMsg = `nova: ${task.description.replace(/[\n\r'"\\`$]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 72)}`;
-      const commitHash = await this.commitQueue.enqueue(
-        safeMsg,
-        writtenFiles,
-      );
+      const safeMsg = `nova: ${task.description
+        .replace(/[\n\r'"\\`$]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 72)}`;
+      const commitHash = await this.commitQueue.enqueue(safeMsg, writtenFiles);
 
       return {
         success: true,
@@ -380,7 +439,11 @@ export class Lane3Executor {
   /**
    * Determine whether tsc and/or import checks can be skipped based on file extensions.
    */
-  private shouldSkipTsc(blocks: FileBlock[]): { skipTsc: boolean; skipImportCheck: boolean; reason: string } {
+  private shouldSkipTsc(blocks: FileBlock[]): {
+    skipTsc: boolean;
+    skipImportCheck: boolean;
+    reason: string;
+  } {
     if (blocks.length === 0) {
       return { skipTsc: false, skipImportCheck: false, reason: '' };
     }
@@ -394,20 +457,20 @@ export class Lane3Executor {
       return dot !== -1 ? path.slice(dot) : '';
     };
 
-    const exts = blocks.map(b => getExt(b.path));
+    const exts = blocks.map((b) => getExt(b.path));
 
     // CSS-only changes: skip tsc and import checks
-    if (exts.every(ext => cssExts.has(ext))) {
+    if (exts.every((ext) => cssExts.has(ext))) {
       return { skipTsc: true, skipImportCheck: true, reason: 'CSS-only changes' };
     }
 
     // Non-TS files only: skip tsc, keep import checks for safety
-    if (exts.every(ext => nonTsExts.has(ext))) {
+    if (exts.every((ext) => nonTsExts.has(ext))) {
       return { skipTsc: true, skipImportCheck: true, reason: 'no TypeScript/JavaScript files' };
     }
 
     // Single small TS file: skip tsc, keep import validation
-    const tsBlocks = blocks.filter(b => tsExts.has(getExt(b.path)));
+    const tsBlocks = blocks.filter((b) => tsExts.has(getExt(b.path)));
     if (tsBlocks.length === 1 && tsBlocks[0].content.length < 5000) {
       return { skipTsc: true, skipImportCheck: false, reason: 'single small TS file' };
     }
@@ -452,11 +515,11 @@ export class Lane3Executor {
     for (const hunk of hunks) {
       if (hunk.removals.length > 0) {
         const firstRemoval = hunk.removals[0].trim();
-        const idx = lines.findIndex(l => l.trim() === firstRemoval);
+        const idx = lines.findIndex((l) => l.trim() === firstRemoval);
 
         if (idx !== -1) {
           let removeCount = 0;
-          for (let i = 0; i < hunk.removals.length && (idx + removeCount) < lines.length; i++) {
+          for (let i = 0; i < hunk.removals.length && idx + removeCount < lines.length; i++) {
             if (lines[idx + removeCount].trim() === hunk.removals[i].trim()) {
               removeCount++;
             }
@@ -503,7 +566,9 @@ export class Lane3Executor {
    * Returns normalized FileBlock[] (all with full content) for validation,
    * plus a list of file paths where diff application completely failed.
    */
-  private async applyMixedBlocks(blocks: ParsedBlock[]): Promise<{ files: FileBlock[]; failedDiffPaths: string[] }> {
+  private async applyMixedBlocks(
+    blocks: ParsedBlock[],
+  ): Promise<{ files: FileBlock[]; failedDiffPaths: string[] }> {
     const result: FileBlock[] = [];
     const failedDiffPaths: string[] = [];
 
@@ -567,8 +632,13 @@ export class Lane3Executor {
     task: TaskItem,
     systemPrompt: string = SYSTEM_PROMPT,
   ): Promise<FileBlock[]> {
-    console.log(`[Nova] Diff apply failed for ${failedPaths.length} file(s), retrying with full file request...`);
-    this.eventBus?.emit({ type: 'status', data: { message: `Retrying ${failedPaths.length} failed diff(s) as full files...` } });
+    console.log(
+      `[Nova] Diff apply failed for ${failedPaths.length} file(s), retrying with full file request...`,
+    );
+    this.eventBus?.emit({
+      type: 'status',
+      data: { message: `Retrying ${failedPaths.length} failed diff(s) as full files...` },
+    });
 
     // Build a focused prompt with current file contents
     const fileSections: string[] = [];
@@ -622,7 +692,7 @@ Output ONLY === FILE === blocks with the complete updated content. No diffs. No 
     }
 
     // Report files that still failed
-    const retriedPaths = new Set(result.map(b => b.path));
+    const retriedPaths = new Set(result.map((b) => b.path));
     for (const p of failedPaths) {
       if (!retriedPaths.has(p)) {
         console.log(`[Nova]   Retry did not produce output for ${p}`);

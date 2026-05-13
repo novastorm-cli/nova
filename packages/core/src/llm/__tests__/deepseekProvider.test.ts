@@ -107,7 +107,7 @@ describe('DeepSeekProvider', () => {
       });
 
       const result = await provider.chat(userMessages);
-      expect(result).toBe('Hello from DeepSeek!');
+      expect(result).toEqual({ content: 'Hello from DeepSeek!' });
     });
 
     it('extracts reasoning_content from response message', async () => {
@@ -123,7 +123,10 @@ describe('DeepSeekProvider', () => {
       });
 
       const result = await provider.chat(userMessages);
-      expect(result).toBe('The answer is 42');
+      expect(result).toEqual({
+        content: 'The answer is 42',
+        reasoningContent: 'Let me think about this step by step...',
+      });
       expect(provider.lastReasoningContent).toBe('Let me think about this step by step...');
     });
 
@@ -240,12 +243,12 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: string[] = [];
+      const result: Array<{ content: string; reasoningContent?: string }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }
 
-      expect(result).toEqual(['Hello', ' world']);
+      expect(result).toEqual([{ content: 'Hello' }, { content: ' world' }]);
     });
 
     it('captures delta.reasoning_content and stores on lastReasoningContent', async () => {
@@ -263,12 +266,16 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: string[] = [];
+      const result: Array<{ content: string; reasoningContent?: string }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }
 
-      expect(result).toEqual(['Hi', ' there', '!']);
+      expect(result).toEqual([
+        { content: 'Hi', reasoningContent: 'I should greet' },
+        { content: ' there', reasoningContent: ' the user' },
+        { content: '!' },
+      ]);
       expect(provider.lastReasoningContent).toBe('I should greet the user');
     });
 
@@ -287,12 +294,12 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: string[] = [];
+      const result: Array<{ content: string; reasoningContent?: string }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }
 
-      expect(result).toEqual(['Hello', ' world']);
+      expect(result).toEqual([{ content: 'Hello' }, { content: ' world' }]);
     });
 
     it('handles reasoning_content without content (reasoning-only chunks)', async () => {
@@ -310,12 +317,16 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: string[] = [];
+      const result: Array<{ content: string; reasoningContent?: string }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }
 
-      expect(result).toEqual(['Answer']);
+      expect(result).toEqual([
+        { content: '', reasoningContent: 'Step 1: analyze' },
+        { content: '', reasoningContent: 'Step 2: conclude' },
+        { content: 'Answer' },
+      ]);
       expect(provider.lastReasoningContent).toBe('Step 1: analyzeStep 2: conclude');
     });
 
@@ -379,7 +390,7 @@ describe('DeepSeekProvider', () => {
         });
 
       const result = await provider.chat(userMessages);
-      expect(result).toBe('Success after retry');
+      expect(result).toEqual({ content: 'Success after retry' });
       expect(mockCompletionsCreate).toHaveBeenCalledTimes(2);
     }, 10_000);
   });

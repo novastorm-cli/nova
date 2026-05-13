@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { LlmClient, LlmOptions, Message } from '../models/types.js';
+import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
@@ -9,7 +9,7 @@ const RETRY_DELAY_MS = 1000;
 
 function findLastIndex<T>(arr: T[], predicate: (item: T) => boolean): number {
   for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i]!)) return i;
+    if (predicate(arr[i])) return i;
   }
   return -1;
 }
@@ -22,18 +22,10 @@ function handleError(err: unknown): never {
   if (err instanceof ProviderError) throw err;
 
   if (err instanceof Anthropic.APIError) {
-    throw new ProviderError(
-      err.message,
-      err.status,
-      'anthropic',
-    );
+    throw new ProviderError(err.message, err.status, 'anthropic');
   }
 
-  throw new ProviderError(
-    err instanceof Error ? err.message : String(err),
-    undefined,
-    'anthropic',
-  );
+  throw new ProviderError(err instanceof Error ? err.message : String(err), undefined, 'anthropic');
 }
 
 function shouldRetry(err: unknown): boolean {
@@ -52,7 +44,7 @@ export class AnthropicProvider implements LlmClient {
     this.client = new Anthropic({ apiKey });
   }
 
-  async chat(messages: Message[], options?: LlmOptions): Promise<string> {
+  async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystem = messages.filter((m) => m.role !== 'system');
 
@@ -63,9 +55,10 @@ export class AnthropicProvider implements LlmClient {
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystem.map((m) => ({
         role: toAnthropicRole(m.role),
-        content: options?.responseFormat === 'json'
-          ? `${m.content}\n\nRespond with valid JSON only.`
-          : m.content,
+        content:
+          options?.responseFormat === 'json'
+            ? `${m.content}\n\nRespond with valid JSON only.`
+            : m.content,
       })),
     };
 
@@ -76,7 +69,7 @@ export class AnthropicProvider implements LlmClient {
     messages: Message[],
     images: Buffer[],
     options?: LlmOptions,
-  ): Promise<string> {
+  ): Promise<ChatResponse> {
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystem = messages.filter((m) => m.role !== 'system');
 
@@ -95,16 +88,14 @@ export class AnthropicProvider implements LlmClient {
             data: img.toString('base64'),
           },
         }));
-        const textContent = options?.responseFormat === 'json'
-          ? `${m.content}\n\nRespond with valid JSON only.`
-          : m.content;
+        const textContent =
+          options?.responseFormat === 'json'
+            ? `${m.content}\n\nRespond with valid JSON only.`
+            : m.content;
 
         return {
           role: toAnthropicRole(m.role),
-          content: [
-            ...imageBlocks,
-            { type: 'text' as const, text: textContent },
-          ],
+          content: [...imageBlocks, { type: 'text' as const, text: textContent }],
         };
       }
       return {
@@ -124,7 +115,7 @@ export class AnthropicProvider implements LlmClient {
     return this.executeWithRetry(() => this.doChat(request));
   }
 
-  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<string> {
+  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk> {
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystem = messages.filter((m) => m.role !== 'system');
 
@@ -136,19 +127,20 @@ export class AnthropicProvider implements LlmClient {
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystem.map((m) => ({
         role: toAnthropicRole(m.role),
-        content: options?.responseFormat === 'json'
-          ? `${m.content}\n\nRespond with valid JSON only.`
-          : m.content,
+        content:
+          options?.responseFormat === 'json'
+            ? `${m.content}\n\nRespond with valid JSON only.`
+            : m.content,
       })),
     };
 
     yield* this.executeStreamWithRetry(request);
   }
 
-  private async doChat(request: Anthropic.MessageCreateParamsNonStreaming): Promise<string> {
+  private async doChat(request: Anthropic.MessageCreateParamsNonStreaming): Promise<ChatResponse> {
     const response = await this.client.messages.create(request);
     const textBlock = response.content.find((b) => b.type === 'text');
-    return textBlock ? textBlock.text : '';
+    return { content: textBlock ? textBlock.text : '' };
   }
 
   private async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
@@ -170,7 +162,7 @@ export class AnthropicProvider implements LlmClient {
 
   private async *executeStreamWithRetry(
     request: Anthropic.MessageCreateParamsStreaming,
-  ): AsyncIterable<string> {
+  ): AsyncIterable<StreamChunk> {
     try {
       yield* this.doStream(request);
     } catch (err) {
@@ -190,14 +182,11 @@ export class AnthropicProvider implements LlmClient {
 
   private async *doStream(
     request: Anthropic.MessageCreateParamsStreaming,
-  ): AsyncIterable<string> {
+  ): AsyncIterable<StreamChunk> {
     const stream = this.client.messages.stream(request);
     for await (const event of stream) {
-      if (
-        event.type === 'content_block_delta' &&
-        event.delta.type === 'text_delta'
-      ) {
-        yield event.delta.text;
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        yield { content: event.delta.text };
       }
     }
   }

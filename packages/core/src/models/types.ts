@@ -169,9 +169,13 @@ export interface LlmOptions {
 }
 
 export interface LlmClient {
-  chat(messages: Message[], options?: LlmOptions): Promise<string>;
-  chatWithVision(messages: Message[], images: Buffer[], options?: LlmOptions): Promise<string>;
-  stream(messages: Message[], options?: LlmOptions): AsyncIterable<string>;
+  chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse>;
+  chatWithVision(
+    messages: Message[],
+    images: Buffer[],
+    options?: LlmOptions,
+  ): Promise<ChatResponse>;
+  stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk>;
 }
 
 /** Normalized response from a provider chat call. */

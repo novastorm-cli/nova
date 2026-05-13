@@ -2,7 +2,13 @@ import { describe, it, expect, afterAll, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import type { LlmClient, ProjectMap, Observation, TaskItem, MiniContext } from '../../packages/core/src/models/types.js';
+import type {
+  LlmClient,
+  ProjectMap,
+  Observation,
+  TaskItem,
+  MiniContext,
+} from '../../packages/core/src/models/types.js';
 import type { NovaEvent, EventBus } from '../../packages/core/src/models/events.js';
 import type { IGitManager } from '../../packages/core/src/contracts/IGitManager.js';
 
@@ -20,7 +26,11 @@ function trackTmp(): string {
 
 afterAll(() => {
   for (const dir of tmpDirsToClean) {
-    try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
   }
 });
 
@@ -32,10 +42,10 @@ function createFile(dir: string, filePath: string, content: string): void {
 
 function makeMockLlm(chatResponse: string, streamResponse?: string): LlmClient {
   return {
-    chat: vi.fn(async () => chatResponse),
-    chatWithVision: vi.fn(async () => chatResponse),
+    chat: vi.fn(async () => ({ content: chatResponse })),
+    chatWithVision: vi.fn(async () => ({ content: chatResponse })),
     stream: vi.fn(async function* () {
-      yield streamResponse ?? chatResponse;
+      yield { content: streamResponse ?? chatResponse };
     }),
   };
 }
@@ -59,7 +69,9 @@ function makeMockEventBus(): EventBus {
   return { emit: vi.fn(), on: vi.fn(), off: vi.fn() };
 }
 
-function makeTask(overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>): TaskItem {
+function makeTask(
+  overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>,
+): TaskItem {
   return {
     id: crypto.randomUUID(),
     status: 'pending',
@@ -67,7 +79,10 @@ function makeTask(overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 
   };
 }
 
-function makeProjectMap(fileContexts: Map<string, MiniContext>, overrides?: Partial<ProjectMap>): ProjectMap {
+function makeProjectMap(
+  fileContexts: Map<string, MiniContext>,
+  overrides?: Partial<ProjectMap>,
+): ProjectMap {
   return {
     stack: { framework: 'next.js', language: 'typescript', typescript: true },
     devCommand: 'npm run dev',
@@ -83,14 +98,15 @@ function makeProjectMap(fileContexts: Map<string, MiniContext>, overrides?: Part
   };
 }
 
-function makeFullstackProjectMap(fileContexts: Map<string, MiniContext>, overrides?: Partial<ProjectMap>): ProjectMap {
+function makeFullstackProjectMap(
+  fileContexts: Map<string, MiniContext>,
+  overrides?: Partial<ProjectMap>,
+): ProjectMap {
   return {
     stack: { framework: 'next.js', language: 'typescript', typescript: true },
     devCommand: 'npm run dev',
     port: 3000,
-    routes: [
-      { path: '/', filePath: 'app/page.tsx', type: 'page' },
-    ],
+    routes: [{ path: '/', filePath: 'app/page.tsx', type: 'page' }],
     components: [
       { name: 'Header', filePath: 'components/Header.tsx', type: 'component', exports: ['Header'] },
     ],
@@ -108,34 +124,78 @@ function makeFullstackProjectMap(fileContexts: Map<string, MiniContext>, overrid
 // ---------------------------------------------------------------------------
 
 function createFullstackProject(dir: string): void {
-  createFile(dir, 'package.json', JSON.stringify({
-    name: 'my-app',
-    dependencies: { next: '14.0.0', react: '18.2.0', 'react-dom': '18.2.0' },
-    devDependencies: { typescript: '5.0.0', tailwindcss: '3.4.0', '@types/react': '18.2.0', '@types/node': '20.0.0' },
-    scripts: { dev: 'next dev' },
-  }, null, 2));
-  createFile(dir, 'tsconfig.json', '{"compilerOptions":{"target":"es5","lib":["dom"],"jsx":"preserve"}}');
-  createFile(dir, 'app/layout.tsx', `export default function RootLayout({ children }: { children: React.ReactNode }) {
+  createFile(
+    dir,
+    'package.json',
+    JSON.stringify(
+      {
+        name: 'my-app',
+        dependencies: { next: '14.0.0', react: '18.2.0', 'react-dom': '18.2.0' },
+        devDependencies: {
+          typescript: '5.0.0',
+          tailwindcss: '3.4.0',
+          '@types/react': '18.2.0',
+          '@types/node': '20.0.0',
+        },
+        scripts: { dev: 'next dev' },
+      },
+      null,
+      2,
+    ),
+  );
+  createFile(
+    dir,
+    'tsconfig.json',
+    '{"compilerOptions":{"target":"es5","lib":["dom"],"jsx":"preserve"}}',
+  );
+  createFile(
+    dir,
+    'app/layout.tsx',
+    `export default function RootLayout({ children }: { children: React.ReactNode }) {
   return <html><body>{children}</body></html>;
-}`);
-  createFile(dir, 'app/page.tsx', `export default function Home() {
+}`,
+  );
+  createFile(
+    dir,
+    'app/page.tsx',
+    `export default function Home() {
   return <main><h1>Welcome to My App</h1><p>Please log in to continue.</p></main>;
-}`);
-  createFile(dir, 'app/globals.css', `@tailwind base;\n@tailwind components;\n@tailwind utilities;\nbody { font-family: sans-serif; }`);
-  createFile(dir, 'components/Header.tsx', `export function Header() {
+}`,
+  );
+  createFile(
+    dir,
+    'app/globals.css',
+    `@tailwind base;\n@tailwind components;\n@tailwind utilities;\nbody { font-family: sans-serif; }`,
+  );
+  createFile(
+    dir,
+    'components/Header.tsx',
+    `export function Header() {
   return <header className="bg-blue-600 text-white p-4"><h1>My App</h1></header>;
-}`);
+}`,
+  );
 
   // C# backend files
-  createFile(dir, 'backend/WebApp.csproj', `<Project Sdk="Microsoft.NET.Sdk.Web">
+  createFile(
+    dir,
+    'backend/WebApp.csproj',
+    `<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
-</Project>`);
-  createFile(dir, 'backend/Program.cs', `var builder = WebApplication.CreateBuilder(args);
+</Project>`,
+  );
+  createFile(
+    dir,
+    'backend/Program.cs',
+    `var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 var app = builder.Build();
 app.MapControllers();
-app.Run();`);
-  createFile(dir, 'backend/Controllers/UsersController.cs', `using Microsoft.AspNetCore.Mvc;
+app.Run();`,
+  );
+  createFile(
+    dir,
+    'backend/Controllers/UsersController.cs',
+    `using Microsoft.AspNetCore.Mvc;
 namespace WebApp.Controllers;
 [ApiController]
 [Route("api/[controller]")]
@@ -143,7 +203,8 @@ public class UsersController : ControllerBase
 {
     [HttpGet]
     public IActionResult GetAll() => Ok(new[] { new { Id = 1, Name = "John" } });
-}`);
+}`,
+  );
 }
 
 function buildFullstackFileContexts(dir: string): Map<string, MiniContext> {
@@ -378,19 +439,13 @@ const HEADER_UPDATED_CONTENT = `export function Header() {
 // ---------------------------------------------------------------------------
 
 function buildLoginPageStreamResponse(): string {
-  return [
-    '=== FILE: app/login/page.tsx ===',
-    LOGIN_PAGE_CONTENT,
-    '=== END FILE ===',
-  ].join('\n');
+  return ['=== FILE: app/login/page.tsx ===', LOGIN_PAGE_CONTENT, '=== END FILE ==='].join('\n');
 }
 
 function buildRegisterPageStreamResponse(): string {
-  return [
-    '=== FILE: app/register/page.tsx ===',
-    REGISTER_PAGE_CONTENT,
-    '=== END FILE ===',
-  ].join('\n');
+  return ['=== FILE: app/register/page.tsx ===', REGISTER_PAGE_CONTENT, '=== END FILE ==='].join(
+    '\n',
+  );
 }
 
 function buildAuthControllerStreamResponse(): string {
@@ -461,59 +516,93 @@ function buildProgramCsDiffStreamResponse(): string {
 // ============================================================================
 
 describe.concurrent('Brain Analysis -- auth form scenario', () => {
+  it.concurrent(
+    'a) Brain.analyze with English transcript creates 4 tasks with correct lanes',
+    async () => {
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
-  it.concurrent('a) Brain.analyze with English transcript creates 4 tasks with correct lanes', async () => {
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
+      const llmResponse = JSON.stringify([
+        {
+          description: 'Create login page with email and password form',
+          files: ['app/login/page.tsx'],
+          type: 'single_file',
+        },
+        {
+          description: 'Create registration page with signup form',
+          files: ['app/register/page.tsx'],
+          type: 'single_file',
+        },
+        {
+          description: 'Create AuthController with login and register endpoints',
+          files: [
+            'backend/Controllers/AuthController.cs',
+            'backend/Models/LoginRequest.cs',
+            'backend/Models/RegisterRequest.cs',
+          ],
+          type: 'multi_file',
+        },
+        {
+          description: 'Add auth navigation links to header',
+          files: ['components/Header.tsx'],
+          type: 'single_file',
+        },
+      ]);
 
-    const llmResponse = JSON.stringify([
-      { description: 'Create login page with email and password form', files: ['app/login/page.tsx'], type: 'single_file' },
-      { description: 'Create registration page with signup form', files: ['app/register/page.tsx'], type: 'single_file' },
-      { description: 'Create AuthController with login and register endpoints', files: ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs', 'backend/Models/RegisterRequest.cs'], type: 'multi_file' },
-      { description: 'Add auth navigation links to header', files: ['components/Header.tsx'], type: 'single_file' },
-    ]);
+      const llm = makeMockLlm(llmResponse);
+      const brain = new Brain(llm);
 
-    const llm = makeMockLlm(llmResponse);
-    const brain = new Brain(llm);
+      const observation: Observation = {
+        screenshot: Buffer.from('fake'),
+        currentUrl: 'http://localhost:3000/',
+        transcript: 'add authentication form to the site',
+        timestamp: Date.now(),
+      };
 
-    const observation: Observation = {
-      screenshot: Buffer.from('fake'),
-      currentUrl: 'http://localhost:3000/',
-      transcript: 'add authentication form to the site',
-      timestamp: Date.now(),
-    };
+      const projectMap = makeProjectMap(new Map());
+      const tasks = await brain.analyze(observation, projectMap);
 
-    const projectMap = makeProjectMap(new Map());
-    const tasks = await brain.analyze(observation, projectMap);
+      expect(tasks).toHaveLength(4);
 
-    expect(tasks).toHaveLength(4);
+      // Login page: single file, "Create...page" -> lane 2
+      expect(tasks[0].description).toContain('login page');
+      expect(tasks[0].files).toContain('app/login/page.tsx');
+      expect([2, 3]).toContain(tasks[0].lane);
 
-    // Login page: single file, "Create...page" -> lane 2
-    expect(tasks[0].description).toContain('login page');
-    expect(tasks[0].files).toContain('app/login/page.tsx');
-    expect([2, 3]).toContain(tasks[0].lane);
+      // Register page
+      expect(tasks[1].description).toContain('registration page');
+      expect(tasks[1].files).toContain('app/register/page.tsx');
 
-    // Register page
-    expect(tasks[1].description).toContain('registration page');
-    expect(tasks[1].files).toContain('app/register/page.tsx');
+      // AuthController: multi_file, 3 files -> lane 3
+      expect(tasks[2].description).toContain('AuthController');
+      expect(tasks[2].files).toHaveLength(3);
+      expect(tasks[2].lane).toBe(3);
 
-    // AuthController: multi_file, 3 files -> lane 3
-    expect(tasks[2].description).toContain('AuthController');
-    expect(tasks[2].files).toHaveLength(3);
-    expect(tasks[2].lane).toBe(3);
-
-    // Header update: single file -> lane 2
-    expect(tasks[3].description).toContain('header');
-    expect(tasks[3].files).toContain('components/Header.tsx');
-    expect([2, 3]).toContain(tasks[3].lane);
-  });
+      // Header update: single file -> lane 2
+      expect(tasks[3].description).toContain('header');
+      expect(tasks[3].files).toContain('components/Header.tsx');
+      expect([2, 3]).toContain(tasks[3].lane);
+    },
+  );
 
   it.concurrent('b) Brain.analyze with Russian transcript creates tasks', async () => {
     const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
     const llmResponse = JSON.stringify([
-      { description: 'Create login page with email and password form', files: ['app/login/page.tsx'], type: 'single_file' },
-      { description: 'Create registration page', files: ['app/register/page.tsx'], type: 'single_file' },
-      { description: 'Create AuthController with login and register endpoints', files: ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs'], type: 'multi_file' },
+      {
+        description: 'Create login page with email and password form',
+        files: ['app/login/page.tsx'],
+        type: 'single_file',
+      },
+      {
+        description: 'Create registration page',
+        files: ['app/register/page.tsx'],
+        type: 'single_file',
+      },
+      {
+        description: 'Create AuthController with login and register endpoints',
+        files: ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs'],
+        type: 'multi_file',
+      },
     ]);
 
     const llm = makeMockLlm(llmResponse);
@@ -522,7 +611,8 @@ describe.concurrent('Brain Analysis -- auth form scenario', () => {
     const observation: Observation = {
       screenshot: Buffer.from('fake'),
       currentUrl: 'http://localhost:3000/',
-      transcript: '\u0434\u043e\u0431\u0430\u0432\u044c \u0444\u043e\u0440\u043c\u0443 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u0438',
+      transcript:
+        '\u0434\u043e\u0431\u0430\u0432\u044c \u0444\u043e\u0440\u043c\u0443 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u0438',
       timestamp: Date.now(),
     };
 
@@ -544,31 +634,28 @@ describe.concurrent('Brain Analysis -- auth form scenario', () => {
     const classifier = new LaneClassifier();
 
     // Single file page creation -> lane 2
-    const lane1 = classifier.classify(
-      'Create login page with email/password form',
-      ['app/login/page.tsx'],
-    );
+    const lane1 = classifier.classify('Create login page with email/password form', [
+      'app/login/page.tsx',
+    ]);
     expect(lane1).toBe(2);
 
     // Multi-file controller -> lane 3
-    const lane2 = classifier.classify(
-      'Create AuthController with login and register',
-      ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs'],
-    );
+    const lane2 = classifier.classify('Create AuthController with login and register', [
+      'backend/Controllers/AuthController.cs',
+      'backend/Models/LoginRequest.cs',
+    ]);
     expect(lane2).toBe(3);
 
     // CSS-only change to single file -> lane 1
-    const lane3 = classifier.classify(
-      'Change header color to match auth theme',
-      ['app/globals.css'],
-    );
+    const lane3 = classifier.classify('Change header color to match auth theme', [
+      'app/globals.css',
+    ]);
     expect(lane3).toBe(1);
 
     // Refactor keyword -> lane 4
-    const lane4 = classifier.classify(
-      'Refactor entire auth system to use JWT',
-      ['backend/Controllers/AuthController.cs'],
-    );
+    const lane4 = classifier.classify('Refactor entire auth system to use JWT', [
+      'backend/Controllers/AuthController.cs',
+    ]);
     expect(lane4).toBe(4);
   });
 
@@ -576,9 +663,21 @@ describe.concurrent('Brain Analysis -- auth form scenario', () => {
     const { TaskDecomposer } = await import('../../packages/core/src/brain/TaskDecomposer.js');
 
     const subtasksResponse = JSON.stringify([
-      { description: 'Create AuthController with login endpoint', files: ['backend/Controllers/AuthController.cs'], type: 'single_file' },
-      { description: 'Create LoginRequest model', files: ['backend/Models/LoginRequest.cs'], type: 'single_file' },
-      { description: 'Create RegisterRequest model', files: ['backend/Models/RegisterRequest.cs'], type: 'single_file' },
+      {
+        description: 'Create AuthController with login endpoint',
+        files: ['backend/Controllers/AuthController.cs'],
+        type: 'single_file',
+      },
+      {
+        description: 'Create LoginRequest model',
+        files: ['backend/Models/LoginRequest.cs'],
+        type: 'single_file',
+      },
+      {
+        description: 'Create RegisterRequest model',
+        files: ['backend/Models/RegisterRequest.cs'],
+        type: 'single_file',
+      },
     ]);
 
     const llm = makeMockLlm(subtasksResponse);
@@ -586,7 +685,11 @@ describe.concurrent('Brain Analysis -- auth form scenario', () => {
 
     const task = makeTask({
       description: 'Create AuthController with CRUD',
-      files: ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs', 'backend/Models/RegisterRequest.cs'],
+      files: [
+        'backend/Controllers/AuthController.cs',
+        'backend/Models/LoginRequest.cs',
+        'backend/Models/RegisterRequest.cs',
+      ],
       type: 'multi_file',
       lane: 3,
     });
@@ -610,7 +713,6 @@ describe.concurrent('Brain Analysis -- auth form scenario', () => {
 // ============================================================================
 
 describe.concurrent('Frontend Generation -- login page', () => {
-
   it.concurrent('a) Lane3Executor generates login page from FILE block', async () => {
     const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
@@ -795,7 +897,6 @@ describe.concurrent('Frontend Generation -- login page', () => {
 // ============================================================================
 
 describe.concurrent('Backend Generation -- C# Auth API', () => {
-
   it.concurrent('a) Lane3Executor generates AuthController + models (3 files)', async () => {
     const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
@@ -814,7 +915,11 @@ describe.concurrent('Backend Generation -- C# Auth API', () => {
 
     const task = makeTask({
       description: 'Create AuthController with login and register endpoints',
-      files: ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs', 'backend/Models/RegisterRequest.cs'],
+      files: [
+        'backend/Controllers/AuthController.cs',
+        'backend/Models/LoginRequest.cs',
+        'backend/Models/RegisterRequest.cs',
+      ],
       type: 'multi_file',
       lane: 3,
     });
@@ -825,18 +930,27 @@ describe.concurrent('Backend Generation -- C# Auth API', () => {
     expect(result.commitHash).toBe('abc1234');
 
     // Verify AuthController
-    const controller = readFileSync(path.join(tmp, 'backend', 'Controllers', 'AuthController.cs'), 'utf-8');
+    const controller = readFileSync(
+      path.join(tmp, 'backend', 'Controllers', 'AuthController.cs'),
+      'utf-8',
+    );
     expect(controller).toContain('[HttpPost("login")]');
     expect(controller).toContain('[HttpPost("register")]');
     expect(controller).toContain('AuthController');
 
     // Verify LoginRequest model
-    const loginModel = readFileSync(path.join(tmp, 'backend', 'Models', 'LoginRequest.cs'), 'utf-8');
+    const loginModel = readFileSync(
+      path.join(tmp, 'backend', 'Models', 'LoginRequest.cs'),
+      'utf-8',
+    );
     expect(loginModel).toContain('Email');
     expect(loginModel).toContain('Password');
 
     // Verify RegisterRequest model
-    const registerModel = readFileSync(path.join(tmp, 'backend', 'Models', 'RegisterRequest.cs'), 'utf-8');
+    const registerModel = readFileSync(
+      path.join(tmp, 'backend', 'Models', 'RegisterRequest.cs'),
+      'utf-8',
+    );
     expect(registerModel).toContain('Name');
     expect(registerModel).toContain('Email');
     expect(registerModel).toContain('Password');
@@ -869,7 +983,10 @@ describe.concurrent('Backend Generation -- C# Auth API', () => {
 
     expect(result.success).toBe(true);
 
-    const middleware = readFileSync(path.join(tmp, 'backend', 'Middleware', 'AuthMiddleware.cs'), 'utf-8');
+    const middleware = readFileSync(
+      path.join(tmp, 'backend', 'Middleware', 'AuthMiddleware.cs'),
+      'utf-8',
+    );
     expect(middleware).toContain('AuthMiddleware');
     expect(middleware).toContain('class');
     expect(middleware).toContain('InvokeAsync');
@@ -918,35 +1035,37 @@ describe.concurrent('Backend Generation -- C# Auth API', () => {
     expect(updated).toContain('MapControllers');
   });
 
-  it.concurrent('d) EndpointExtractor finds POST endpoints in generated AuthController', async () => {
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
+  it.concurrent(
+    'd) EndpointExtractor finds POST endpoints in generated AuthController',
+    async () => {
+      const { EndpointExtractor } =
+        await import('../../packages/core/src/indexer/EndpointExtractor.js');
 
-    const tmp = trackTmp();
-    // Write the AuthController file
-    createFile(tmp, 'Controllers/AuthController.cs', AUTH_CONTROLLER_CONTENT);
+      const tmp = trackTmp();
+      // Write the AuthController file
+      createFile(tmp, 'Controllers/AuthController.cs', AUTH_CONTROLLER_CONTENT);
 
-    const extractor = new EndpointExtractor();
-    const endpoints = await extractor.extract(tmp, {
-      framework: 'dotnet',
-      language: 'csharp',
-      typescript: false,
-    });
+      const extractor = new EndpointExtractor();
+      const endpoints = await extractor.extract(tmp, {
+        framework: 'dotnet',
+        language: 'csharp',
+        typescript: false,
+      });
 
-    // Should find login and register endpoints
-    expect(endpoints.length).toBeGreaterThanOrEqual(2);
+      // Should find login and register endpoints
+      expect(endpoints.length).toBeGreaterThanOrEqual(2);
 
-    const loginEndpoint = endpoints.find(
-      (e) => e.method === 'POST' && e.path.includes('login'),
-    );
-    expect(loginEndpoint).toBeDefined();
-    expect(loginEndpoint!.method).toBe('POST');
+      const loginEndpoint = endpoints.find((e) => e.method === 'POST' && e.path.includes('login'));
+      expect(loginEndpoint).toBeDefined();
+      expect(loginEndpoint!.method).toBe('POST');
 
-    const registerEndpoint = endpoints.find(
-      (e) => e.method === 'POST' && e.path.includes('register'),
-    );
-    expect(registerEndpoint).toBeDefined();
-    expect(registerEndpoint!.method).toBe('POST');
-  });
+      const registerEndpoint = endpoints.find(
+        (e) => e.method === 'POST' && e.path.includes('register'),
+      );
+      expect(registerEndpoint).toBeDefined();
+      expect(registerEndpoint!.method).toBe('POST');
+    },
+  );
 });
 
 // ============================================================================
@@ -954,231 +1073,270 @@ describe.concurrent('Backend Generation -- C# Auth API', () => {
 // ============================================================================
 
 describe.concurrent('Full E2E -- complete auth feature', () => {
+  it.concurrent(
+    'a) Complete frontend flow: index -> brain -> lane3 -> login page written',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-  it.concurrent('a) Complete frontend flow: index -> brain -> lane3 -> login page written', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
 
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
+      // Brain returns login page task
+      const brainResponse = JSON.stringify([
+        {
+          description: 'Create login page with email and password form',
+          files: ['app/login/page.tsx'],
+          type: 'single_file',
+        },
+      ]);
 
-    // Brain returns login page task
-    const brainResponse = JSON.stringify([
-      { description: 'Create login page with email and password form', files: ['app/login/page.tsx'], type: 'single_file' },
-    ]);
+      const loginStreamResponse = buildLoginPageStreamResponse();
+      const llm = makeMockLlm(brainResponse, loginStreamResponse);
+      const git = makeMockGit();
+      const eventBus = makeMockEventBus();
 
-    const loginStreamResponse = buildLoginPageStreamResponse();
-    const llm = makeMockLlm(brainResponse, loginStreamResponse);
-    const git = makeMockGit();
-    const eventBus = makeMockEventBus();
+      const brain = new Brain(llm);
+      const tasks = await brain.analyze(
+        {
+          screenshot: Buffer.from('fake'),
+          currentUrl: 'http://localhost:3000/',
+          transcript: 'add login form',
+          timestamp: Date.now(),
+        },
+        projectMap,
+      );
 
-    const brain = new Brain(llm);
-    const tasks = await brain.analyze(
-      { screenshot: Buffer.from('fake'), currentUrl: 'http://localhost:3000/', transcript: 'add login form', timestamp: Date.now() },
-      projectMap,
-    );
+      expect(tasks.length).toBeGreaterThan(0);
 
-    expect(tasks.length).toBeGreaterThan(0);
+      // Execute the task
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const result = await executor.execute(tasks[0], projectMap);
 
-    // Execute the task
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
-    const result = await executor.execute(tasks[0], projectMap);
+      expect(result.success).toBe(true);
+      expect(existsSync(path.join(tmp, 'app', 'login', 'page.tsx'))).toBe(true);
 
-    expect(result.success).toBe(true);
-    expect(existsSync(path.join(tmp, 'app', 'login', 'page.tsx'))).toBe(true);
+      // Re-index and verify new route visible
+      const updatedMap = await indexer.index(tmp);
+      const loginRoute = updatedMap.routes.find((r) => r.path === '/login');
+      expect(loginRoute).toBeDefined();
+    },
+    30_000,
+  );
 
-    // Re-index and verify new route visible
-    const updatedMap = await indexer.index(tmp);
-    const loginRoute = updatedMap.routes.find((r) => r.path === '/login');
-    expect(loginRoute).toBeDefined();
-  }, 30_000);
+  it.concurrent(
+    'b) Complete backend flow: index -> brain -> lane3 -> AuthController + endpoints found',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Brain } = await import('../../packages/core/src/brain/Brain.js');
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-  it.concurrent('b) Complete backend flow: index -> brain -> lane3 -> AuthController + endpoints found', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
+      const indexer = new ProjectIndexer();
+      const projectMap = await indexer.index(tmp);
 
-    const indexer = new ProjectIndexer();
-    const projectMap = await indexer.index(tmp);
+      // Brain returns AuthController task
+      const brainResponse = JSON.stringify([
+        {
+          description: 'Create AuthController with login and register endpoints',
+          files: [
+            'backend/Controllers/AuthController.cs',
+            'backend/Models/LoginRequest.cs',
+            'backend/Models/RegisterRequest.cs',
+          ],
+          type: 'multi_file',
+        },
+      ]);
 
-    // Brain returns AuthController task
-    const brainResponse = JSON.stringify([
-      { description: 'Create AuthController with login and register endpoints', files: ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs', 'backend/Models/RegisterRequest.cs'], type: 'multi_file' },
-    ]);
+      const authStreamResponse = buildAuthControllerStreamResponse();
+      const llm = makeMockLlm(brainResponse, authStreamResponse);
+      const git = makeMockGit();
+      const eventBus = makeMockEventBus();
 
-    const authStreamResponse = buildAuthControllerStreamResponse();
-    const llm = makeMockLlm(brainResponse, authStreamResponse);
-    const git = makeMockGit();
-    const eventBus = makeMockEventBus();
+      const brain = new Brain(llm);
+      const tasks = await brain.analyze(
+        {
+          screenshot: Buffer.from('fake'),
+          currentUrl: 'http://localhost:3000/',
+          transcript: 'add auth API',
+          timestamp: Date.now(),
+        },
+        projectMap,
+      );
 
-    const brain = new Brain(llm);
-    const tasks = await brain.analyze(
-      { screenshot: Buffer.from('fake'), currentUrl: 'http://localhost:3000/', transcript: 'add auth API', timestamp: Date.now() },
-      projectMap,
-    );
+      expect(tasks.length).toBeGreaterThan(0);
 
-    expect(tasks.length).toBeGreaterThan(0);
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const result = await executor.execute(tasks[0], projectMap);
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
-    const result = await executor.execute(tasks[0], projectMap);
+      expect(result.success).toBe(true);
 
-    expect(result.success).toBe(true);
+      // Verify files exist
+      expect(existsSync(path.join(tmp, 'backend', 'Controllers', 'AuthController.cs'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'backend', 'Models', 'LoginRequest.cs'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'backend', 'Models', 'RegisterRequest.cs'))).toBe(true);
 
-    // Verify files exist
-    expect(existsSync(path.join(tmp, 'backend', 'Controllers', 'AuthController.cs'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'backend', 'Models', 'LoginRequest.cs'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'backend', 'Models', 'RegisterRequest.cs'))).toBe(true);
+      // EndpointExtractor should find the new endpoints
+      const { EndpointExtractor } =
+        await import('../../packages/core/src/indexer/EndpointExtractor.js');
+      const extractor = new EndpointExtractor();
+      const endpoints = await extractor.extract(tmp, {
+        framework: 'dotnet',
+        language: 'csharp',
+        typescript: false,
+      });
 
-    // EndpointExtractor should find the new endpoints
-    const { EndpointExtractor } = await import('../../packages/core/src/indexer/EndpointExtractor.js');
-    const extractor = new EndpointExtractor();
-    const endpoints = await extractor.extract(tmp, {
-      framework: 'dotnet',
-      language: 'csharp',
-      typescript: false,
-    });
+      const loginEndpoint = endpoints.find((e) => e.method === 'POST' && e.path.includes('login'));
+      const registerEndpoint = endpoints.find(
+        (e) => e.method === 'POST' && e.path.includes('register'),
+      );
 
-    const loginEndpoint = endpoints.find(
-      (e) => e.method === 'POST' && e.path.includes('login'),
-    );
-    const registerEndpoint = endpoints.find(
-      (e) => e.method === 'POST' && e.path.includes('register'),
-    );
+      expect(loginEndpoint).toBeDefined();
+      expect(registerEndpoint).toBeDefined();
+    },
+    30_000,
+  );
 
-    expect(loginEndpoint).toBeDefined();
-    expect(registerEndpoint).toBeDefined();
-  }, 30_000);
+  it.concurrent(
+    'c) Full stack flow: 4 tasks executed, all files written, re-index sees routes + endpoints',
+    async () => {
+      const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-  it.concurrent('c) Full stack flow: 4 tasks executed, all files written, re-index sees routes + endpoints', async () => {
-    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
+      const indexer = new ProjectIndexer();
+      let projectMap = await indexer.index(tmp);
 
-    const indexer = new ProjectIndexer();
-    let projectMap = await indexer.index(tmp);
+      const git = makeMockGit();
+      const eventBus = makeMockEventBus();
 
-    const git = makeMockGit();
-    const eventBus = makeMockEventBus();
+      // Task 1: login page
+      const llm1 = makeMockLlm('', buildLoginPageStreamResponse());
+      const exec1 = new Lane3Executor(tmp, llm1, git, eventBus, 1);
+      const task1 = makeTask({
+        description: 'Create login page with email and password form',
+        files: ['app/login/page.tsx'],
+        type: 'single_file',
+        lane: 3,
+      });
+      const r1 = await exec1.execute(task1, projectMap);
+      expect(r1.success).toBe(true);
 
-    // Task 1: login page
-    const llm1 = makeMockLlm('', buildLoginPageStreamResponse());
-    const exec1 = new Lane3Executor(tmp, llm1, git, eventBus, 1);
-    const task1 = makeTask({
-      description: 'Create login page with email and password form',
-      files: ['app/login/page.tsx'],
-      type: 'single_file',
-      lane: 3,
-    });
-    const r1 = await exec1.execute(task1, projectMap);
-    expect(r1.success).toBe(true);
+      // Task 2: register page
+      const llm2 = makeMockLlm('', buildRegisterPageStreamResponse());
+      const exec2 = new Lane3Executor(tmp, llm2, git, eventBus, 1);
+      const task2 = makeTask({
+        description: 'Create registration page with signup form',
+        files: ['app/register/page.tsx'],
+        type: 'single_file',
+        lane: 3,
+      });
+      const r2 = await exec2.execute(task2, projectMap);
+      expect(r2.success).toBe(true);
 
-    // Task 2: register page
-    const llm2 = makeMockLlm('', buildRegisterPageStreamResponse());
-    const exec2 = new Lane3Executor(tmp, llm2, git, eventBus, 1);
-    const task2 = makeTask({
-      description: 'Create registration page with signup form',
-      files: ['app/register/page.tsx'],
-      type: 'single_file',
-      lane: 3,
-    });
-    const r2 = await exec2.execute(task2, projectMap);
-    expect(r2.success).toBe(true);
+      // Task 3: AuthController + models
+      const llm3 = makeMockLlm('', buildAuthControllerStreamResponse());
+      const exec3 = new Lane3Executor(tmp, llm3, git, eventBus, 1);
+      const task3 = makeTask({
+        description: 'Create AuthController with login and register endpoints',
+        files: [
+          'backend/Controllers/AuthController.cs',
+          'backend/Models/LoginRequest.cs',
+          'backend/Models/RegisterRequest.cs',
+        ],
+        type: 'multi_file',
+        lane: 3,
+      });
+      const r3 = await exec3.execute(task3, projectMap);
+      expect(r3.success).toBe(true);
 
-    // Task 3: AuthController + models
-    const llm3 = makeMockLlm('', buildAuthControllerStreamResponse());
-    const exec3 = new Lane3Executor(tmp, llm3, git, eventBus, 1);
-    const task3 = makeTask({
-      description: 'Create AuthController with login and register endpoints',
-      files: ['backend/Controllers/AuthController.cs', 'backend/Models/LoginRequest.cs', 'backend/Models/RegisterRequest.cs'],
-      type: 'multi_file',
-      lane: 3,
-    });
-    const r3 = await exec3.execute(task3, projectMap);
-    expect(r3.success).toBe(true);
+      // Task 4: Header update (use Lane3 with DIFF)
+      const llm4 = makeMockLlm('', buildHeaderDiffStreamResponse());
+      const exec4 = new Lane3Executor(tmp, llm4, git, eventBus, 1);
+      const task4 = makeTask({
+        description: 'Add auth navigation links to header',
+        files: ['components/Header.tsx'],
+        type: 'single_file',
+        lane: 3,
+      });
+      const r4 = await exec4.execute(task4, projectMap);
+      expect(r4.success).toBe(true);
 
-    // Task 4: Header update (use Lane3 with DIFF)
-    const llm4 = makeMockLlm('', buildHeaderDiffStreamResponse());
-    const exec4 = new Lane3Executor(tmp, llm4, git, eventBus, 1);
-    const task4 = makeTask({
-      description: 'Add auth navigation links to header',
-      files: ['components/Header.tsx'],
-      type: 'single_file',
-      lane: 3,
-    });
-    const r4 = await exec4.execute(task4, projectMap);
-    expect(r4.success).toBe(true);
+      // Verify all files exist
+      expect(existsSync(path.join(tmp, 'app', 'login', 'page.tsx'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'app', 'register', 'page.tsx'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'backend', 'Controllers', 'AuthController.cs'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'backend', 'Models', 'LoginRequest.cs'))).toBe(true);
+      expect(existsSync(path.join(tmp, 'backend', 'Models', 'RegisterRequest.cs'))).toBe(true);
 
-    // Verify all files exist
-    expect(existsSync(path.join(tmp, 'app', 'login', 'page.tsx'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'app', 'register', 'page.tsx'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'backend', 'Controllers', 'AuthController.cs'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'backend', 'Models', 'LoginRequest.cs'))).toBe(true);
-    expect(existsSync(path.join(tmp, 'backend', 'Models', 'RegisterRequest.cs'))).toBe(true);
+      // Re-index and verify routes + endpoints
+      projectMap = await indexer.index(tmp);
 
-    // Re-index and verify routes + endpoints
-    projectMap = await indexer.index(tmp);
+      const loginRoute = projectMap.routes.find((r) => r.path === '/login');
+      const registerRoute = projectMap.routes.find((r) => r.path === '/register');
+      expect(loginRoute).toBeDefined();
+      expect(registerRoute).toBeDefined();
 
-    const loginRoute = projectMap.routes.find((r) => r.path === '/login');
-    const registerRoute = projectMap.routes.find((r) => r.path === '/register');
-    expect(loginRoute).toBeDefined();
-    expect(registerRoute).toBeDefined();
+      // Header should have auth links
+      const headerContent = readFileSync(path.join(tmp, 'components', 'Header.tsx'), 'utf-8');
+      expect(headerContent).toContain('/login');
+      expect(headerContent).toContain('/register');
+    },
+    60_000,
+  );
 
-    // Header should have auth links
-    const headerContent = readFileSync(path.join(tmp, 'components', 'Header.tsx'), 'utf-8');
-    expect(headerContent).toContain('/login');
-    expect(headerContent).toContain('/register');
-  }, 60_000);
+  it.concurrent(
+    'd) Generated login page code quality: has required elements, no debug artifacts',
+    async () => {
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-  it.concurrent('d) Generated login page code quality: has required elements, no debug artifacts', async () => {
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+      const tmp = trackTmp();
+      createFullstackProject(tmp);
+      const eventBus = makeMockEventBus();
 
-    const tmp = trackTmp();
-    createFullstackProject(tmp);
-    const eventBus = makeMockEventBus();
+      const streamResponse = buildLoginPageStreamResponse();
+      const llm = makeMockLlm('', streamResponse);
+      const git = makeMockGit();
 
-    const streamResponse = buildLoginPageStreamResponse();
-    const llm = makeMockLlm('', streamResponse);
-    const git = makeMockGit();
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const fileContexts = buildFullstackFileContexts(tmp);
+      const projectMap = makeFullstackProjectMap(fileContexts);
 
-    const fileContexts = buildFullstackFileContexts(tmp);
-    const projectMap = makeFullstackProjectMap(fileContexts);
+      const task = makeTask({
+        description: 'Create login page with email and password form',
+        files: ['app/login/page.tsx'],
+        type: 'single_file',
+        lane: 3,
+      });
 
-    const task = makeTask({
-      description: 'Create login page with email and password form',
-      files: ['app/login/page.tsx'],
-      type: 'single_file',
-      lane: 3,
-    });
+      const result = await executor.execute(task, projectMap);
+      expect(result.success).toBe(true);
 
-    const result = await executor.execute(task, projectMap);
-    expect(result.success).toBe(true);
+      const generated = readFileSync(path.join(tmp, 'app', 'login', 'page.tsx'), 'utf-8');
 
-    const generated = readFileSync(path.join(tmp, 'app', 'login', 'page.tsx'), 'utf-8');
+      // Required elements
+      expect(generated).toContain("'use client'");
+      expect(generated).toContain('useState');
+      expect(generated).toContain('<form');
+      expect(generated).toContain('type="email"');
+      expect(generated).toContain('type="password"');
+      expect(generated).toContain('type="submit"');
+      expect(generated).toContain('setError');
+      expect(generated).toContain('fetch');
 
-    // Required elements
-    expect(generated).toContain("'use client'");
-    expect(generated).toContain('useState');
-    expect(generated).toContain('<form');
-    expect(generated).toContain('type="email"');
-    expect(generated).toContain('type="password"');
-    expect(generated).toContain('type="submit"');
-    expect(generated).toContain('setError');
-    expect(generated).toContain('fetch');
-
-    // No debug artifacts
-    expect(generated).not.toContain('console.log');
-    expect(generated).not.toContain('hardcoded');
-    expect(generated).not.toContain('TODO');
-  });
+      // No debug artifacts
+      expect(generated).not.toContain('console.log');
+      expect(generated).not.toContain('hardcoded');
+      expect(generated).not.toContain('TODO');
+    },
+  );
 });

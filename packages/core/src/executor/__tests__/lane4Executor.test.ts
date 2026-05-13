@@ -55,8 +55,12 @@ function createMockLlmClient(): LlmClient {
   };
 
   return {
-    chat: vi.fn().mockResolvedValue('=== FILE: src/auth.ts ===\nconsole.log("refactored");\n=== END FILE ==='),
-    chatWithVision: vi.fn().mockResolvedValue(''),
+    chat: vi
+      .fn()
+      .mockResolvedValue({
+        content: '=== FILE: src/auth.ts ===\nconsole.log("refactored");\n=== END FILE ===',
+      }),
+    chatWithVision: vi.fn().mockResolvedValue({ content: '' }),
     stream: vi.fn().mockReturnValue(mockStream()),
   };
 }
@@ -103,14 +107,7 @@ describe('Lane4Executor', () => {
     mockGit = createMockGitManager();
     mockEventBus = createMockEventBus();
 
-    executor = new Lane4Executor(
-      tmpDir,
-      mockLlm,
-      mockGit,
-      mockEventBus,
-      queue,
-      'test-model',
-    );
+    executor = new Lane4Executor(tmpDir, mockLlm, mockGit, mockEventBus, queue, 'test-model');
   });
 
   afterEach(async () => {

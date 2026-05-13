@@ -2,7 +2,12 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, cpSync, writeFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import type { LlmClient, Observation, ProjectMap, Message } from '../../packages/core/src/models/types.js';
+import type {
+  LlmClient,
+  Observation,
+  ProjectMap,
+  Message,
+} from '../../packages/core/src/models/types.js';
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
 const FIXTURE_DIR = path.join(ROOT, 'tests', 'fixtures', 'nextjs-app');
@@ -17,8 +22,8 @@ function makeTmp(): string {
 
 function createMockLlmClient(response: string): LlmClient {
   return {
-    chat: vi.fn(async () => response),
-    chatWithVision: vi.fn(async () => response),
+    chat: vi.fn(async () => ({ content: response })),
+    chatWithVision: vi.fn(async () => ({ content: response })),
     stream: vi.fn(),
   };
 }
@@ -60,9 +65,7 @@ describe('Basic flow — core pipeline integration', () => {
   // ── 1. ProjectIndexer on nextjs-app fixture ─────────────────
 
   it('ProjectIndexer produces a ProjectMap with routes, components, endpoints', async () => {
-    const { ProjectIndexer } = await import(
-      '../../packages/core/src/indexer/ProjectIndexer.js'
-    );
+    const { ProjectIndexer } = await import('../../packages/core/src/indexer/ProjectIndexer.js');
 
     const tmp = getTmp();
     cpSync(FIXTURE_DIR, tmp, { recursive: true });
@@ -82,9 +85,7 @@ describe('Basic flow — core pipeline integration', () => {
   // ── 2. NovaDir initialization ───────────────────────────────
 
   it('NovaDir.init() creates .nova directory structure', async () => {
-    const { NovaDir } = await import(
-      '../../packages/core/src/storage/NovaDir.js'
-    );
+    const { NovaDir } = await import('../../packages/core/src/storage/NovaDir.js');
     const { existsSync } = await import('node:fs');
 
     const tmp = getTmp();
@@ -102,9 +103,7 @@ describe('Basic flow — core pipeline integration', () => {
   // ── 3. Brain.analyze() with mock LLM ───────────────────────
 
   it('Brain.analyze() creates tasks with correct lanes', async () => {
-    const { Brain } = await import(
-      '../../packages/core/src/brain/Brain.js'
-    );
+    const { Brain } = await import('../../packages/core/src/brain/Brain.js');
 
     const llmResponse = JSON.stringify([
       {
@@ -129,7 +128,12 @@ describe('Basic flow — core pipeline integration', () => {
 
     const observation = createObservation();
     const projectMap: ProjectMap = {
-      stack: { framework: 'next.js', language: 'typescript', packageManager: 'npm', typescript: true },
+      stack: {
+        framework: 'next.js',
+        language: 'typescript',
+        packageManager: 'npm',
+        typescript: true,
+      },
       devCommand: 'npm run dev',
       port: 3000,
       routes: [{ path: '/', filePath: 'app/page.tsx', type: 'page' }],
@@ -159,9 +163,7 @@ describe('Basic flow — core pipeline integration', () => {
   // ── 4. LaneClassifier on various inputs ─────────────────────
 
   it('LaneClassifier assigns correct lanes', async () => {
-    const { LaneClassifier } = await import(
-      '../../packages/core/src/brain/LaneClassifier.js'
-    );
+    const { LaneClassifier } = await import('../../packages/core/src/brain/LaneClassifier.js');
 
     const classifier = new LaneClassifier();
 
@@ -184,9 +186,7 @@ describe('Basic flow — core pipeline integration', () => {
   // ── 5. DiffApplier: generate + apply ────────────────────────
 
   it('DiffApplier generates a diff and applies it correctly', async () => {
-    const { DiffApplier } = await import(
-      '../../packages/core/src/executor/DiffApplier.js'
-    );
+    const { DiffApplier } = await import('../../packages/core/src/executor/DiffApplier.js');
 
     const tmp = getTmp();
     const filePath = path.join(tmp, 'test.tsx');
@@ -210,12 +210,16 @@ describe('Basic flow — core pipeline integration', () => {
   // ── 6. ContextDistiller output ──────────────────────────────
 
   it('ContextDistiller produces non-empty output under 3000 chars', async () => {
-    const { ContextDistiller } = await import(
-      '../../packages/core/src/indexer/ContextDistiller.js'
-    );
+    const { ContextDistiller } =
+      await import('../../packages/core/src/indexer/ContextDistiller.js');
 
     const projectMap: ProjectMap = {
-      stack: { framework: 'next.js', language: 'typescript', packageManager: 'pnpm', typescript: true },
+      stack: {
+        framework: 'next.js',
+        language: 'typescript',
+        packageManager: 'pnpm',
+        typescript: true,
+      },
       devCommand: 'pnpm dev',
       port: 3000,
       routes: [
@@ -223,16 +227,24 @@ describe('Basic flow — core pipeline integration', () => {
         { path: '/about', filePath: 'app/about/page.tsx', type: 'page' },
       ],
       components: [
-        { name: 'Header', filePath: 'components/Header.tsx', type: 'component', exports: ['Header'] },
-        { name: 'Footer', filePath: 'components/Footer.tsx', type: 'component', exports: ['Footer'] },
+        {
+          name: 'Header',
+          filePath: 'components/Header.tsx',
+          type: 'component',
+          exports: ['Header'],
+        },
+        {
+          name: 'Footer',
+          filePath: 'components/Footer.tsx',
+          type: 'component',
+          exports: ['Footer'],
+        },
       ],
       endpoints: [
         { method: 'GET', path: '/api/users', filePath: 'app/api/users/route.ts' },
         { method: 'POST', path: '/api/users', filePath: 'app/api/users/route.ts' },
       ],
-      models: [
-        { name: 'User', filePath: 'models/user.ts', fields: ['id', 'name', 'email'] },
-      ],
+      models: [{ name: 'User', filePath: 'models/user.ts', fields: ['id', 'name', 'email'] }],
       dependencies: new Map(),
       fileContexts: new Map(),
       compressedContext: '',

@@ -2,7 +2,13 @@ import { join } from 'node:path';
 import type { ILane2Executor } from '../contracts/IExecutor.js';
 import type { IGitManager } from '../contracts/IGitManager.js';
 import type { IPathGuard } from '../contracts/IPathGuard.js';
-import type { TaskItem, ProjectMap, ExecutionResult, LlmClient, MiniContext } from '../models/types.js';
+import type {
+  TaskItem,
+  ProjectMap,
+  ExecutionResult,
+  LlmClient,
+  MiniContext,
+} from '../models/types.js';
 import { CommitQueue } from '../git/CommitQueue.js';
 import { DiffApplier } from './DiffApplier.js';
 import { addLineNumbers } from './fileBlocks.js';
@@ -41,9 +47,7 @@ function extractDiff(response: string): string {
 
   // Look for diff starting with --- or @@
   const lines = response.split('\n');
-  const startIdx = lines.findIndex(
-    (line) => line.startsWith('---') || line.startsWith('@@'),
-  );
+  const startIdx = lines.findIndex((line) => line.startsWith('---') || line.startsWith('@@'));
 
   if (startIdx >= 0) {
     return lines.slice(startIdx).join('\n').trim();
@@ -91,7 +95,7 @@ export class Lane2Executor implements ILane2Executor {
       }
 
       // Call LLM for diff
-      const response = await this.llmClient.chat(
+      const llmResponse = await this.llmClient.chat(
         [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: buildUserPrompt(context, task.description) },
@@ -103,7 +107,7 @@ export class Lane2Executor implements ILane2Executor {
         },
       );
 
-      const diff = extractDiff(response);
+      const diff = extractDiff(llmResponse.content);
 
       // Apply diff to the file on disk
       const absPath = join(this.projectPath, targetFile);
@@ -111,10 +115,7 @@ export class Lane2Executor implements ILane2Executor {
       await this.diffApplier.apply(absPath, diff);
 
       // Commit changes (serialized via queue for parallel safety)
-      const commitHash = await this.commitQueue.enqueue(
-        `nova: ${task.description}`,
-        [targetFile],
-      );
+      const commitHash = await this.commitQueue.enqueue(`nova: ${task.description}`, [targetFile]);
 
       return {
         success: true,

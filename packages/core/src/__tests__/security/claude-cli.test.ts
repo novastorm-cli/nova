@@ -131,7 +131,7 @@ describe('ClaudeCliProvider', () => {
       const chunks: string[] = [];
       try {
         for await (const chunk of provider.stream(userMessages)) {
-          chunks.push(chunk);
+          chunks.push(chunk.content);
         }
       } catch {
         // ignore
@@ -194,7 +194,7 @@ describe('ClaudeCliProvider', () => {
 
       const chunks: string[] = [];
       for await (const chunk of provider.stream(userMessages)) {
-        chunks.push(chunk);
+        chunks.push(chunk.content);
       }
 
       expect(chunks.join('')).toBe('Hello World');
@@ -245,7 +245,7 @@ describe('ClaudeCliProvider', () => {
 
       const chunks: string[] = [];
       for await (const chunk of provider.stream(userMessages)) {
-        chunks.push(chunk);
+        chunks.push(chunk.content);
       }
 
       expect(chunks.join('')).toBe('ok');
@@ -263,7 +263,7 @@ describe('ClaudeCliProvider', () => {
       mockSpawn.mockReturnValueOnce(child);
 
       const result = await provider.chat(userMessages);
-      expect(result).toBe('Part1Part2');
+      expect(result).toEqual({ content: 'Part1Part2' });
     });
 
     it('passes responseFormat=json as a suffix instruction on stdin', async () => {

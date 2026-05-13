@@ -6,8 +6,8 @@ import type { LlmClient, ProjectMap, TaskItem } from '../../models/types.js';
 function createMockLlmClient(responses: string[]): LlmClient {
   let callIndex = 0;
   return {
-    chat: vi.fn(async () => responses[callIndex++] ?? ''),
-    chatWithVision: vi.fn(async () => responses[callIndex++] ?? ''),
+    chat: vi.fn(async () => ({ content: responses[callIndex++] ?? '' })),
+    chatWithVision: vi.fn(async () => ({ content: responses[callIndex++] ?? '' })),
     stream: vi.fn(),
   };
 }
@@ -24,9 +24,7 @@ function createProjectMap(): ProjectMap {
     },
     devCommand: 'npm run dev',
     port: 3000,
-    routes: [
-      { path: '/dashboard', filePath: 'app/dashboard/page.tsx', type: 'page' },
-    ],
+    routes: [{ path: '/dashboard', filePath: 'app/dashboard/page.tsx', type: 'page' }],
     components: [
       {
         name: 'Header',

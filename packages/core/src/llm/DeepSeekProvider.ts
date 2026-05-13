@@ -1,7 +1,7 @@
 import type OpenAI from 'openai';
 import { OpenAIProvider } from './OpenAIProvider.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
-import type { LlmOptions, Message } from '../models/types.js';
+import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 
 const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const DEFAULT_MODEL = 'deepseek-v4-pro';
@@ -30,7 +30,7 @@ export class DeepSeekProvider extends OpenAIProvider {
     super(config.apiKey, DEEPSEEK_BASE_URL, 'deepseek', model);
   }
 
-  async chat(messages: Message[], options?: LlmOptions): Promise<string> {
+  async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
     if (options?.model && !ALLOWED_MODELS.has(options.model)) {
       throw new ProviderError(
         `Unsupported DeepSeek model: "${options.model}". Allowed models: ${[...ALLOWED_MODELS].join(', ')}`,
@@ -59,16 +59,20 @@ export class DeepSeekProvider extends OpenAIProvider {
       ];
       if (typeof reasoningContent === 'string') {
         this.lastReasoningContent = reasoningContent;
-      } else {
-        this.lastReasoningContent = undefined;
+        return { content, reasoningContent };
       }
 
-      return content;
+      this.lastReasoningContent = undefined;
+      return { content };
     });
   }
 
   /* eslint-disable @typescript-eslint/no-unused-vars */
-  chatWithVision(_messages: Message[], _images: Buffer[], _options?: LlmOptions): Promise<string> {
+  chatWithVision(
+    _messages: Message[],
+    _images: Buffer[],
+    _options?: LlmOptions,
+  ): Promise<ChatResponse> {
     /* eslint-enable @typescript-eslint/no-unused-vars */
     throw new ProviderError(
       'DeepSeek does not support vision. Use a vision-capable provider for visual mode.',
@@ -78,7 +82,7 @@ export class DeepSeekProvider extends OpenAIProvider {
     );
   }
 
-  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<string> {
+  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk> {
     if (options?.model && !ALLOWED_MODELS.has(options.model)) {
       throw new ProviderError(
         `Unsupported DeepSeek model: "${options.model}". Allowed models: ${[...ALLOWED_MODELS].join(', ')}`,
@@ -104,7 +108,7 @@ export class DeepSeekProvider extends OpenAIProvider {
 
   protected async *doStream(
     request: OpenAI.ChatCompletionCreateParamsStreaming,
-  ): AsyncIterable<string> {
+  ): AsyncIterable<StreamChunk> {
     const reasoningParts: string[] = [];
     const stream = await this.client.chat.completions.create(request);
 
@@ -114,13 +118,20 @@ export class DeepSeekProvider extends OpenAIProvider {
 
       // Capture reasoning_content from delta (DeepSeek extension)
       const reasoningDelta = (delta as Record<string, unknown>)['reasoning_content'];
-      if (typeof reasoningDelta === 'string') {
-        reasoningParts.push(reasoningDelta);
+      const reasoningStr = typeof reasoningDelta === 'string' ? reasoningDelta : undefined;
+
+      if (reasoningStr) {
+        reasoningParts.push(reasoningStr);
       }
 
       const content = (delta as Record<string, unknown>)['content'];
-      if (typeof content === 'string') {
-        yield content;
+      const contentStr = typeof content === 'string' ? content : undefined;
+
+      if (contentStr || reasoningStr) {
+        yield {
+          content: contentStr ?? '',
+          ...(reasoningStr ? { reasoningContent: reasoningStr } : {}),
+        };
       }
     }
 

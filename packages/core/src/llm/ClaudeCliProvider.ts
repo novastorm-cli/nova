@@ -1,16 +1,16 @@
 import { spawn } from 'node:child_process';
-import type { LlmClient, LlmOptions, Message } from '../models/types.js';
+import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 
 const TIMEOUT_MS = 300_000; // 5 minutes
 
 export class ClaudeCliProvider implements LlmClient {
-  async chat(messages: Message[], options?: LlmOptions): Promise<string> {
+  async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
     const chunks: string[] = [];
     for await (const chunk of this.stream(messages, options)) {
-      chunks.push(chunk);
+      chunks.push(chunk.content);
     }
-    return chunks.join('');
+    return { content: chunks.join('') };
   }
 
   /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
@@ -18,7 +18,7 @@ export class ClaudeCliProvider implements LlmClient {
     _messages: Message[],
     _images: Buffer[],
     _options?: LlmOptions,
-  ): Promise<string> {
+  ): Promise<ChatResponse> {
     /* eslint-enable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
     throw new ProviderError(
       'claude-cli does not support vision in this Nova version; configure a vision-capable provider',
@@ -28,7 +28,7 @@ export class ClaudeCliProvider implements LlmClient {
     );
   }
 
-  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<string> {
+  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk> {
     const prompt = this.messagesToPrompt(messages);
 
     let finalPrompt = prompt;
@@ -62,7 +62,7 @@ export class ClaudeCliProvider implements LlmClient {
         const text =
           typeof chunk === 'string' ? chunk : textDecoder.decode(chunk as Buffer, { stream: true });
         if (text) {
-          yield text;
+          yield { content: text };
         }
       }
 

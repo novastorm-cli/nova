@@ -117,7 +117,7 @@ async function checkProviderPing(config: NovaConfig): Promise<CheckResult> {
       const client = factory.create(provider);
       // Do a 1-token chat to verify the provider works
       const response = await client.chat([{ role: 'user', content: 'say ok' }], { maxTokens: 1 });
-      if (response && response.length > 0) {
+      if (response && response.content.length > 0) {
         return { name: 'Provider', status: 'ok', message: `${provider} ping successful` };
       }
       return {
@@ -150,7 +150,7 @@ async function checkProviderPing(config: NovaConfig): Promise<CheckResult> {
     const client = factory.create(provider, apiKey);
     // Do a 1-token chat
     const response = await client.chat([{ role: 'user', content: 'say ok' }], { maxTokens: 1 });
-    if (response && response.length > 0) {
+    if (response && response.content.length > 0) {
       return { name: 'Provider', status: 'ok', message: `${provider} ping successful` };
     }
     return {

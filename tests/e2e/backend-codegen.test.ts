@@ -1,8 +1,21 @@
 import { describe, it, expect, afterAll, vi } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, mkdirSync, cpSync } from 'node:fs';
+import {
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  cpSync,
+} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import type { TaskItem, ProjectMap, LlmClient, MiniContext } from '../../packages/core/src/models/types.js';
+import type {
+  TaskItem,
+  ProjectMap,
+  LlmClient,
+  MiniContext,
+} from '../../packages/core/src/models/types.js';
 import type { IGitManager } from '../../packages/core/src/contracts/IGitManager.js';
 import type { EventBus } from '../../packages/core/src/models/events.js';
 
@@ -32,11 +45,15 @@ afterAll(() => {
   for (const dir of tmpDirsToClean) {
     try {
       rmSync(dir, { recursive: true, force: true });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 });
 
-function makeTask(overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>): TaskItem {
+function makeTask(
+  overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 'files' | 'type' | 'lane'>,
+): TaskItem {
   return {
     id: crypto.randomUUID(),
     status: 'pending',
@@ -44,7 +61,10 @@ function makeTask(overrides: Partial<TaskItem> & Pick<TaskItem, 'description' | 
   };
 }
 
-function makeProjectMap(fileContexts: Map<string, MiniContext>, overrides?: Partial<ProjectMap>): ProjectMap {
+function makeProjectMap(
+  fileContexts: Map<string, MiniContext>,
+  overrides?: Partial<ProjectMap>,
+): ProjectMap {
   return {
     stack: { framework: 'next.js', language: 'typescript', typescript: true },
     devCommand: 'npm run dev',
@@ -77,10 +97,10 @@ function makeMockGit(): IGitManager {
 
 function makeMockLlm(chatResponse: string, streamResponse?: string): LlmClient {
   return {
-    chat: vi.fn(async () => chatResponse),
-    chatWithVision: vi.fn(async () => ''),
+    chat: vi.fn(async () => ({ content: chatResponse })),
+    chatWithVision: vi.fn(async () => ({ content: '' })),
     stream: vi.fn(async function* () {
-      yield streamResponse ?? chatResponse;
+      yield { content: streamResponse ?? chatResponse };
     }),
   };
 }
@@ -94,7 +114,6 @@ function makeMockEventBus(): EventBus {
 // ============================================================================
 
 describe.concurrent('Lane1Executor -- Real CSS Changes', () => {
-
   it.concurrent('a) changes color from red to blue in a CSS file', async () => {
     const { Lane1Executor } = await import('../../packages/core/src/executor/Lane1Executor.js');
 
@@ -211,7 +230,6 @@ describe.concurrent('Lane1Executor -- Real CSS Changes', () => {
 // ============================================================================
 
 describe.concurrent('Lane2Executor -- Mock LLM', () => {
-
   it.concurrent('a) LLM returns valid diff -> applied to file, commit called', async () => {
     const { Lane2Executor } = await import('../../packages/core/src/executor/Lane2Executor.js');
 
@@ -219,7 +237,11 @@ describe.concurrent('Lane2Executor -- Mock LLM', () => {
     const filePath = 'app/page.tsx';
     const absPath = path.join(tmp, filePath);
     mkdirSync(path.dirname(absPath), { recursive: true });
-    writeFileSync(absPath, 'export default function Home() {\n  return <div>Hello</div>;\n}\n', 'utf-8');
+    writeFileSync(
+      absPath,
+      'export default function Home() {\n  return <div>Hello</div>;\n}\n',
+      'utf-8',
+    );
 
     const diffResponse = [
       '--- a/app/page.tsx',
@@ -261,54 +283,61 @@ describe.concurrent('Lane2Executor -- Mock LLM', () => {
     expect(updated).toContain('Hello World');
   });
 
-  it.concurrent('b) LLM returns diff wrapped in markdown fences -> still extracted and applied', async () => {
-    const { Lane2Executor } = await import('../../packages/core/src/executor/Lane2Executor.js');
+  it.concurrent(
+    'b) LLM returns diff wrapped in markdown fences -> still extracted and applied',
+    async () => {
+      const { Lane2Executor } = await import('../../packages/core/src/executor/Lane2Executor.js');
 
-    const tmp = trackTmp();
-    const filePath = 'app/layout.tsx';
-    const absPath = path.join(tmp, filePath);
-    mkdirSync(path.dirname(absPath), { recursive: true });
-    writeFileSync(absPath, 'export const title = "My App";\nexport const version = "1.0";\n', 'utf-8');
+      const tmp = trackTmp();
+      const filePath = 'app/layout.tsx';
+      const absPath = path.join(tmp, filePath);
+      mkdirSync(path.dirname(absPath), { recursive: true });
+      writeFileSync(
+        absPath,
+        'export const title = "My App";\nexport const version = "1.0";\n',
+        'utf-8',
+      );
 
-    const diffResponse = [
-      '```diff',
-      '--- a/app/layout.tsx',
-      '+++ b/app/layout.tsx',
-      '@@ -1,2 +1,2 @@',
-      '-export const title = "My App";',
-      '+export const title = "Nova App";',
-      ' export const version = "1.0";',
-      '```',
-    ].join('\n');
+      const diffResponse = [
+        '```diff',
+        '--- a/app/layout.tsx',
+        '+++ b/app/layout.tsx',
+        '@@ -1,2 +1,2 @@',
+        '-export const title = "My App";',
+        '+export const title = "Nova App";',
+        ' export const version = "1.0";',
+        '```',
+      ].join('\n');
 
-    const llm = makeMockLlm(diffResponse);
-    const git = makeMockGit();
-    const executor = new Lane2Executor(tmp, llm, git);
+      const llm = makeMockLlm(diffResponse);
+      const git = makeMockGit();
+      const executor = new Lane2Executor(tmp, llm, git);
 
-    const fileContexts = new Map<string, MiniContext>();
-    fileContexts.set(filePath, {
-      filePath,
-      content: 'export const title = "My App";\nexport const version = "1.0";\n',
-      importedTypes: '',
-    });
+      const fileContexts = new Map<string, MiniContext>();
+      fileContexts.set(filePath, {
+        filePath,
+        content: 'export const title = "My App";\nexport const version = "1.0";\n',
+        importedTypes: '',
+      });
 
-    const task = makeTask({
-      description: 'change app title to Nova App',
-      files: [filePath],
-      type: 'single_file',
-      lane: 2,
-    });
+      const task = makeTask({
+        description: 'change app title to Nova App',
+        files: [filePath],
+        type: 'single_file',
+        lane: 2,
+      });
 
-    const projectMap = makeProjectMap(fileContexts);
-    const result = await executor.execute(task, projectMap);
+      const projectMap = makeProjectMap(fileContexts);
+      const result = await executor.execute(task, projectMap);
 
-    expect(result.success).toBe(true);
-    expect(result.commitHash).toBe('abc1234');
+      expect(result.success).toBe(true);
+      expect(result.commitHash).toBe('abc1234');
 
-    const updated = readFileSync(absPath, 'utf-8');
-    expect(updated).toContain('Nova App');
-    expect(updated).not.toContain('My App');
-  });
+      const updated = readFileSync(absPath, 'utf-8');
+      expect(updated).toContain('Nova App');
+      expect(updated).not.toContain('My App');
+    },
+  );
 
   it.concurrent('c) no target file specified -> returns error gracefully', async () => {
     const { Lane2Executor } = await import('../../packages/core/src/executor/Lane2Executor.js');
@@ -339,46 +368,48 @@ describe.concurrent('Lane2Executor -- Mock LLM', () => {
 // ============================================================================
 
 describe.concurrent('Lane3Executor -- Mock LLM', () => {
+  it.concurrent(
+    'a) LLM returns FILE block for a new file -> written to disk, committed',
+    async () => {
+      const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
 
-  it.concurrent('a) LLM returns FILE block for a new file -> written to disk, committed', async () => {
-    const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
+      const tmp = trackTmp();
+      const eventBus = makeMockEventBus();
 
-    const tmp = trackTmp();
-    const eventBus = makeMockEventBus();
+      const fileBlockResponse = [
+        '=== FILE: components/SearchBar.tsx ===',
+        'export function SearchBar() {',
+        '  return <input type="search" placeholder="Search..." />;',
+        '}',
+        '=== END FILE ===',
+      ].join('\n');
 
-    const fileBlockResponse = [
-      '=== FILE: components/SearchBar.tsx ===',
-      'export function SearchBar() {',
-      '  return <input type="search" placeholder="Search..." />;',
-      '}',
-      '=== END FILE ===',
-    ].join('\n');
+      const llm = makeMockLlm('', fileBlockResponse);
+      const git = makeMockGit();
 
-    const llm = makeMockLlm('', fileBlockResponse);
-    const git = makeMockGit();
+      const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
 
-    const executor = new Lane3Executor(tmp, llm, git, eventBus, 1);
+      const task = makeTask({
+        description: 'create a SearchBar component',
+        files: ['components/SearchBar.tsx'],
+        type: 'multi_file',
+        lane: 3,
+      });
 
-    const task = makeTask({
-      description: 'create a SearchBar component',
-      files: ['components/SearchBar.tsx'],
-      type: 'multi_file',
-      lane: 3,
-    });
+      const fileContexts = new Map<string, MiniContext>();
+      const projectMap = makeProjectMap(fileContexts);
 
-    const fileContexts = new Map<string, MiniContext>();
-    const projectMap = makeProjectMap(fileContexts);
+      const result = await executor.execute(task, projectMap);
 
-    const result = await executor.execute(task, projectMap);
+      expect(result.success).toBe(true);
+      expect(result.commitHash).toBe('abc1234');
+      expect(git.commit).toHaveBeenCalledTimes(1);
 
-    expect(result.success).toBe(true);
-    expect(result.commitHash).toBe('abc1234');
-    expect(git.commit).toHaveBeenCalledTimes(1);
-
-    const written = readFileSync(path.join(tmp, 'components', 'SearchBar.tsx'), 'utf-8');
-    expect(written).toContain('export function SearchBar()');
-    expect(written).toContain('placeholder="Search..."');
-  });
+      const written = readFileSync(path.join(tmp, 'components', 'SearchBar.tsx'), 'utf-8');
+      expect(written).toContain('export function SearchBar()');
+      expect(written).toContain('placeholder="Search..."');
+    },
+  );
 
   it.concurrent('b) LLM returns DIFF block for existing file -> applied, committed', async () => {
     const { Lane3Executor } = await import('../../packages/core/src/executor/Lane3Executor.js');
@@ -390,7 +421,11 @@ describe.concurrent('Lane3Executor -- Mock LLM', () => {
     const existingFilePath = 'app/page.tsx';
     const absPath = path.join(tmp, existingFilePath);
     mkdirSync(path.dirname(absPath), { recursive: true });
-    writeFileSync(absPath, 'export default function Home() {\n  return <div>Hello</div>;\n}\n', 'utf-8');
+    writeFileSync(
+      absPath,
+      'export default function Home() {\n  return <div>Hello</div>;\n}\n',
+      'utf-8',
+    );
 
     const diffBlockResponse = [
       '=== DIFF: app/page.tsx ===',
@@ -465,7 +500,6 @@ describe.concurrent('Lane3Executor -- Mock LLM', () => {
 // ============================================================================
 
 describe.concurrent('fileBlocks Parsing', () => {
-
   it.concurrent('a) parseFileBlocks with multiple FILE blocks', async () => {
     const { parseFileBlocks } = await import('../../packages/core/src/executor/fileBlocks.js');
 
@@ -531,27 +565,30 @@ describe.concurrent('fileBlocks Parsing', () => {
     }
   });
 
-  it.concurrent('c) parseMixedBlocks with invalid DIFF (no @@ headers) -> treated as FILE', async () => {
-    const { parseMixedBlocks } = await import('../../packages/core/src/executor/fileBlocks.js');
+  it.concurrent(
+    'c) parseMixedBlocks with invalid DIFF (no @@ headers) -> treated as FILE',
+    async () => {
+      const { parseMixedBlocks } = await import('../../packages/core/src/executor/fileBlocks.js');
 
-    const response = [
-      '=== DIFF: app/layout.tsx ===',
-      'export default function Layout({ children }) {',
-      '  return <html><body>{children}</body></html>;',
-      '}',
-      '=== END DIFF ===',
-    ].join('\n');
+      const response = [
+        '=== DIFF: app/layout.tsx ===',
+        'export default function Layout({ children }) {',
+        '  return <html><body>{children}</body></html>;',
+        '}',
+        '=== END DIFF ===',
+      ].join('\n');
 
-    const blocks = parseMixedBlocks(response);
+      const blocks = parseMixedBlocks(response);
 
-    expect(blocks).toHaveLength(1);
-    // Should be treated as file because no @@ or --- headers
-    expect(blocks[0].type).toBe('file');
-    if (blocks[0].type === 'file') {
-      expect(blocks[0].path).toBe('app/layout.tsx');
-      expect(blocks[0].content).toContain('Layout');
-    }
-  });
+      expect(blocks).toHaveLength(1);
+      // Should be treated as file because no @@ or --- headers
+      expect(blocks[0].type).toBe('file');
+      if (blocks[0].type === 'file') {
+        expect(blocks[0].path).toBe('app/layout.tsx');
+        expect(blocks[0].content).toContain('Layout');
+      }
+    },
+  );
 
   it.concurrent('d) addLineNumbers formats correctly', async () => {
     const { addLineNumbers } = await import('../../packages/core/src/executor/fileBlocks.js');
@@ -568,7 +605,6 @@ describe.concurrent('fileBlocks Parsing', () => {
 // ============================================================================
 
 describe.concurrent('ExecutorPool Routing & Fallback', () => {
-
   it.concurrent('a) Lane 1 success -> no fallback', async () => {
     const { ExecutorPool } = await import('../../packages/core/src/executor/ExecutorPool.js');
 
@@ -638,7 +674,16 @@ describe.concurrent('ExecutorPool Routing & Fallback', () => {
     const llm = makeMockLlm('', fileBlockResponse);
     const git = makeMockGit();
 
-    const pool = new ExecutorPool(lane1, lane2, eventBus, llm, git, tmp, 'fast-model', 'strong-model');
+    const pool = new ExecutorPool(
+      lane1,
+      lane2,
+      eventBus,
+      llm,
+      git,
+      tmp,
+      'fast-model',
+      'strong-model',
+    );
 
     const task = makeTask({
       description: 'change header color to blue',
@@ -700,7 +745,6 @@ describe.concurrent('ExecutorPool Routing & Fallback', () => {
 // ============================================================================
 
 describe.concurrent('PromptBuilder', () => {
-
   it.concurrent('a) buildAnalysisPrompt includes transcript, URL, project context', async () => {
     const { PromptBuilder } = await import('../../packages/core/src/brain/PromptBuilder.js');
 
@@ -765,7 +809,6 @@ describe.concurrent('PromptBuilder', () => {
 // ============================================================================
 
 describe.concurrent('E2E Backend Generation on test-project', () => {
-
   it.runIf(existsSync(TEST_PROJECT)).concurrent(
     'a) Index test-project, create Lane1 CSS change task, execute on copy -> file changed',
     async () => {
@@ -775,7 +818,8 @@ describe.concurrent('E2E Backend Generation on test-project', () => {
       const tmp = trackTmp();
       cpSync(TEST_PROJECT, tmp, {
         recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.next') && !src.includes('.nova'),
+        filter: (src) =>
+          !src.includes('node_modules') && !src.includes('.next') && !src.includes('.nova'),
       });
 
       const indexer = new ProjectIndexer();
@@ -825,7 +869,8 @@ describe.concurrent('E2E Backend Generation on test-project', () => {
       const tmp = trackTmp();
       cpSync(TEST_PROJECT, tmp, {
         recursive: true,
-        filter: (src) => !src.includes('node_modules') && !src.includes('.next') && !src.includes('.nova'),
+        filter: (src) =>
+          !src.includes('node_modules') && !src.includes('.next') && !src.includes('.nova'),
       });
 
       const indexer = new ProjectIndexer();
@@ -841,9 +886,11 @@ describe.concurrent('E2E Backend Generation on test-project', () => {
       ]);
 
       const llm: LlmClient = {
-        chat: vi.fn(async () => llmResponse),
-        chatWithVision: vi.fn(async () => llmResponse),
-        stream: vi.fn(async function* () { yield llmResponse; }),
+        chat: vi.fn(async () => ({ content: llmResponse })),
+        chatWithVision: vi.fn(async () => ({ content: llmResponse })),
+        stream: vi.fn(async function* () {
+          yield { content: llmResponse };
+        }),
       };
 
       const brain = new Brain(llm);
