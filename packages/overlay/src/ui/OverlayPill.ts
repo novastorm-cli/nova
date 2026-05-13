@@ -35,6 +35,7 @@ export class OverlayPill implements IOverlayPill {
   private quickEditHandler: (() => void) | null = null;
   private multiEditHandler: (() => void) | null = null;
   private gestureModeHandler: (() => void) | null = null;
+  private recentTasksHandler: (() => void) | null = null;
   private activeMode: 'none' | 'quickEdit' | 'multiEdit' = 'none';
   private gestureModeActive = false;
   private currentState: PillState = 'idle';
@@ -158,6 +159,10 @@ export class OverlayPill implements IOverlayPill {
     this.gestureModeHandler = handler;
   }
 
+  onRecentTasks(handler: () => void): void {
+    this.recentTasksHandler = handler;
+  }
+
   // ── Gesture mode visual ───────────────────────────────────────
 
   setGestureModeActive(active: boolean): void {
@@ -256,6 +261,8 @@ export class OverlayPill implements IOverlayPill {
       this.multiEditHandler?.();
     } else if (mode === 'projectMap') {
       window.open('/nova-project-map', '_blank');
+    } else if (mode === 'recentTasks') {
+      this.recentTasksHandler?.();
     } else if (mode === 'gestureMode') {
       this.gestureModeHandler?.();
     }
@@ -421,6 +428,9 @@ export class OverlayPill implements IOverlayPill {
       </button>
       <button class="dropdown-item" data-mode="projectMap">
         <span class="dropdown-icon">&#128506;</span> ${strings.projectMapLabel} <span class="shortcut">${altM}</span>
+      </button>
+      <button class="dropdown-item" data-mode="recentTasks">
+        <span class="dropdown-icon">&#128337;</span> ${strings.recentTasksLabel}
       </button>
       <div class="dropdown-divider"></div>
       <button class="dropdown-item gesture-toggle" data-mode="gestureMode">

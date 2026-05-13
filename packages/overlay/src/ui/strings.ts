@@ -91,6 +91,8 @@ export const strings = {
 
   // ── Task panel ───────────────────────────────────────────
   taskPanelTitle: 'Nova Tasks',
+  taskPanelCloseAriaLabel: 'Close task panel',
+  recentTasksLabel: 'Recent Tasks',
 
   // ── Suggestion panel ─────────────────────────────────────
   suggestionPanelTitle: 'Nova Suggestions',

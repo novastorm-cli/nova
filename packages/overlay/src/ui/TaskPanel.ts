@@ -13,6 +13,8 @@ interface TaskEntry {
 
 const AUTO_HIDE_DELAY_MS = 5000;
 const STORAGE_KEY = 'nova-task-panel-state';
+const RECENT_TASKS_KEY = 'nova_recent_tasks';
+const MAX_RECENT_TASKS = 20;
 
 interface StoredTask {
   id: string;
@@ -30,6 +32,8 @@ export class TaskPanel {
   private panelEl: HTMLElement | null = null;
   private tasks: Map<string, TaskEntry> = new Map();
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
+  private isHovering = false;
+  private isHistoryMode = false;
 
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
@@ -49,16 +53,44 @@ export class TaskPanel {
     this.panelEl = document.createElement('div');
     this.panelEl.className = 'task-panel hidden';
 
+    // Title bar with close button
+    const titleBar = document.createElement('div');
+    titleBar.className = 'task-panel-title-bar';
+
     const title = document.createElement('div');
     title.className = 'task-panel-title';
     title.textContent = strings.taskPanelTitle;
-    this.panelEl.appendChild(title);
+    titleBar.appendChild(title);
+
+    // Close button (×)
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'task-panel-close';
+    closeBtn.setAttribute('aria-label', strings.taskPanelCloseAriaLabel);
+    closeBtn.innerHTML = strings.closeX;
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeImmediately();
+    });
+    titleBar.appendChild(closeBtn);
+
+    this.panelEl.appendChild(titleBar);
 
     this.listEl = document.createElement('div');
     this.listEl.className = 'task-list';
     this.panelEl.appendChild(this.listEl);
 
     this.shadow.appendChild(this.panelEl);
+
+    // Pin-on-hover: suspend/resume auto-hide timer
+    this.panelEl.addEventListener('pointerenter', () => {
+      this.isHovering = true;
+      this.clearHideTimer();
+    });
+    this.panelEl.addEventListener('pointerleave', () => {
+      this.isHovering = false;
+      this.checkAllDone();
+    });
+
     container.appendChild(this.host);
 
     // Restore state after hot reload
@@ -132,6 +164,7 @@ export class TaskPanel {
     entry.commitHash = commitHash;
     this.updateTaskRow(entry);
     this.saveState();
+    this.persistToRecent();
     this.checkAllDone();
   }
 
@@ -142,6 +175,7 @@ export class TaskPanel {
     entry.error = error;
     this.updateTaskRow(entry);
     this.saveState();
+    this.persistToRecent();
     this.checkAllDone();
   }
 
@@ -167,7 +201,65 @@ export class TaskPanel {
   }
 
   hide(): void {
+    this.clearHideTimer();
     this.panelEl?.classList.add('hidden');
+  }
+
+  /** Close immediately — used by the × button. */
+  closeImmediately(): void {
+    this.clearHideTimer();
+    this.isHistoryMode = false;
+    this.panelEl?.classList.add('hidden');
+    if (this.listEl) this.listEl.innerHTML = '';
+    this.tasks.clear();
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // sessionStorage may be unavailable
+    }
+  }
+
+  /** Show the recent tasks history panel (from localStorage). */
+  showHistory(): void {
+    this.clearHideTimer();
+    this.isHistoryMode = true;
+
+    // Clear current tasks
+    this.tasks.clear();
+    if (this.listEl) this.listEl.innerHTML = '';
+
+    try {
+      const raw = localStorage.getItem(RECENT_TASKS_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw) as StoredTask[];
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      // Show history entries (all completed/failed, not live tasks)
+      for (const stored of data) {
+        const element = this.createTaskRow(stored.description, stored.status);
+        this.listEl?.appendChild(element);
+        const entry: TaskEntry = {
+          id: stored.id,
+          description: stored.description,
+          lane: stored.lane,
+          status: stored.status,
+          commitHash: stored.commitHash,
+          error: stored.error,
+          element,
+        };
+        this.tasks.set(stored.id, entry);
+
+        // Update meta for completed/failed
+        if (stored.status === 'completed' || stored.status === 'failed') {
+          this.updateTaskRow(entry);
+        }
+      }
+    } catch {
+      // Ignore parse errors
+      return;
+    }
+
+    this.panelEl?.classList.remove('hidden');
   }
 
   private show(): void {
@@ -180,12 +272,60 @@ export class TaskPanel {
     );
     if (allDone && this.tasks.size > 0) {
       this.clearHideTimer();
-      this.hideTimer = setTimeout(() => {
-        this.hide();
-        try {
-          sessionStorage.removeItem(STORAGE_KEY);
-        } catch {}
-      }, AUTO_HIDE_DELAY_MS);
+      // Don't start timer if hovering over panel
+      if (!this.isHovering) {
+        this.hideTimer = setTimeout(() => {
+          this.hide();
+          try {
+            sessionStorage.removeItem(STORAGE_KEY);
+          } catch {
+            // sessionStorage may be unavailable
+          }
+        }, AUTO_HIDE_DELAY_MS);
+      }
+    }
+  }
+
+  /** Save completed/failed tasks to localStorage for persistent history (max 20). */
+  private persistToRecent(): void {
+    try {
+      const terminal = Array.from(this.tasks.values()).filter(
+        (t) => t.status === 'completed' || t.status === 'failed',
+      );
+      if (terminal.length === 0) return;
+
+      // Load existing recent tasks
+      let recent: StoredTask[] = [];
+      const raw = localStorage.getItem(RECENT_TASKS_KEY);
+      if (raw) {
+        recent = JSON.parse(raw) as StoredTask[];
+        if (!Array.isArray(recent)) recent = [];
+      }
+
+      // Merge terminal tasks into the front (dedup by id)
+      const existingIds = new Set(recent.map((t) => t.id));
+      for (const t of terminal) {
+        if (!existingIds.has(t.id)) {
+          recent.unshift({
+            id: t.id,
+            description: t.description,
+            lane: t.lane,
+            status: t.status,
+            commitHash: t.commitHash,
+            error: t.error,
+          });
+          existingIds.add(t.id);
+        }
+      }
+
+      // Trim to max
+      if (recent.length > MAX_RECENT_TASKS) {
+        recent = recent.slice(0, MAX_RECENT_TASKS);
+      }
+
+      localStorage.setItem(RECENT_TASKS_KEY, JSON.stringify(recent));
+    } catch {
+      // localStorage might be unavailable
     }
   }
 
@@ -275,7 +415,7 @@ export class TaskPanel {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return;
 
-      const data: StoredTask[] = JSON.parse(raw);
+      const data = JSON.parse(raw) as StoredTask[];
       if (!Array.isArray(data) || data.length === 0) return;
 
       // Check if all tasks are done — if so, don't restore (stale)
@@ -334,13 +474,39 @@ export class TaskPanel {
         pointer-events: none;
       }
 
+      .task-panel-title-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 12px 8px 16px;
+      }
+
       .task-panel-title {
-        padding: 12px 16px 8px;
         font-size: 13px;
         font-weight: 600;
         color: var(--nova-text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.05em;
+      }
+
+      .task-panel-close {
+        background: none;
+        border: none;
+        color: var(--nova-text-secondary);
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        padding: 2px 4px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.15s, background 0.15s;
+      }
+
+      .task-panel-close:hover {
+        color: var(--nova-text-primary);
+        background: var(--nova-surface-subtle);
       }
 
       .task-list {

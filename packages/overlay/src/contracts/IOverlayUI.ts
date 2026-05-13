@@ -12,6 +12,7 @@ export interface IOverlayPill {
   setState(state: 'idle' | 'listening' | 'processing' | 'error'): void;
   onQuickEdit(handler: () => void): void;
   onMultiEdit(handler: () => void): void;
+  onRecentTasks(handler: () => void): void;
   setActiveMode(mode: 'none' | 'quickEdit' | 'multiEdit'): void;
 }
 

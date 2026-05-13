@@ -890,6 +890,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     }
   });
 
+  // Pill dropdown: Recent Tasks
+  pill.onRecentTasks(() => {
+    taskPanel.showHistory();
+  });
+
   // Set initial gesture mode visual
   pill.setGestureModeActive(gestureModeEnabled);
 
