@@ -444,7 +444,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     if (elementInspector.isActive() || multiSelector.isActive()) return;
 
     // Find the interactive element (target itself or closest ancestor)
-    const interactive = target.closest(DEAD_CLICK_SELECTOR) as HTMLElement | null;
+    const interactive = target.closest(DEAD_CLICK_SELECTOR);
     if (!interactive) return;
 
     // Skip if inside Nova root (extra safety)
@@ -812,7 +812,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         wsClient.sendRaw({ type: 'confirm' });
       }
       statusToast.show(strings.confirmed, 'success', 2000);
-      fsm.send({ type: 'thinking_started' });
+      fsm.send({ type: 'confirmed' });
     }
   });
 
@@ -1160,7 +1160,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             statusToast.dismiss(executingToastId);
             executingToastId = null;
           }
-          fsm.send({ type: 'applying_complete' });
+          fsm.send({ type: 'thinking_complete' });
           statusToast.show(strings.allTasksCompleted, 'success');
           totalTasks = 0;
           completedTasks = 0;
@@ -1371,7 +1371,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             statusToast.dismiss(autofixToastId);
             autofixToastId = null;
           }
-          fsm.send({ type: 'applying_complete' });
+          fsm.send({ type: 'thinking_complete' });
           statusToast.show(strings.buildFixApplied, 'success', 3000);
           // Reload page after short delay to pick up hot-reload changes
           scheduleReload();
