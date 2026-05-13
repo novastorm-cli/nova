@@ -208,7 +208,9 @@ export class ElementInspector {
     document.body.style.cursor = '';
     try {
       sessionStorage.removeItem('nova-inspector-popup');
-    } catch {}
+    } catch {
+      /* sessionStorage may be unavailable */
+    }
 
     if (this.popupRecognition) {
       this.popupRecognition.stop();
@@ -322,7 +324,9 @@ export class ElementInspector {
           y,
         }),
       );
-    } catch {}
+    } catch {
+      /* sessionStorage may be unavailable */
+    }
   }
 
   restorePopupState(): void {
@@ -330,21 +334,27 @@ export class ElementInspector {
       const raw = sessionStorage.getItem('nova-inspector-popup');
       if (!raw) return;
       sessionStorage.removeItem('nova-inspector-popup');
-      const state = JSON.parse(raw);
-      if (!state.selector) return;
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof parsed.selector !== 'string') return;
 
       // Try to find the element
-      const el = document.querySelector(state.selector) as HTMLElement | null;
-      if (el) {
+      const el: Element | null = document.querySelector(parsed.selector);
+      if (el instanceof HTMLElement) {
         this.selectedElement = el;
-        this.showPopup(state.x ?? 200, state.y ?? 200, el);
+        this.showPopup(
+          typeof parsed.x === 'number' ? parsed.x : 200,
+          typeof parsed.y === 'number' ? parsed.y : 200,
+          el,
+        );
         // Restore input text after popup is rendered
         setTimeout(() => {
           const input = this.popupEl?.querySelector('.popup-input') as HTMLInputElement | null;
-          if (input && state.text) input.value = state.text;
+          if (input && typeof parsed.text === 'string') input.value = parsed.text;
         }, 50);
       }
-    } catch {}
+    } catch {
+      /* sessionStorage or JSON parsing may fail */
+    }
   }
 
   private showPopup(x: number, y: number, element: HTMLElement): void {
