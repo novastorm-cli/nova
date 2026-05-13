@@ -1,13 +1,15 @@
 import * as net from 'node:net';
-import killPort from 'kill-port';
+import { killPort as killPortNative } from './PortKiller.js';
 
 /**
  * Cross-platform port management.
  *
  * Port probing uses {@link net.createServer().listen} (no shelling out).
- * Port killing delegates to the `kill-port` npm package (MIT, tiny).
- *
- * Replaces all former `lsof -ti :$PORT | xargs kill -9` call sites.
+ * Port killing uses a Node-native implementation:
+ *   - Linux:   parses `/proc/net/tcp` → find inode → walk `/proc/[pid]/fd`
+ *              → `process.kill(pid, 'SIGTERM')`.  Zero subprocesses.
+ *   - macOS:   parses `netstat -anv -p tcp` output → `process.kill`.
+ *              Never spawns `lsof`, `xargs`, or `fuser`.
  */
 export class PortManager {
   /**
@@ -31,11 +33,12 @@ export class PortManager {
   /**
    * Kill the process holding *port*.
    *
-   * Delegates to the `kill-port` package which handles Linux / macOS / Windows.
-   * Never shells out to `lsof` or `xargs` directly from Nova's own code.
+   * Sends SIGTERM to each PID listening on the port.  On Linux this is
+   * fully Node‑native (zero subprocesses); on macOS it shells out to
+   * `netstat` only — never `lsof`, `xargs`, or `fuser`.
    */
   static async killPort(port: number): Promise<void> {
-    await killPort(port, 'tcp');
+    await killPortNative(port);
   }
 
   /**

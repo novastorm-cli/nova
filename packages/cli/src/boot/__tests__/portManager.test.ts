@@ -21,14 +21,14 @@ function releasePort(server: net.Server): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Mock kill-port (so we don't actually kill anything during unit tests)
+// Mock PortKiller (so we don't actually kill anything during unit tests)
 // ---------------------------------------------------------------------------
-vi.mock('kill-port', () => ({
-  default: vi.fn(),
+vi.mock('../PortKiller.js', () => ({
+  killPort: vi.fn(),
 }));
 
-import killPortMock from 'kill-port';
-const mockKillPort = vi.mocked(killPortMock);
+import { killPort as killPortNative } from '../PortKiller.js';
+const mockKillPort = vi.mocked(killPortNative);
 
 // ---------------------------------------------------------------------------
 // isPortInUse
@@ -104,20 +104,16 @@ describe('PortManager.findNextFreePort', () => {
 describe('PortManager.killPort', () => {
   beforeEach(() => {
     mockKillPort.mockReset();
-    mockKillPort.mockResolvedValue({
-      stdout: '',
-      stderr: '',
-      cmd: '',
-    } as import('shell-exec').SuccessfulExec);
+    mockKillPort.mockResolvedValue({ pids: [], skipped: [] });
   });
 
-  it('delegates to kill-port with TCP protocol', async () => {
+  it('delegates to the Node-native PortKiller', async () => {
     await PortManager.killPort(3599);
     expect(mockKillPort).toHaveBeenCalledTimes(1);
-    expect(mockKillPort).toHaveBeenCalledWith(3599, 'tcp');
+    expect(mockKillPort).toHaveBeenCalledWith(3599);
   });
 
-  it('rejects when kill-port throws', async () => {
+  it('rejects when PortKiller throws', async () => {
     mockKillPort.mockRejectedValue(new Error('No process running on port'));
     await expect(PortManager.killPort(3599)).rejects.toThrow('No process running on port');
   });
