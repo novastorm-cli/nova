@@ -46,6 +46,7 @@ export const strings = {
   successEmoji: '\u2705',
   errorEmoji: '\u274C',
   codeEmoji: '\u{1F4DD}',
+  unreadBadge: (n: number): string => `(${n} new)`,
 
   // ── Diff modal ───────────────────────────────────────────
   diffCloseTitle: 'Close (Esc)',

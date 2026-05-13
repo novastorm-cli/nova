@@ -22,6 +22,8 @@ export class ActivityLog {
   private lastEntry: HTMLElement | null = null;
   private entryCount = 0;
   private collapsed = false;
+  private unreadCount = 0;
+  private badgeEl: HTMLElement | null = null;
   private storedEntries: StoredEntry[] = [];
   private diffClickHandler: ((filePath: string, diff: string) => void) | null = null;
 
@@ -58,7 +60,15 @@ export class ActivityLog {
       this.toggleCollapse();
     });
 
+    // Unread badge — hidden by default, shown while collapsed with pending entries
+    this.badgeEl = document.createElement('span');
+    this.badgeEl.setAttribute('data-nova', 'unread');
+    this.badgeEl.className = 'unread-badge';
+    this.badgeEl.textContent = '';
+    this.badgeEl.style.display = 'none';
+
     this.titleEl.appendChild(titleText);
+    this.titleEl.appendChild(this.badgeEl);
     this.titleEl.appendChild(this.collapseBtn);
 
     // Click on title also toggles collapse
@@ -91,9 +101,14 @@ export class ActivityLog {
     }
     this.entryCount++;
 
-    // If collapsed, uncollapse to show new activity
+    // If collapsed: error auto-uncollapses, non-error increments unread badge
     if (this.collapsed) {
-      this.uncollapse();
+      if (type === 'error') {
+        this.uncollapse();
+      } else {
+        this.unreadCount++;
+        this.updateBadge();
+      }
     }
 
     const now = serverTimestamp ? new Date(serverTimestamp) : new Date();
@@ -151,7 +166,14 @@ export class ActivityLog {
       this.panelEl.classList.remove('hidden');
     }
     this.entryCount++;
-    if (this.collapsed) this.uncollapse();
+    if (this.collapsed) {
+      if (type === 'error') {
+        this.uncollapse();
+      } else {
+        this.unreadCount++;
+        this.updateBadge();
+      }
+    }
 
     const now = serverTimestamp ? new Date(serverTimestamp) : new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -200,6 +222,16 @@ export class ActivityLog {
     this.diffClickHandler = handler;
   }
 
+  /** Expose public state for e2e testing. */
+  getState(): { collapsed: boolean; unreadCount: number; entryCount: number; isHidden: boolean } {
+    return {
+      collapsed: this.collapsed,
+      unreadCount: this.unreadCount,
+      entryCount: this.entryCount,
+      isHidden: this.panelEl?.classList.contains('hidden') ?? true,
+    };
+  }
+
   /** Add a clickable entry that opens a diff modal when clicked. */
   addDiffEntry(
     filePath: string,
@@ -213,7 +245,14 @@ export class ActivityLog {
       this.panelEl.classList.remove('hidden');
     }
     this.entryCount++;
-    if (this.collapsed) this.uncollapse();
+    if (this.collapsed) {
+      if (type === 'error') {
+        this.uncollapse();
+      } else {
+        this.unreadCount++;
+        this.updateBadge();
+      }
+    }
 
     const now = serverTimestamp ? new Date(serverTimestamp) : new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -273,8 +312,10 @@ export class ActivityLog {
     this.logEl = null;
     this.titleEl = null;
     this.collapseBtn = null;
+    this.badgeEl = null;
     this.lastEntry = null;
     this.entryCount = 0;
+    this.unreadCount = 0;
   }
 
   private toggleCollapse(): void {
@@ -296,6 +337,8 @@ export class ActivityLog {
 
   private uncollapse(): void {
     this.collapsed = false;
+    this.unreadCount = 0;
+    this.updateBadge();
     this.logEl?.classList.remove('collapsed');
     if (this.collapseBtn) {
       this.collapseBtn.textContent = strings.collapseIcon;
@@ -304,29 +347,46 @@ export class ActivityLog {
     // Scroll to bottom after expand
     if (this.logEl) {
       requestAnimationFrame(() => {
-        this.logEl!.scrollTop = this.logEl!.scrollHeight;
+        if (this.logEl) {
+          this.logEl.scrollTop = this.logEl.scrollHeight;
+        }
       });
+    }
+  }
+
+  private updateBadge(): void {
+    if (!this.badgeEl) return;
+    if (this.unreadCount > 0 && this.collapsed) {
+      this.badgeEl.textContent = strings.unreadBadge(this.unreadCount);
+      this.badgeEl.style.display = '';
+    } else {
+      this.badgeEl.textContent = '';
+      this.badgeEl.style.display = 'none';
     }
   }
 
   private saveState(): void {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(this.storedEntries));
-    } catch {}
+    } catch {
+      // sessionStorage may be unavailable in some environments
+    }
   }
 
   private restoreState(): void {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const entries: StoredEntry[] = JSON.parse(raw);
+      const entries = JSON.parse(raw) as StoredEntry[];
       if (!Array.isArray(entries) || entries.length === 0) return;
 
       this.storedEntries = entries;
       for (const stored of entries) {
         this.addEntry(stored.message, stored.type, true);
       }
-    } catch {}
+    } catch {
+      // Corrupted or unparseable stored state — ignore
+    }
   }
 
   private getPrefix(type: EntryType): string {
@@ -404,6 +464,17 @@ export class ActivityLog {
 
       .collapse-btn:hover {
         color: var(--nova-text-primary);
+      }
+
+      .unread-badge {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--nova-accent);
+        background: rgba(59, 130, 246, 0.15);
+        padding: 1px 6px;
+        border-radius: 8px;
+        margin-left: 6px;
+        flex-shrink: 0;
       }
 
       .activity-log {

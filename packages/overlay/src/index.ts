@@ -1314,6 +1314,15 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         }
       }
     },
+    // ActivityLog state helpers for e2e testing
+    getActivityLogState: () => activityLog.getState(),
+    collapseActivityLog: () => {
+      const host = document.querySelector('[data-nova-activity-log]');
+      if (host?.shadowRoot) {
+        const titleBar = host.shadowRoot.querySelector('.activity-title');
+        if (titleBar) (titleBar as HTMLElement).click();
+      }
+    },
   };
 }
 
