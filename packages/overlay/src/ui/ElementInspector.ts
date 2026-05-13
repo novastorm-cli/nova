@@ -56,22 +56,14 @@ export class ElementInspector {
     style.textContent = this.getStyleSheet();
     this.shadow.appendChild(style);
 
-    // Backdrop layer — intercepts clicks meant for the inspector,
-    // preventing host elements from activating during selection mode.
+    // Backdrop layer — covers the viewport with pointer-events: auto
+    // during selection mode, preventing host elements from receiving
+    // mouse events. The document-level capture-phase click handler
+    // (bindGlobalEvents) is responsible for intercepting clicks and
+    // routing them to the inspector via getElementAt + showPopup.
     this.backdropEl = document.createElement('div');
     this.backdropEl.className = 'inspector-backdrop';
     this.backdropEl.style.display = 'none';
-    this.backdropEl.addEventListener('click', (e: MouseEvent) => {
-      if (!this.active || this.popupVisible) return;
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      const target = this.getElementAt(e.clientX, e.clientY);
-      if (target) {
-        this.selectedElement = target;
-        this.showPopup(e.clientX, e.clientY, target);
-      }
-    });
     this.shadow.appendChild(this.backdropEl);
 
     // Highlight overlay element
