@@ -46,6 +46,9 @@ export class ProxyServer implements IProxyServer {
       attrs.push(`data-nova-session="${this.sessionToken}"`);
     }
     attrs.push(`data-nova-port="${proxyPort}"`);
+    // Tell the overlay that files can be opened via vscode:// protocol
+    // (true when the proxy is running against a local dev server)
+    attrs.push('data-nova-can-open="true"');
     return `<script ${attrs.join(' ')}></script>`;
   }
 

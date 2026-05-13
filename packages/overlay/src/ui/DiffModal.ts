@@ -9,6 +9,18 @@ interface DiffLine {
   newNum: string;
 }
 
+interface DiffStats {
+  added: number;
+  removed: number;
+}
+
+interface DiffModalShowOptions {
+  absPath?: string;
+  firstLineNumber?: number;
+  canOpen?: boolean;
+  onRevert?: (filePath: string) => void;
+}
+
 let diffModalIdCounter = 0;
 
 export class DiffModal {
@@ -16,6 +28,8 @@ export class DiffModal {
   private shadow: ShadowRoot | null = null;
   private overlayEl: HTMLElement | null = null;
   private focusTrap: FocusTrap | null = null;
+  private currentFilePath = '';
+  private currentDiffContent = '';
 
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
@@ -46,9 +60,11 @@ export class DiffModal {
     container.appendChild(this.host);
   }
 
-  show(filePath: string, diffContent: string): void {
+  show(filePath: string, diffContent: string, options: DiffModalShowOptions = {}): void {
     if (!this.overlayEl) return;
 
+    this.currentFilePath = filePath;
+    this.currentDiffContent = diffContent;
     this.overlayEl.innerHTML = '';
 
     diffModalIdCounter++;
@@ -82,11 +98,17 @@ export class DiffModal {
     header.appendChild(closeBtn);
     modal.appendChild(header);
 
+    // Toolbar
+    const lines = this.parseLines(diffContent);
+    const stats = this.computeStats(lines);
+
+    const toolbar = this.buildToolbar(filePath, diffContent, stats, options);
+    toolbar.setAttribute('data-nova', 'toolbar');
+    modal.appendChild(toolbar);
+
     // Diff body
     const body = document.createElement('div');
     body.className = 'diff-body';
-
-    const lines = this.parseLines(diffContent);
 
     const table = document.createElement('table');
     table.className = 'diff-table';
@@ -184,6 +206,103 @@ export class DiffModal {
     return result;
   }
 
+  private computeStats(lines: DiffLine[]): DiffStats {
+    let added = 0;
+    let removed = 0;
+    for (const line of lines) {
+      if (line.type === 'added') added++;
+      if (line.type === 'removed') removed++;
+    }
+    return { added, removed };
+  }
+
+  private buildToolbar(
+    filePath: string,
+    diffContent: string,
+    stats: DiffStats,
+    options: DiffModalShowOptions,
+  ): HTMLElement {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'diff-toolbar';
+
+    // Stats badge: +N -M
+    const statsChip = document.createElement('span');
+    statsChip.className = 'diff-stats-chip';
+    statsChip.setAttribute('data-nova', 'stats');
+    statsChip.setAttribute('aria-label', strings.diffStatsAriaLabel);
+    const addedSpan = document.createElement('span');
+    addedSpan.className = 'stats-added';
+    addedSpan.textContent = `+${stats.added}`;
+    const removedSpan = document.createElement('span');
+    removedSpan.className = 'stats-removed';
+    removedSpan.textContent = ` -${stats.removed}`;
+    statsChip.appendChild(addedSpan);
+    statsChip.appendChild(removedSpan);
+    toolbar.appendChild(statsChip);
+
+    // Spacer
+    const spacer = document.createElement('div');
+    spacer.className = 'diff-toolbar-spacer';
+    toolbar.appendChild(spacer);
+
+    // Copy diff button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'diff-tool-btn';
+    copyBtn.setAttribute('data-nova', 'copy');
+    copyBtn.setAttribute('aria-label', strings.diffCopyAriaLabel);
+    copyBtn.textContent = strings.diffCopyButton;
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void (async () => {
+        try {
+          await navigator.clipboard.writeText(diffContent);
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = strings.diffCopied;
+          copyBtn.classList.add('copied-flash');
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.classList.remove('copied-flash');
+          }, 1500);
+        } catch {
+          // Clipboard write may fail in non-secure contexts
+        }
+      })();
+    });
+    toolbar.appendChild(copyBtn);
+
+    // Open file button (only when canOpen is true)
+    if (options.canOpen) {
+      const openBtn = document.createElement('button');
+      openBtn.className = 'diff-tool-btn';
+      openBtn.setAttribute('data-nova', 'open-file');
+      openBtn.setAttribute('aria-label', strings.diffOpenFileAriaLabel);
+      openBtn.textContent = strings.diffOpenFileButton;
+      openBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const absPath = options.absPath ?? filePath;
+        const line = options.firstLineNumber ?? 1;
+        void window.open(`vscode://file/${absPath}:${line}`, '_blank');
+      });
+      toolbar.appendChild(openBtn);
+    }
+
+    // Revert this file button
+    const revertBtn = document.createElement('button');
+    revertBtn.className = 'diff-tool-btn diff-tool-btn-danger';
+    revertBtn.setAttribute('data-nova', 'revert');
+    revertBtn.setAttribute('aria-label', strings.diffRevertAriaLabel);
+    revertBtn.textContent = strings.diffRevertButton;
+    revertBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (options.onRevert) {
+        options.onRevert(filePath);
+      }
+    });
+    toolbar.appendChild(revertBtn);
+
+    return toolbar;
+  }
+
   private getStyles(): string {
     return `
       .diff-overlay {
@@ -271,7 +390,79 @@ export class DiffModal {
         border-color: var(--nova-panel-border);
       }
 
-      .diff-body {
+      /* --- Toolbar --- */
+      .diff-toolbar {
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--nova-panel-border);
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .diff-toolbar-spacer {
+        flex: 1;
+      }
+
+      .diff-stats-chip {
+        display: inline-flex;
+        align-items: center;
+        background: var(--nova-input-bg);
+        border: 1px solid var(--nova-panel-border);
+        border-radius: 12px;
+        padding: 3px 10px;
+        font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .stats-added {
+        color: var(--nova-success);
+      }
+
+      .stats-removed {
+        color: var(--nova-error);
+      }
+
+      .diff-tool-btn {
+        background: var(--nova-input-bg);
+        border: 1px solid var(--nova-panel-border);
+        border-radius: 6px;
+        color: var(--nova-text-secondary);
+        font-size: 11px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding: 4px 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+
+      .diff-tool-btn:hover {
+        background: var(--nova-dropdown-hover);
+        color: var(--nova-text-primary);
+        border-color: var(--nova-text-secondary);
+      }
+
+      .diff-tool-btn.copied-flash {
+        background: rgba(63, 185, 80, 0.2);
+        border-color: var(--nova-success);
+        color: var(--nova-success);
+        transition: all 0.1s;
+      }
+
+      .diff-tool-btn-danger {
+        color: var(--nova-error);
+        border-color: var(--nova-error);
+      }
+
+      .diff-tool-btn-danger:hover {
+        background: rgba(248, 81, 73, 0.15);
+        color: var(--nova-error);
+        border-color: var(--nova-error);
+      }
+
+      /* --- Diff body --- */
         overflow: auto;
         flex: 1;
         min-height: 0;

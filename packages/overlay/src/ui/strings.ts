@@ -53,6 +53,15 @@ export const strings = {
   closeX: '\u2715',
   diffModified: 'Modified: ',
   diffCreated: 'Created: ',
+  diffCopyButton: 'Copy diff',
+  diffCopyAriaLabel: 'Copy diff to clipboard',
+  diffCopied: 'Copied!',
+  diffOpenFileButton: 'Open file',
+  diffOpenFileAriaLabel: 'Open file in editor',
+  diffRevertButton: 'Revert this file',
+  diffRevertAriaLabel: 'Revert this file',
+  diffReverted: 'Reverted: ',
+  diffStatsAriaLabel: 'Diff statistics',
 
   // ── Element inspector ────────────────────────────────────
   targetEmoji: '\uD83C\uDFAF',

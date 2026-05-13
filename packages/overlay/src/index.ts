@@ -51,6 +51,18 @@ function getSessionToken(): string | null {
   return null;
 }
 
+/** Whether the server reports that files can be opened via vscode:// protocol. */
+function getCanOpen(): boolean {
+  const script = document.querySelector('script[data-nova-can-open]');
+  return script?.getAttribute('data-nova-can-open') === 'true';
+}
+
+/** Extract the first line number from a unified diff hunk header. */
+function getFirstLineNumber(diffContent: string): number {
+  const match = diffContent.match(/@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+  return match ? parseInt(match[1], 10) : 1;
+}
+
 async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -272,7 +284,21 @@ function boot(): void {
 
   // Wire diff modal to activity log
   activityLog.onDiffClick((filePath, diff) => {
-    diffModal.show(filePath, diff);
+    const canOpen = getCanOpen();
+    const firstLine = getFirstLineNumber(diff);
+    diffModal.show(filePath, diff, {
+      absPath: filePath,
+      firstLineNumber: firstLine,
+      canOpen,
+      onRevert: (path) => {
+        // Send revert request to server over WebSocket
+        wsClient.sendRaw({ type: 'revert_file', path });
+        // Close the modal immediately
+        diffModal.hide();
+        // Add reverted entry to activity log
+        activityLog.addEntry(`${strings.diffReverted}${path}`, 'success');
+      },
+    });
   });
   multiSelector.mount(novaRoot);
   secretConsole.mount(novaRoot);
@@ -1218,6 +1244,39 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     wsClient.setToken(token);
   }
   wsClient.connect(`ws://localhost:${port}/nova-ws`);
+
+  // Test hook: expose DiffModal and some internals for e2e testing
+  (window as unknown as Record<string, unknown>).__novaTest__ = {
+    showDiffModal: (filePath: string, diff: string, absPath?: string, firstLine?: number) => {
+      diffModal.show(filePath, diff, {
+        absPath: absPath,
+        firstLineNumber: firstLine,
+        canOpen: getCanOpen(),
+        onRevert: (path: string) => {
+          wsClient.sendRaw({ type: 'revert_file', path });
+          diffModal.hide();
+          activityLog.addEntry(`${strings.diffReverted}${path}`, 'success');
+        },
+      });
+    },
+    hideDiffModal: () => diffModal.hide(),
+    addActivityEntry: (message: string, type: string) => {
+      activityLog.addEntry(message, type as 'info' | 'thinking' | 'success' | 'error' | 'code');
+    },
+    addDiffEntry: (filePath: string, diff: string) => {
+      activityLog.addDiffEntry(filePath, diff, 'code');
+    },
+    clickDiffEntry: () => {
+      // Find the last diff-link in activity log and click it
+      const entry = document.querySelector('[data-nova-activity-log]');
+      if (entry && entry.shadowRoot) {
+        const diffLink = entry.shadowRoot.querySelector('.diff-link');
+        if (diffLink) {
+          (diffLink as HTMLElement).click();
+        }
+      }
+    },
+  };
 }
 
 // Self-executing on DOMContentLoaded
