@@ -57,22 +57,34 @@ export function redactSecrets(text: string): string {
 }
 
 /**
- * Deep-redacts a context object, replacing secrets in all string values.
- * Returns a new object; does not mutate the input.
+ * Recursively redacts a value — strings get scrubbed via redactSecrets,
+ * plain objects are recursively walked, arrays are mapped, and all other
+ * types (numbers, booleans, null, etc.) pass through unchanged.
+ */
+function redactValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return redactSecrets(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactValue(item));
+  }
+  if (value !== null && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      result[k] = redactValue(v);
+    }
+    return result;
+  }
+  return value;
+}
+
+/**
+ * Deep-redacts a context object, replacing secrets in all string values
+ * at every nesting level. Returns a new object; does not mutate the input.
  *
- * @param context - Object whose string values should be redacted
+ * @param context - Object whose string values (at any depth) should be redacted
  * @returns A new object with any secret-bearing values redacted
  */
-export function redactContext(
-  context: Record<string, unknown>,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(context)) {
-    if (typeof value === 'string') {
-      result[key] = redactSecrets(value);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
+export function redactContext(context: Record<string, unknown>): Record<string, unknown> {
+  return redactValue(context) as Record<string, unknown>;
 }
