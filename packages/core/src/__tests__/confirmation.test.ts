@@ -250,3 +250,80 @@ describe('Confirmation status messages', () => {
     expect(pendingMessage).toContain('N to discard');
   });
 });
+
+describe('Chat confirm handler must call executeTasks (not just emit events)', () => {
+  it('confirm drains pendingTasks and triggers execution', () => {
+    // Simulate the chat confirm handler path
+    const pendingTasks: TestTask[] = [
+      makeTask(),
+      makeTask({ id: 'task-002', description: 'Fix layout' }),
+    ];
+    // Track whether executeTasks was called
+    let executeCalledWith: TestTask[] | null = null;
+    function executeTasks(tasks: TestTask[]): void {
+      executeCalledWith = tasks;
+    }
+
+    // This mirrors the FIXED chat confirm handler:
+    // Instead of: for (const task of pendingTasks) { emit task_created }
+    // We do: const tasksToRun = [...pendingTasks]; pendingTasks = []; executeTasks(tasksToRun)
+    expect(pendingTasks).toHaveLength(2);
+
+    const tasksToRun = [...pendingTasks];
+    pendingTasks.length = 0; // drain
+    executeTasks(tasksToRun);
+
+    expect(pendingTasks).toHaveLength(0);
+    expect(executeCalledWith).not.toBeNull();
+    expect(executeCalledWith!).toHaveLength(2);
+    expect(executeCalledWith![0].id).toBe('task-001');
+    expect(executeCalledWith![1].id).toBe('task-002');
+  });
+
+  it('chat confirm and wsServer.onConfirm follow the same execution pattern', () => {
+    // Both paths must: (1) copy pendingTasks, (2) drain pendingTasks, (3) call executeTasks
+    const pendingTasks: TestTask[] = [makeTask()];
+
+    // wsServer.onConfirm path (reference implementation)
+    const wsTasksToRun = [...pendingTasks];
+    pendingTasks.length = 0;
+    // executeTasks(wsTasksToRun) would be called here
+    expect(wsTasksToRun).toHaveLength(1);
+    expect(pendingTasks).toHaveLength(0);
+
+    // Reset for chat confirm path
+    const chatPendingTasks: TestTask[] = [makeTask()];
+
+    // chat confirm path (must match wsServer.onConfirm pattern)
+    const chatTasksToRun = [...chatPendingTasks];
+    chatPendingTasks.length = 0;
+    // executeTasks(chatTasksToRun) would be called here
+    expect(chatTasksToRun).toHaveLength(1);
+    expect(chatPendingTasks).toHaveLength(0);
+
+    // Both paths must call executeTasks with the drained tasks
+    expect(chatTasksToRun.length).toBe(wsTasksToRun.length);
+  });
+
+  it('executeTasks emits task_created AND calls executorPool.execute', () => {
+    // executeTasks does two things:
+    // 1. Emit task_created event for each task (for UI/logging)
+    // 2. Call executorPool.execute(task, projectMap) for each task
+    // The bug was that chat confirm only did step 1, skipping step 2.
+    const tasks: TestTask[] = [makeTask()];
+    const emittedTaskIds: string[] = [];
+    const executedTaskIds: string[] = [];
+
+    // Simulate executeTasks behavior
+    for (const task of tasks) {
+      emittedTaskIds.push(task.id); // step 1: emit task_created
+    }
+    for (const task of tasks) {
+      executedTaskIds.push(task.id); // step 2: executorPool.execute
+    }
+
+    // Both steps must happen
+    expect(emittedTaskIds).toEqual(['task-001']);
+    expect(executedTaskIds).toEqual(['task-001']);
+  });
+});

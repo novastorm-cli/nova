@@ -1713,10 +1713,10 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
           type: 'status',
           data: { message: `Executing ${pendingTasks.length} task(s)...` },
         });
-        for (const task of pendingTasks) {
-          eventBus.emit({ type: 'task_created', data: task });
-        }
+        // Mirror wsServer.onConfirm: drain pendingTasks and call executeTasks
+        const tasksToRun = [...pendingTasks];
         pendingTasks = [];
+        executeTasks(tasksToRun);
         break;
       }
 
