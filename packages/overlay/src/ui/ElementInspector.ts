@@ -441,6 +441,7 @@ export class ElementInspector {
 
     const micBtn = document.createElement('button');
     micBtn.className = 'popup-mic';
+    micBtn.setAttribute('aria-label', strings.voiceMicAriaLabel);
     micBtn.textContent = strings.micEmoji;
     micBtn.addEventListener('click', (e) => {
       e.stopPropagation();

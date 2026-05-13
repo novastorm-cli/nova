@@ -53,6 +53,7 @@ export class ActivityLog {
 
     this.collapseBtn = document.createElement('button');
     this.collapseBtn.className = 'collapse-btn';
+    this.collapseBtn.setAttribute('aria-label', strings.collapseButtonAriaLabel);
     this.collapseBtn.textContent = strings.collapseIcon;
     this.collapseBtn.title = strings.collapseButtonTitle;
     this.collapseBtn.addEventListener('click', (e) => {
@@ -332,6 +333,7 @@ export class ActivityLog {
     if (this.collapseBtn) {
       this.collapseBtn.textContent = strings.expandIcon;
       this.collapseBtn.title = strings.expandButtonTitle;
+      this.collapseBtn.setAttribute('aria-label', strings.expandButtonAriaLabel);
     }
   }
 
@@ -343,6 +345,7 @@ export class ActivityLog {
     if (this.collapseBtn) {
       this.collapseBtn.textContent = strings.collapseIcon;
       this.collapseBtn.title = strings.collapseButtonTitle;
+      this.collapseBtn.setAttribute('aria-label', strings.collapseButtonAriaLabel);
     }
     // Scroll to bottom after expand
     if (this.logEl) {

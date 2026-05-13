@@ -114,6 +114,7 @@ export class TranscriptBar implements ITranscriptBar {
     // Send button
     this.sendBtn = document.createElement('button');
     this.sendBtn.className = 'send-btn';
+    this.sendBtn.setAttribute('aria-label', strings.sendButtonAriaLabel);
     this.sendBtn.textContent = strings.sendButtonArrow;
     this.sendBtn.title = strings.sendButtonTitle;
     this.sendBtn.addEventListener('click', (e) => {

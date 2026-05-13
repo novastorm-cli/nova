@@ -32,6 +32,35 @@ describe('StatusToast', () => {
     expect(toastEl).not.toBeNull();
   });
 
+  it('info toast has role="status"', () => {
+    const id = toast.show('Info message', 'info');
+    const el = document.querySelector(`[data-toast-id="${id}"]`);
+    expect(el).not.toBeNull();
+    expect(el!.getAttribute('role')).toBe('status');
+  });
+
+  it('success toast has role="status"', () => {
+    const id = toast.show('Success message', 'success');
+    const el = document.querySelector(`[data-toast-id="${id}"]`);
+    expect(el).not.toBeNull();
+    expect(el!.getAttribute('role')).toBe('status');
+  });
+
+  it('error toast has role="alert"', () => {
+    const id = toast.show('Error message', 'error');
+    const el = document.querySelector(`[data-toast-id="${id}"]`);
+    expect(el).not.toBeNull();
+    expect(el!.getAttribute('role')).toBe('alert');
+  });
+
+  it('no toast is rendered without role attribute', () => {
+    const id = toast.show('Test', 'info');
+    const el = document.querySelector(`[data-toast-id="${id}"]`);
+    expect(el).not.toBeNull();
+    const role = el!.getAttribute('role');
+    expect(role === 'alert' || role === 'status').toBe(true);
+  });
+
   it('show("msg", "error") does NOT auto-dismiss', () => {
     const id = toast.show('Error occurred', 'error');
 

@@ -367,6 +367,7 @@ export class MultiElementSelector {
 
     const micBtn = document.createElement('button');
     micBtn.className = 'ms-mic';
+    micBtn.setAttribute('aria-label', strings.voiceMicAriaLabel);
     micBtn.textContent = strings.micEmoji;
     micBtn.addEventListener('click', (e) => {
       e.stopPropagation();
