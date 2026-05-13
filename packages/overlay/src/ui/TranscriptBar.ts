@@ -70,10 +70,24 @@ export class TranscriptBar implements ITranscriptBar {
     this.micBtn = document.createElement('button');
     this.micBtn.className = 'mic-btn muted';
     this.micBtn.setAttribute('data-nova', 'mic');
-    this.micBtn.setAttribute('aria-label', strings.micOffTitle);
-    this.micBtn.textContent = strings.micEmoji;
-    this.micBtn.title = strings.micOffTitle;
+    this.micBtn.setAttribute('aria-label', strings.voiceToggleOff);
+    this.micBtn.title = strings.voiceToggleOff;
     this.recording = false;
+
+    // Mic icon (emoji)
+    const micIcon = document.createElement('span');
+    micIcon.className = 'mic-icon';
+    micIcon.textContent = strings.micEmoji;
+
+    // Amplitude ring visualizer
+    const ampRing = document.createElement('span');
+    ampRing.className = 'amplitude-ring';
+    ampRing.setAttribute('data-nova', 'amplitude');
+    ampRing.setAttribute('data-level', '0');
+
+    this.micBtn.appendChild(micIcon);
+    this.micBtn.appendChild(ampRing);
+
     this.micBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggleRecording();
@@ -242,11 +256,13 @@ export class TranscriptBar implements ITranscriptBar {
       if (active) {
         this.micBtn.classList.add('recording');
         this.micBtn.classList.remove('muted');
-        this.micBtn.setAttribute('aria-label', strings.micOnTitle);
+        this.micBtn.setAttribute('aria-label', strings.voiceToggleOn);
+        this.micBtn.title = strings.voiceToggleOn;
       } else {
         this.micBtn.classList.remove('recording');
         this.micBtn.classList.add('muted');
-        this.micBtn.setAttribute('aria-label', strings.micOffTitle);
+        this.micBtn.setAttribute('aria-label', strings.voiceToggleOff);
+        this.micBtn.title = strings.voiceToggleOff;
       }
     }
     if (this.inputEl) {
@@ -260,6 +276,10 @@ export class TranscriptBar implements ITranscriptBar {
       this.resetIdleTimer();
     } else {
       this.showIdle();
+    }
+    // Reset amplitude when stopping
+    if (!active) {
+      this.setAmplitude(0);
     }
   }
 
@@ -413,13 +433,15 @@ export class TranscriptBar implements ITranscriptBar {
       if (this.recording) {
         this.micBtn.classList.add('recording');
         this.micBtn.classList.remove('muted');
-        this.micBtn.setAttribute('aria-label', strings.micOnTitle);
-        this.micBtn.title = strings.micOnTitle;
+        this.micBtn.setAttribute('aria-label', strings.voiceToggleOn);
+        this.micBtn.title = strings.voiceToggleOn;
       } else {
         this.micBtn.classList.remove('recording');
         this.micBtn.classList.add('muted');
-        this.micBtn.setAttribute('aria-label', strings.micOffTitle);
-        this.micBtn.title = strings.micOffTitle;
+        this.micBtn.setAttribute('aria-label', strings.voiceToggleOff);
+        this.micBtn.title = strings.voiceToggleOff;
+        // Reset amplitude ring when stopping
+        this.setAmplitude(0);
       }
     }
     if (this.inputEl) {
@@ -434,6 +456,28 @@ export class TranscriptBar implements ITranscriptBar {
     for (const handler of this.micToggleHandlers) {
       handler(this.recording);
     }
+  }
+
+  /**
+   * Update the amplitude visualizer on the mic button.
+   * @param level - RMS amplitude in range 0.0–1.0
+   */
+  setAmplitude(level: number): void {
+    if (!this.micBtn) return;
+    const ring = this.micBtn.querySelector('.amplitude-ring');
+    if (!ring) return;
+
+    // Clamp to 0–1, store as rounded percentage
+    const clamped = Math.max(0, Math.min(1, level));
+    const pct = Math.round(clamped * 100);
+    ring.setAttribute('data-level', String(pct));
+
+    // Animate the ring based on level
+    const size = 32 + clamped * 12; // 32px base, up to 44px
+    const opacity = 0.2 + clamped * 0.8; // 0.2 base, up to 1.0
+    (ring as HTMLElement).style.width = `${size}px`;
+    (ring as HTMLElement).style.height = `${size}px`;
+    (ring as HTMLElement).style.opacity = String(opacity);
   }
 
   private selectLanguage(code: string, label: string): void {
@@ -549,6 +593,8 @@ export class TranscriptBar implements ITranscriptBar {
         transition: all 0.2s;
         pointer-events: auto;
         padding: 0;
+        position: relative;
+        overflow: visible;
       }`,
       `[data-nova-transcript] .mic-btn.recording {
         border-color: var(--nova-success);
@@ -560,6 +606,32 @@ export class TranscriptBar implements ITranscriptBar {
       }`,
       `[data-nova-transcript] .mic-btn:hover {
         transform: scale(1.1);
+      }`,
+      // ── Mic icon ─────────────────────────────────────────────
+      `[data-nova-transcript] .mic-icon {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }`,
+      // ── Amplitude ring ───────────────────────────────────────
+      `[data-nova-transcript] .amplitude-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid var(--nova-success);
+        opacity: 0;
+        transition: width 0.1s ease, height 0.1s ease, opacity 0.1s ease;
+        pointer-events: none;
+      }`,
+      `[data-nova-transcript] .amplitude-ring[data-level="0"] {
+        opacity: 0;
       }`,
 
       // mic-pulse keyframes – wrapped for reduced motion

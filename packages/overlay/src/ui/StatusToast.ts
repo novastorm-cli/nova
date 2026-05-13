@@ -84,6 +84,8 @@ export class StatusToast implements IStatusToast {
 
     const el = document.createElement('div');
     el.setAttribute('data-toast-id', id);
+    el.setAttribute('data-nova', 'toast');
+    el.setAttribute('role', 'status');
     Object.assign(el.style, {
       background: COLORS.overlayBg,
       borderLeft: `4px solid ${COLORS.info}`,
@@ -187,6 +189,8 @@ export class StatusToast implements IStatusToast {
 
     const el = document.createElement('div');
     el.setAttribute('data-toast-id', id);
+    el.setAttribute('data-nova', 'toast');
+    el.setAttribute('role', type === 'error' ? 'alert' : 'status');
     Object.assign(el.style, {
       background: COLORS.overlayBg,
       borderLeft: `4px solid ${colorMap[type]}`,

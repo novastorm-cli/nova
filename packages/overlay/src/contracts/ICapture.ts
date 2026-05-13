@@ -27,6 +27,9 @@ export interface IVoiceCapture {
    * Starts continuous voice recognition using Web Speech API.
    * Emits interim and final transcription results via callback.
    *
+   * Also starts capturing the microphone audio stream for amplitude
+   * analysis via Web Audio API (getUserMedia + AnalyserNode).
+   *
    * Supports: Russian (ru-RU) and English (en-US).
    * Auto-detects language if browser supports it.
    *
@@ -34,7 +37,7 @@ export interface IVoiceCapture {
    */
   start(): void;
 
-  /** Stops voice recognition. */
+  /** Stops voice recognition and audio capture. */
   stop(): void;
 
   /** Returns true if currently listening. */
@@ -47,6 +50,17 @@ export interface IVoiceCapture {
   onTranscript(
     handler: (result: { text: string; isFinal: boolean; timestamp: number }) => void,
   ): void;
+
+  /**
+   * Register callback for amplitude level (0.0–1.0 RMS).
+   * Called on each animation frame while recording.
+   */
+  onAmplitude(handler: (level: number) => void): void;
+
+  /**
+   * Register callback for microphone permission errors.
+   */
+  onPermissionError(handler: (error: string) => void): void;
 }
 
 export interface CursorPoint {

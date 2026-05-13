@@ -142,6 +142,14 @@ export const strings = {
   commandDiscarded: 'Command discarded.',
   cancelled: 'Cancelled.',
   questionDismissed: 'Question dismissed.',
+  voiceToggleOn: 'Toggle voice \u2014 currently on',
+  voiceToggleOff: 'Toggle voice \u2014 currently off',
+  noAudioHint:
+    'No audio detected \u2014 check your microphone permissions or input device.',
+  micPermissionDenied:
+    'Microphone access denied. Please enable microphone permissions in your browser settings. See: ',
+  micPermissionHelpUrl:
+    'https://support.google.com/chrome/answer/2693767',
 
   // ── Language labels ──────────────────────────────────────
   langAuto: 'Auto',

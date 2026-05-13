@@ -142,7 +142,11 @@ function boot(): void {
   let completedTasks = 0;
   let pendingReload = false;
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  let silenceHintTimer: ReturnType<typeof setTimeout> | null = null;
+  let silenceHintShown = false;
+  let silenceStartTime = 0;
   const SILENCE_TIMEOUT_MS = 10_000;
+  const NO_AUDIO_HINT_MS = 3_000;
 
   function scheduleReload(): void {
     if (!voiceStarted) {
@@ -634,11 +638,19 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       clearTimeout(silenceTimer);
       silenceTimer = null;
     }
+    if (silenceHintTimer) {
+      clearTimeout(silenceHintTimer);
+      silenceHintTimer = null;
+    }
+    silenceHintShown = false;
+    silenceStartTime = 0;
 
     voiceCapture.stop();
     voiceStarted = false;
     fsm.send({ type: 'voice_stopped' });
     transcriptBar.setListening(false);
+    // Reset amplitude visualizer
+    transcriptBar.setAmplitude(0);
     updateCursorTracking();
 
     if (pendingReload) {
@@ -663,10 +675,27 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       clearTimeout(silenceTimer);
       silenceTimer = null;
     }
+    if (silenceHintTimer) {
+      clearTimeout(silenceHintTimer);
+      silenceHintTimer = null;
+    }
+    // Reset silence tracking state
+    silenceHintShown = false;
+    silenceStartTime = Date.now();
+
     if (voiceStarted) {
       silenceTimer = setTimeout(() => {
         stopMic();
       }, SILENCE_TIMEOUT_MS);
+
+      // Schedule hint toast for 3s of silence (if amplitude stays zero)
+      silenceHintTimer = setTimeout(() => {
+        if (voiceStarted && !silenceHintShown) {
+          silenceHintShown = true;
+          statusToast.show(strings.noAudioHint, 'info');
+        }
+        silenceHintTimer = null;
+      }, NO_AUDIO_HINT_MS);
     }
   }
 
@@ -855,6 +884,39 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     if (commandInput.isVisible()) {
       commandInput.setTranscript(result.text);
     }
+  });
+
+  // Amplitude handler — update visualizer and manage silence detection
+  voiceCapture.onAmplitude((level: number) => {
+    transcriptBar.setAmplitude(level);
+
+    // Amplitude above threshold resets silence tracking
+    if (level > 0.02) {
+      if (silenceHintTimer) {
+        clearTimeout(silenceHintTimer);
+        silenceHintTimer = null;
+      }
+      silenceHintShown = false;
+      silenceStartTime = Date.now();
+      resetSilenceTimer();
+    }
+  });
+
+  // Permission error handler — show explanatory toast
+  voiceCapture.onPermissionError((_error: string) => {
+    // Show an explanatory toast with a link to browser permission settings
+    const helpUrl = strings.micPermissionHelpUrl;
+    const msg = `${strings.micPermissionDenied}${helpUrl}`;
+    statusToast.show(msg, 'error');
+
+    // Ensure FSM returns to idle if it was stuck in listening
+    if (fsm.state === 'listening') {
+      fsm.send({ type: 'error_occurred' });
+    }
+    voiceStarted = false;
+    transcriptBar.setListening(false);
+    transcriptBar.setAmplitude(0);
+    updateCursorTracking();
   });
 
   // Pill dropdown: Quick Edit

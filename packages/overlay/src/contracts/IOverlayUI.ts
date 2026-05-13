@@ -108,6 +108,11 @@ export interface ITranscriptBar {
   unmount(): void;
   setTranscript(text: string, isFinal: boolean): void;
   setListening(active: boolean): void;
+  /**
+   * Update the amplitude visualizer on the mic button.
+   * @param level - RMS amplitude in range 0.0–1.0
+   */
+  setAmplitude(level: number): void;
   askQuestion(question: string): Promise<string | null>;
   /** Focus the command input (used by Cmd/Ctrl+K global shortcut). */
   focusInput(): void;
