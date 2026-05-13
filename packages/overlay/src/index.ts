@@ -808,8 +808,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   // Element selected -> show command input
   elementSelector.onSelect((element) => {
     selectedElement = element;
-    const pillHost = document.querySelector('[data-nova-pill]') as HTMLElement | null;
-    commandInput.show(pillHost ?? document.body);
+    const pillHost = document.querySelector('[data-nova-pill]');
+    commandInput.show((pillHost as HTMLElement) ?? document.body);
   });
 
   // Element selector cancelled — voice stays on
