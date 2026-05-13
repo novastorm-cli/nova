@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import TOML from '@iarna/toml';
 import {
   type IConfigReader,
@@ -264,10 +265,19 @@ function migrateLegacyProviders(data: Record<string, unknown>): Record<string, u
 }
 
 export class ConfigReader implements IConfigReader {
-  /** Tracks whether the `models.fast` deprecation warning has been emitted this session. */
-  private _fastModelWarned = false;
+  /** Path to the ~/.nova/ directory where persisted marker files live. */
+  private readonly novaHomeDir: string;
   /** Tracks whether the `[providers]` migration info log has been emitted this session. */
   private _providersMigratedWarned = false;
+
+  /**
+   * @param novaHomeDir - optional path to the ~/.nova/ directory.
+   *   Defaults to `path.join(os.homedir(), '.nova')`.
+   *   Useful for testing to isolate marker files.
+   */
+  constructor(novaHomeDir?: string) {
+    this.novaHomeDir = novaHomeDir ?? path.join(os.homedir(), '.nova');
+  }
 
   async read(projectPath: string): Promise<NovaConfig> {
     const projectTomlPath = path.join(projectPath, NOVA_TOML);
@@ -302,9 +312,11 @@ export class ConfigReader implements IConfigReader {
 
     // ── Backward compat: [models] fast → [models] standard ─────────
     // Check both project and local data for legacy `fast` key.
+    let fastFound = false;
     for (const data of [projectData, localData]) {
       const models = data['models'] as Record<string, unknown> | undefined;
       if (models && models['fast'] !== undefined) {
+        fastFound = true;
         // Use fast value as standard only if standard isn't already set
         // by this same data source.
         if (models['standard'] === undefined) {
@@ -313,11 +325,25 @@ export class ConfigReader implements IConfigReader {
         // Delete the legacy key after aliasing so it doesn't leak into
         // the merged config object.
         delete models['fast'];
+      }
+    }
 
-        // One-time deprecation warning per session.
-        if (!this._fastModelWarned) {
-          this._fastModelWarned = true;
-          console.warn(DEPRECATION.modelsFastWarning);
+    // One-time deprecation warning: persisted across all CLI sessions
+    // via a marker file at ~/.nova/.fast-model-acknowledged.
+    if (fastFound) {
+      const markerPath = path.join(this.novaHomeDir, '.fast-model-acknowledged');
+      try {
+        await fs.access(markerPath);
+        // Marker file exists — user has already been warned, skip.
+      } catch {
+        // Marker does not exist — emit warning and create it.
+        console.warn(DEPRECATION.modelsFastWarning);
+        try {
+          await fs.mkdir(path.dirname(markerPath), { recursive: true });
+          await fs.writeFile(markerPath, '', 'utf-8');
+        } catch {
+          // Best-effort: if we can't write the marker (e.g., permissions),
+          // at least we emitted the warning this session.
         }
       }
     }

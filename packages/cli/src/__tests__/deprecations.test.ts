@@ -7,18 +7,22 @@ import { DEPRECATION } from '../strings.js';
 
 describe('ConfigReader: models.fast backward-compat alias', () => {
   let tmpDir: string;
+  let novaHomeDir: string;
   let reader: ConfigReader;
   const savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'nova-deprecation-test-'));
-    reader = new ConfigReader();
+    // Use a temp directory for the ~/.nova marker file
+    novaHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'nova-home-test-'));
+    reader = new ConfigReader(novaHomeDir);
     savedEnv['NOVA_API_KEY'] = process.env['NOVA_API_KEY'];
     delete process.env['NOVA_API_KEY'];
   });
 
   afterEach(async () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
+    await fs.rm(novaHomeDir, { recursive: true, force: true });
     for (const [key, value] of Object.entries(savedEnv)) {
       if (value === undefined) {
         delete process.env[key];
@@ -74,7 +78,7 @@ micro = "openai/gpt-4o-mini"
     expect(config.models.micro).toBe('openai/gpt-4o-mini');
   });
 
-  it('deprecation warning is printed exactly once per ConfigReader session', async () => {
+  it('deprecation warning is printed exactly once (marker file prevents repeat)', async () => {
     const toml = `
 [models]
 fast = "deepseek-v4-flash"
@@ -88,12 +92,13 @@ fast = "deepseek-v4-flash"
     };
 
     try {
-      // First read: warning emitted
+      // First read: warning emitted and marker file created
       await reader.read(tmpDir);
       expect(warns).toHaveLength(1);
       expect(warns[0]).toBe(DEPRECATION.modelsFastWarning);
 
       // Second read (same reader instance): no additional warning
+      // because marker file now exists
       await reader.read(tmpDir);
       expect(warns).toHaveLength(1);
 
@@ -105,7 +110,51 @@ fast = "deepseek-v4-flash"
     }
   });
 
-  it('new ConfigReader instance in same session emits warning again', async () => {
+  it('creates the ~/.nova/.fast-model-acknowledged marker file on first warning', async () => {
+    const toml = `
+[models]
+fast = "deepseek-v4-flash"
+`;
+    await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+    const markerPath = path.join(novaHomeDir, '.fast-model-acknowledged');
+
+    // Marker should not exist before first read
+    await expect(fs.access(markerPath)).rejects.toThrow();
+
+    await reader.read(tmpDir);
+
+    // Marker should exist after first read
+    await expect(fs.access(markerPath)).resolves.toBeUndefined();
+  });
+
+  it('does NOT warn when marker file already exists from a previous session', async () => {
+    const toml = `
+[models]
+fast = "deepseek-v4-flash"
+`;
+    await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+    // Pre-create the marker file to simulate a previous session
+    const markerPath = path.join(novaHomeDir, '.fast-model-acknowledged');
+    await fs.mkdir(path.dirname(markerPath), { recursive: true });
+    await fs.writeFile(markerPath, '');
+
+    const warns: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warns.push(String(args[0]));
+    };
+
+    try {
+      await reader.read(tmpDir);
+      expect(warns).toHaveLength(0); // no warning when marker exists
+    } finally {
+      console.warn = origWarn;
+    }
+  });
+
+  it('new ConfigReader instance does NOT emit warning again (marker file persists)', async () => {
     const toml = `
 [models]
 fast = "deepseek-v4-flash"
@@ -119,16 +168,17 @@ fast = "deepseek-v4-flash"
     };
 
     try {
-      // First reader instance
-      const reader1 = new ConfigReader();
+      // First reader instance — emits warning and creates marker file
+      const reader1 = new ConfigReader(novaHomeDir);
       await reader1.read(tmpDir);
       expect(warns).toHaveLength(1);
+      expect(warns[0]).toBe(DEPRECATION.modelsFastWarning);
 
-      // Second reader instance (new in-memory state)
-      const reader2 = new ConfigReader();
+      // Second reader instance (simulates a new CLI run) —
+      // should NOT emit warning again because marker file now exists
+      const reader2 = new ConfigReader(novaHomeDir);
       await reader2.read(tmpDir);
-      expect(warns).toHaveLength(2);
-      expect(warns[1]).toBe(DEPRECATION.modelsFastWarning);
+      expect(warns).toHaveLength(1); // still only 1 warning total
     } finally {
       console.warn = origWarn;
     }
