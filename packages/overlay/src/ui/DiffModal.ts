@@ -323,9 +323,11 @@ export class DiffModal {
         display: none;
       }
 
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
       }
 
       .diff-modal {
@@ -344,9 +346,11 @@ export class DiffModal {
         animation: scaleIn 0.15s ease;
       }
 
-      @keyframes scaleIn {
-        from { opacity: 0; transform: scale(0.96); }
-        to { opacity: 1; transform: scale(1); }
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
       }
 
       .diff-header {

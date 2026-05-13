@@ -481,13 +481,15 @@ export class OverlayPill implements IOverlayPill {
       .nova-pill.error {
         background: ${COLORS.error};
       }
-      @keyframes pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-        50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+          50% { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
       }
       .pill-dropdown {
         position: fixed;

@@ -624,13 +624,15 @@ export class TaskPanel {
         font-style: normal;
       }
 
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
 
-      @keyframes checkmark-draw {
-        to { stroke-dashoffset: 0; }
+        @keyframes checkmark-draw {
+          to { stroke-dashoffset: 0; }
+        }
       }
     `;
   }

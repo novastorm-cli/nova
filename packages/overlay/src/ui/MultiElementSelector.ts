@@ -561,14 +561,16 @@ export class MultiElementSelector {
         animation: ms-slide-up 0.2s ease-out;
       }
 
-      @keyframes ms-slide-up {
-        from {
-          opacity: 0;
-          transform: translateX(-50%) translateY(16px);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(-50%) translateY(0);
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes ms-slide-up {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
         }
       }
 
@@ -688,9 +690,11 @@ export class MultiElementSelector {
         animation: ms-mic-pulse 1.5s infinite;
       }
 
-      @keyframes ms-mic-pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-        50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes ms-mic-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        }
       }
     `;
   }

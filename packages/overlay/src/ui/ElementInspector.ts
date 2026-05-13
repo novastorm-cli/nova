@@ -741,9 +741,11 @@ export class ElementInspector {
         animation: mic-pulse 1.5s infinite;
       }
 
-      @keyframes mic-pulse {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-        50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes mic-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        }
       }
     `;
   }
