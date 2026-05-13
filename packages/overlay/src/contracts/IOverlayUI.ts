@@ -108,6 +108,8 @@ export interface ITranscriptBar {
   setTranscript(text: string, isFinal: boolean): void;
   setListening(active: boolean): void;
   askQuestion(question: string): Promise<string | null>;
+  /** Focus the command input (used by Cmd/Ctrl+K global shortcut). */
+  focusInput(): void;
 }
 
 export interface SuggestionItem {

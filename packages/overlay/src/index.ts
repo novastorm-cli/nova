@@ -65,6 +65,27 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+/**
+ * Returns true when the target is an editable element where global
+ * keyboard shortcuts should be suppressed.
+ *
+ * Covers INPUT, TEXTAREA, SELECT, [contenteditable], and elements
+ * whose shadow root hosts a native input.
+ */
+function isEditableTarget(el: EventTarget | null): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (el.isContentEditable) return true;
+  // Check if inside a shadow root that hosts an input
+  const root = el.getRootNode();
+  if (root instanceof ShadowRoot) {
+    const host = root.host;
+    if (host instanceof HTMLInputElement || host instanceof HTMLTextAreaElement) return true;
+  }
+  return false;
+}
+
 function boot(): void {
   // Capture modules
   const screenshotCapture = new ScreenshotCapture();
@@ -648,11 +669,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     statusToast.show(`${strings.voiceLanguage}${label}`, 'info', 2000);
   });
 
-  // Typed command from transcript bar input
+  // Typed command from transcript bar input — send directly (M1 confirmation flow
+  // will trigger pending_tasks confirmation when server responds).
   transcriptBar.onCommandSubmit((text: string) => {
     pendingVoiceCommand = text;
-    awaitingSendConfirmation = true;
-    transcriptBar.showConfirmation(`Send: "${text}"?`);
+    void sendObservation(text);
   });
 
   // Confirmation bar Go/Cancel handlers (handles both send + task confirm)
@@ -844,8 +865,20 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   // Set initial gesture mode visual
   pill.setGestureModeActive(gestureModeEnabled);
 
-  // Keyboard mutual exclusion for inspector modes
+  // Keyboard mutual exclusion for inspector modes and global shortcuts
   document.addEventListener('keydown', (e) => {
+    // ── Cmd/Ctrl+K → focus transcript input (skip when typing in host inputs) ──
+    if ((e.metaKey || e.ctrlKey) && e.code === 'KeyK') {
+      if (!isEditableTarget(e.target)) {
+        e.preventDefault();
+        transcriptBar.focusInput();
+        return;
+      }
+    }
+
+    // ── All Alt+ shortcuts suppressed inside editable fields ──
+    if (e.altKey && isEditableTarget(e.target)) return;
+
     if (e.altKey && e.code === 'KeyI') {
       // Quick Edit toggled via keyboard — sync state
       setTimeout(() => {
@@ -873,6 +906,18 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     if (e.altKey && e.code === 'KeyM') {
       e.preventDefault();
       window.open('/nova-project-map', '_blank');
+    }
+    if (e.altKey && e.code === 'KeyA') {
+      e.preventDefault();
+      // Area Selector toggle (layout-independent)
+      fsm.send({
+        type: fsm.state === 'gesture' ? 'gesture_mode_end' : 'gesture_mode_start',
+      });
+      statusToast.show(
+        fsm.state === 'gesture' ? strings.gestureModeOn : strings.gestureModeOff,
+        'info',
+        2000,
+      );
     }
     if (e.altKey && e.code === 'KeyG') {
       e.preventDefault();
