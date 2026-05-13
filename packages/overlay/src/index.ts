@@ -985,9 +985,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         const { tasks: pendingTaskList, message } = event.data;
 
         if (pendingTaskList && pendingTaskList.length > 0) {
-          taskPanel.setPendingTasks(
-            pendingTaskList,
-          );
+          taskPanel.setPendingTasks(pendingTaskList);
           totalTasks = pendingTaskList.length;
           completedTasks = 0;
         }
