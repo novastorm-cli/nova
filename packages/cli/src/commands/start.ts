@@ -1057,6 +1057,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     throw err;
   }
   spinner.succeed(`Proxy ready at ${chalk.green(`localhost:${proxyPort}`)}`);
+  console.log(chalk.dim(`  Dev server: ${chalk.green(`http://localhost:${devPort}`)}`));
 
   // ── 6b. Start WebSocket server on proxy's HTTP server ──────────────
   const httpServer = proxyServer.getHttpServer();
@@ -1089,6 +1090,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         `Proxy ready at ${chalk.green(`http://localhost:${proxyPort}`)} (browser not opened: --no-open)`,
       ),
     );
+    console.log(chalk.dim(`  Dev server: ${chalk.green(`http://localhost:${devPort}`)}`));
   } else {
     console.log(chalk.dim('Opening browser...'));
     const openUrl = `http://localhost:${proxyPort}`;

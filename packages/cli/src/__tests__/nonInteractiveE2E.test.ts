@@ -64,7 +64,11 @@ async function waitForPort(port: number, timeoutMs = 30_000): Promise<void> {
 
 function killProcess(proc: ChildProcess | null, signal: NodeJS.Signals = 'SIGTERM'): void {
   if (proc && proc.pid && !proc.killed) {
-    try { process.kill(proc.pid, signal); } catch { /* ok */ }
+    try {
+      process.kill(proc.pid, signal);
+    } catch {
+      /* ok */
+    }
   }
 }
 
@@ -73,17 +77,28 @@ function killPort(port: number): void {
     const pids = execSync(`lsof -ti :${port}`, { encoding: 'utf-8' }).trim();
     if (pids) {
       for (const pid of pids.split('\n')) {
-        try { process.kill(parseInt(pid, 10), 'SIGTERM'); } catch { /* ok */ }
+        try {
+          process.kill(parseInt(pid, 10), 'SIGTERM');
+        } catch {
+          /* ok */
+        }
       }
     }
-  } catch { /* ok */ }
+  } catch {
+    /* ok */
+  }
 }
 
 /** Kill ALL Next.js processes to prevent cascading failures */
 function killAllNextJs(): void {
   try {
-    execSync("ps aux | grep -E 'next dev|next-server|next start' | grep -v grep | awk '{print $2}' | xargs -r kill -KILL 2>/dev/null", { encoding: 'utf-8' });
-  } catch { /* ok */ }
+    execSync(
+      "ps aux | grep -E 'next dev|next-server|next start' | grep -v grep | awk '{print $2}' | xargs -r kill -KILL 2>/dev/null",
+      { encoding: 'utf-8' },
+    );
+  } catch {
+    /* ok */
+  }
 }
 
 /** Clean up after each test */
@@ -130,8 +145,12 @@ describe('NOVA_NON_INTERACTIVE=1 cross-area E2E', () => {
       );
 
       let output = '';
-      novaProc.stdout?.on('data', (d: Buffer) => { output += d.toString(); });
-      novaProc.stderr?.on('data', (d: Buffer) => { output += d.toString(); });
+      novaProc.stdout?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
+      novaProc.stderr?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
 
       const exitCode = await new Promise<number | null>((resolve) => {
         novaProc.on('close', resolve);
@@ -189,8 +208,12 @@ describe('NOVA_NON_INTERACTIVE=1 cross-area E2E', () => {
         });
 
         let output = '';
-        novaProc.stdout?.on('data', (d: Buffer) => { output += d.toString(); });
-        novaProc.stderr?.on('data', (d: Buffer) => { output += d.toString(); });
+        novaProc.stdout?.on('data', (d: Buffer) => {
+          output += d.toString();
+        });
+        novaProc.stderr?.on('data', (d: Buffer) => {
+          output += d.toString();
+        });
 
         const exitCode = await new Promise<number | null>((resolve) => {
           novaProc.on('close', resolve);
@@ -252,8 +275,12 @@ describe('NOVA_NON_INTERACTIVE=1 cross-area E2E', () => {
       );
 
       let output = '';
-      novaProc.stdout?.on('data', (d: Buffer) => { output += d.toString(); });
-      novaProc.stderr?.on('data', (d: Buffer) => { output += d.toString(); });
+      novaProc.stdout?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
+      novaProc.stderr?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
 
       try {
         await waitForPort(proxy, 40_000);
@@ -317,8 +344,12 @@ describe('NOVA_NON_INTERACTIVE=1 cross-area E2E', () => {
       );
 
       let output = '';
-      novaProc.stdout?.on('data', (d: Buffer) => { output += d.toString(); });
-      novaProc.stderr?.on('data', (d: Buffer) => { output += d.toString(); });
+      novaProc.stdout?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
+      novaProc.stderr?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
 
       try {
         await waitForPort(proxy, 40_000);
@@ -335,6 +366,75 @@ describe('NOVA_NON_INTERACTIVE=1 cross-area E2E', () => {
       const exitPromise = new Promise<number | null>((r) => novaProc.on('close', r));
       novaProc.stdin?.end();
 
+      const exitCode = await Promise.race([
+        exitPromise,
+        new Promise<null>((r) => setTimeout(() => r(null), 15_000)),
+      ]);
+      expect(exitCode).toBe(0);
+    },
+    TEST_TIMEOUT,
+  );
+
+  /**
+   * VAL-CLI-003: --port=N prints the dev server URL (N), not just the proxy URL (N+1).
+   *
+   * When --port is explicitly set, the printed output must contain a URL
+   * reflecting the chosen port so users know where their dev server is running.
+   */
+  it(
+    'VAL-CLI-003: --port flag prints dev server URL in startup output',
+    async () => {
+      const { dev, proxy } = nextPorts();
+      killPort(dev);
+      killPort(proxy);
+      killAllNextJs();
+      await new Promise((r) => setTimeout(r, 500));
+
+      const novaProc = spawn(
+        'node',
+        [NOVA_BIN, '--no-open', '--yes', `--port=${dev}`, `--proxy-port=${proxy}`],
+        {
+          cwd: FIXTURE_DIR,
+          env: {
+            ...process.env,
+            NOVA_NON_INTERACTIVE: '1',
+            NOVA_QUIET: '1',
+            NO_COLOR: '1',
+          },
+          stdio: ['pipe', 'pipe', 'pipe'],
+        },
+      );
+
+      let output = '';
+      novaProc.stdout?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
+      novaProc.stderr?.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
+
+      try {
+        await waitForPort(proxy, 40_000);
+      } catch {
+        killProcess(novaProc);
+        throw new Error(`Proxy on ${proxy} not ready. Output: ${output.slice(-1000)}`);
+      }
+
+      // VAL-CLI-003: stdout must contain a URL with the dev port (:N)
+      const devPortPattern = new RegExp(`:${dev}\\b`);
+      expect(output).toMatch(devPortPattern);
+
+      // The proxy URL should also still appear (for completeness)
+      const proxyPortPattern = new RegExp(`:${proxy}\\b`);
+      expect(output).toMatch(proxyPortPattern);
+
+      // Proxy must be reachable
+      const { status } = await httpGet(`http://localhost:${proxy}/`);
+      expect(status).toBe(200);
+
+      // Close and wait for exit
+      const exitPromise = new Promise<number | null>((r) => novaProc.on('close', r));
+      novaProc.stdin?.end();
       const exitCode = await Promise.race([
         exitPromise,
         new Promise<null>((r) => setTimeout(() => r(null), 15_000)),
