@@ -363,6 +363,15 @@ export class TranscriptBar implements ITranscriptBar {
     this.confirmBar.appendChild(btnRow);
     this.confirmBar.classList.remove('hidden');
 
+    // Set data-animating for animation tracking (VAL-OVERLAY-015)
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!prefersReduced) {
+      this.confirmBar.setAttribute('data-animating', 'true');
+      setTimeout(() => {
+        this.confirmBar?.removeAttribute('data-animating');
+      }, 200);
+    }
+
     if (hasInput && answerInput) {
       requestAnimationFrame(() => answerInput.focus());
     }
@@ -370,6 +379,7 @@ export class TranscriptBar implements ITranscriptBar {
 
   /** Hide confirmation bar */
   hideConfirmation(): void {
+    this.confirmBar?.removeAttribute('data-animating');
     this.confirmBar?.classList.add('hidden');
     this.answerInputEl = null;
   }

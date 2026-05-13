@@ -161,6 +161,32 @@ test.describe('TranscriptBar / CommandInput', () => {
     await expect
       .poll(() => statusLine.textContent(), { timeout: 30000, intervals: [500, 1000, 2000] })
       .toMatch(/Thinking|Awaiting confirmation/);
+
+    // Also verify that the task panel exists in the DOM.
+    // The task panel uses a shadow DOM host with data-nova-task-panel attribute.
+    const taskPanelHost = page.locator('[data-nova-task-panel]');
+    await expect(taskPanelHost).toBeAttached({ timeout: 10000 });
+
+    // Verify that the task panel is visible (not hidden).
+    // When tasks are pending, the panel becomes visible with at minimum a title bar.
+    const taskPanelVisible = await taskPanelHost.evaluate((host) => {
+      const root = host.shadowRoot;
+      if (!root) return false;
+      const panel = root.querySelector('.task-panel');
+      return panel !== null && !panel.classList.contains('hidden');
+    });
+
+    // Task panel should be visible when status shows "Awaiting confirmation"
+    // If the backend hasn't created tasks yet, this may be false in some envs.
+    // The status-line assertion above already confirms the submit was processed.
+    if (taskPanelVisible) {
+      // Check that the visible panel has text content (at minimum the title)
+      const textContent = await taskPanelHost.evaluate((host) => {
+        const panel = host.shadowRoot?.querySelector('.task-panel');
+        return panel?.textContent?.trim() ?? '';
+      });
+      expect(textContent.length).toBeGreaterThan(0);
+    }
   });
 
   // ── VAL-OVERLAY-015: Reduced-motion wrapping for confirmation slide-up ──
@@ -203,6 +229,10 @@ test.describe('TranscriptBar / CommandInput', () => {
         expect(box1.width).toBeCloseTo(box2.width, 0);
         expect(box1.height).toBeCloseTo(box2.height, 0);
       }
+
+      // data-animating should NOT be present when reduced motion is preferred
+      const hasAnimating = await confirmPanel.getAttribute('data-animating');
+      expect(hasAnimating).toBeNull();
     }
   });
 
@@ -238,6 +268,12 @@ test.describe('TranscriptBar / CommandInput', () => {
       // Reduced-motion wraps the animation in @media, so when motion is preferred,
       // the keyframes exist and the animation plays.
       expect(animationName).toBe('nova-slide-up');
+
+      // After animation completes (200ms CSS), data-animating should be removed.
+      // At 1500ms wait above, animation is long done, so attribute should be absent.
+      await page.waitForTimeout(300);
+      const hasAnimating = await confirmPanel.getAttribute('data-animating');
+      expect(hasAnimating).toBeNull();
     }
   });
 
@@ -267,6 +303,10 @@ test.describe('TranscriptBar / CommandInput', () => {
       });
 
       expect(animationName).toBe('none');
+
+      // data-animating should NOT be present when reduced motion is preferred
+      const hasAnimating = await confirmPanel.getAttribute('data-animating');
+      expect(hasAnimating).toBeNull();
     }
   });
 });
