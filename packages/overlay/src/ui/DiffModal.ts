@@ -466,7 +466,7 @@ export class DiffModal {
         border-color: var(--nova-error);
       }
 
-      /* --- Diff body --- */
+      .diff-body {
         overflow: auto;
         flex: 1;
         min-height: 0;
