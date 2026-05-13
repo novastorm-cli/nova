@@ -1,3 +1,6 @@
+import { DEPRECATION } from '../strings.js';
+
 export async function watchCommand(): Promise<void> {
-  console.log('Watch mode coming soon.');
+  console.error(DEPRECATION.removedCommands.watch);
+  process.exit(2);
 }

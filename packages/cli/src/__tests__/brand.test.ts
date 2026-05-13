@@ -17,29 +17,32 @@ describe('Brand strings', () => {
 });
 
 describe('Deprecation strings', () => {
-  it('chat deprecation message contains the replacement hint', () => {
+  it('chat deprecation message uses "gone in v1.0" and "instead"', () => {
     const msg = DEPRECATION.removedCommands.chat;
-    expect(msg).toContain('v1.0');
-    expect(msg).toContain("nova'");
+    expect(msg).toContain('gone in v1.0');
+    expect(msg).toContain('instead');
     expect(msg).toContain('interactive chat');
   });
 
-  it('tasks deprecation message contains the replacement hint', () => {
+  it('tasks deprecation message uses "gone in v1.0" and "instead"', () => {
     const msg = DEPRECATION.removedCommands.tasks;
-    expect(msg).toContain('v1.0');
-    expect(msg).toContain('overlay panel');
+    expect(msg).toContain('gone in v1.0');
+    expect(msg).toContain('instead');
+    expect(msg).toContain('overlay');
   });
 
-  it('watch deprecation message contains the replacement hint', () => {
+  it('watch deprecation message uses "gone in v1.0" and "instead"', () => {
     const msg = DEPRECATION.removedCommands.watch;
-    expect(msg).toContain('v1.0');
-    expect(msg).toContain('main command');
+    expect(msg).toContain('gone in v1.0');
+    expect(msg).toContain('instead');
+    expect(msg).toContain('nova start');
   });
 
-  it('review deprecation message mentions no replacement', () => {
+  it('review deprecation message uses "gone in v1.0" and "instead"', () => {
     const msg = DEPRECATION.removedCommands.review;
-    expect(msg).toContain('v1.0');
-    expect(msg).toContain('no replacement');
+    expect(msg).toContain('gone in v1.0');
+    expect(msg).toContain('instead');
+    expect(msg).toContain('code review');
   });
 
   it('models.fast deprecation warning contains removal version', () => {

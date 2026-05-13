@@ -1,3 +1,6 @@
+import { DEPRECATION } from '../strings.js';
+
 export async function tasksCommand(): Promise<void> {
-  console.log('Tasks management coming soon.');
+  console.error(DEPRECATION.removedCommands.tasks);
+  process.exit(2);
 }

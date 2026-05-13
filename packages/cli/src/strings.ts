@@ -22,13 +22,11 @@ export const DEPRECATION = {
 
   /** Deprecation messages for removed commands. */
   removedCommands: {
-    chat: "'nova chat' was removed in v1.0. Use 'nova' (interactive chat is now built into the main command)." as const,
-    tasks:
-      "'nova tasks' was removed in v1.0. Task management is now built into the overlay panel." as const,
+    chat: "'nova chat' is gone in v1.0. Use 'nova' instead (interactive chat is now built into the main command)." as const,
+    tasks: "'nova tasks' is gone in v1.0. Use the overlay task panel instead." as const,
     watch:
-      "'nova watch' was removed in v1.0. File watching is now integrated into the main command." as const,
-    review:
-      "'nova review' was removed in v1.0. Code review functionality is deprecated, no replacement." as const,
+      "'nova watch' is gone in v1.0. Use 'nova start' instead (file watching is now integrated into the main command)." as const,
+    review: "'nova review' is gone in v1.0. Use 'nova' interactive code review instead." as const,
   },
 } as const;
 
