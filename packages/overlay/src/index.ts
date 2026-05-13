@@ -959,7 +959,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         break;
       }
       case 'analysis_complete': {
-        const { fileCount, methodCount } = event.data as { fileCount: number; methodCount: number };
+        const { fileCount, methodCount } = event.data;
         statusToast.show(
           `Project analyzed: ${fileCount} files, ${methodCount} methods`,
           'success',
@@ -982,14 +982,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         awaitingConfirmation = true;
         pill.setState('idle');
 
-        const { tasks: pendingTaskList, message } = event.data as {
-          tasks: Array<{ id: string; description: string; lane: number; preConfirmed?: boolean }>;
-          message: string;
-        };
+        const { tasks: pendingTaskList, message } = event.data;
 
         if (pendingTaskList && pendingTaskList.length > 0) {
           taskPanel.setPendingTasks(
-            pendingTaskList as Array<{ id: string; description: string; lane: number }>,
+            pendingTaskList,
           );
           totalTasks = pendingTaskList.length;
           completedTasks = 0;

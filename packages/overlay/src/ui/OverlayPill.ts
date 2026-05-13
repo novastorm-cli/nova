@@ -121,7 +121,7 @@ export class OverlayPill implements IOverlayPill {
   setGestureModeActive(active: boolean): void {
     this.gestureModeActive = active;
     if (!this.dropdownEl) return;
-    const toggle = this.dropdownEl.querySelector('.gesture-toggle .toggle-indicator') as HTMLElement | null;
+    const toggle = this.dropdownEl.querySelector('.gesture-toggle .toggle-indicator');
     if (toggle) {
       if (active) {
         toggle.classList.add('on');
