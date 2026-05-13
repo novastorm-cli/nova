@@ -444,7 +444,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     if (elementInspector.isActive() || multiSelector.isActive()) return;
 
     // Find the interactive element (target itself or closest ancestor)
-    const interactive = target.closest(DEAD_CLICK_SELECTOR);
+    const interactive = target.closest(DEAD_CLICK_SELECTOR) as HTMLElement | null;
     if (!interactive) return;
 
     // Skip if inside Nova root (extra safety)
