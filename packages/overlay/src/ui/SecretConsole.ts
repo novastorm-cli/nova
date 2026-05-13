@@ -1,5 +1,8 @@
 import { strings } from './strings.js';
 import { COLORS, Z_INDEX, applyStyles } from './styles.js';
+import { installFocusTrap, type FocusTrap } from './util/focusTrap.js';
+
+let secretConsoleIdCounter = 0;
 
 export class SecretConsole {
   private host: HTMLElement | null = null;
@@ -8,7 +11,7 @@ export class SecretConsole {
   private submitHandler: ((secrets: Record<string, string>) => void) | null = null;
   private skipHandler: (() => void) | null = null;
   private currentVars: string[] = [];
-  private escapeHandler: ((e: KeyboardEvent) => void) | null = null;
+  private focusTrap: FocusTrap | null = null;
 
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
@@ -17,11 +20,13 @@ export class SecretConsole {
     this.container = container;
     container.appendChild(this.host);
 
+    // Default: hidden, positioned as full-screen backdrop
     applyStyles(this.host, {
       position: 'fixed',
-      bottom: '80px',
-      left: '50%',
-      transform: 'translateX(-50%)',
+      top: '0',
+      left: '0',
+      width: '100vw',
+      height: '100vh',
       zIndex: String(Z_INDEX.secretConsole),
       display: 'none',
       pointerEvents: 'auto',
@@ -29,6 +34,10 @@ export class SecretConsole {
   }
 
   unmount(): void {
+    if (this.focusTrap) {
+      this.focusTrap.release();
+      this.focusTrap = null;
+    }
     if (this.host && this.container) {
       this.container.removeChild(this.host);
     }
@@ -41,27 +50,26 @@ export class SecretConsole {
     this.currentVars = vars;
     if (!this.host || !this.shadow) return;
 
-    this.host.style.display = 'block';
+    this.host.style.display = 'flex';
+    this.host.style.alignItems = 'center';
+    this.host.style.justifyContent = 'center';
     this.render();
 
-    this.escapeHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        this.hide();
-        this.skipHandler?.();
-      }
-    };
-    document.addEventListener('keydown', this.escapeHandler);
+    // Install focus trap
+    if (this.host) {
+      this.focusTrap = installFocusTrap(this.host);
+    }
   }
 
   hide(): void {
+    if (this.focusTrap) {
+      this.focusTrap.release();
+      this.focusTrap = null;
+    }
     if (!this.host) return;
     this.host.style.display = 'none';
     if (this.shadow) {
       this.shadow.innerHTML = '';
-    }
-    if (this.escapeHandler) {
-      document.removeEventListener('keydown', this.escapeHandler);
-      this.escapeHandler = null;
     }
   }
 
@@ -82,13 +90,48 @@ export class SecretConsole {
     style.textContent = this.getStyles();
     this.shadow.appendChild(style);
 
+    // Opaque backdrop — intercepts clicks so they do NOT reach the host page
+    const backdrop = document.createElement('div');
+    backdrop.className = 'secret-backdrop';
+    backdrop.addEventListener('click', (e) => {
+      // Block the click from passing through to the host page.
+      // Do NOT close the modal — only the close button and Escape do that.
+      e.stopPropagation();
+    });
+    this.shadow.appendChild(backdrop);
+
+    secretConsoleIdCounter++;
+    const headingId = `nova-secret-console-heading-${secretConsoleIdCounter}`;
+
     const panel = document.createElement('div');
     panel.className = 'secret-panel';
+    panel.setAttribute('data-nova', 'secret-console');
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', headingId);
 
-    // Header
+    // Header with close button
     const header = document.createElement('div');
-    header.className = 'secret-header';
-    header.textContent = strings.secretConsoleTitle;
+    header.className = 'secret-header-row';
+
+    const title = document.createElement('h2');
+    title.id = headingId;
+    title.className = 'secret-title';
+    title.textContent = strings.secretConsoleTitle;
+    header.appendChild(title);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'secret-close-btn';
+    closeBtn.setAttribute('data-nova', 'close');
+    closeBtn.setAttribute('aria-label', strings.closeDialogAriaLabel);
+    closeBtn.textContent = strings.closeX;
+    closeBtn.title = strings.diffCloseTitle;
+    closeBtn.addEventListener('click', () => {
+      this.hide();
+      this.skipHandler?.();
+    });
+    header.appendChild(closeBtn);
+
     panel.appendChild(header);
 
     // Description
@@ -172,10 +215,27 @@ export class SecretConsole {
 
     panel.appendChild(actions);
     this.shadow.appendChild(panel);
+
+    // Auto-focus first input
+    requestAnimationFrame(() => {
+      const firstInput = this.shadow?.querySelector<HTMLInputElement>('.secret-input');
+      firstInput?.focus();
+    });
   }
 
   private getStyles(): string {
     return `
+      .secret-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: -1;
+        pointer-events: auto;
+      }
+
       .secret-panel {
         background: ${COLORS.overlayBg};
         border: 1px solid ${COLORS.inputBorder};
@@ -186,40 +246,76 @@ export class SecretConsole {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         color: ${COLORS.textPrimary};
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        position: relative;
+        z-index: 1;
       }
-      .secret-header {
-        font-size: 16px;
-        font-weight: 600;
+
+      .secret-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         margin-bottom: 8px;
       }
+
+      .secret-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .secret-close-btn {
+        background: none;
+        border: 1px solid ${COLORS.inputBorder};
+        border-radius: 6px;
+        color: ${COLORS.textSecondary};
+        font-size: 14px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .secret-close-btn:hover {
+        background: ${COLORS.inputBorder};
+        color: ${COLORS.textPrimary};
+      }
+
       .secret-desc {
         font-size: 12px;
         color: ${COLORS.textSecondary};
         margin-bottom: 16px;
         line-height: 1.4;
       }
+
       .secret-fields {
         display: flex;
         flex-direction: column;
         gap: 12px;
         margin-bottom: 16px;
       }
+
       .secret-field {
         display: flex;
         flex-direction: column;
         gap: 4px;
       }
+
       .secret-label {
         font-size: 12px;
         font-weight: 500;
         font-family: monospace;
         color: ${COLORS.textSecondary};
       }
+
       .secret-input-wrap {
         display: flex;
         align-items: center;
         gap: 8px;
       }
+
       .secret-input {
         flex: 1;
         background: ${COLORS.inputBg};
@@ -231,13 +327,16 @@ export class SecretConsole {
         font-family: monospace;
         outline: none;
       }
+
       .secret-input:focus {
         border-color: ${COLORS.info};
       }
+
       .secret-input::placeholder {
         color: ${COLORS.textSecondary};
         opacity: 0.6;
       }
+
       .secret-toggle {
         background: none;
         border: 1px solid ${COLORS.inputBorder};
@@ -247,14 +346,17 @@ export class SecretConsole {
         font-size: 14px;
         color: ${COLORS.textSecondary};
       }
+
       .secret-toggle:hover {
         border-color: ${COLORS.textPrimary};
       }
+
       .secret-actions {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
       }
+
       .secret-btn {
         padding: 8px 20px;
         border-radius: 6px;
@@ -263,18 +365,22 @@ export class SecretConsole {
         font-weight: 500;
         cursor: pointer;
       }
+
       .secret-btn-skip {
         background: ${COLORS.inputBg};
         color: ${COLORS.textSecondary};
         border: 1px solid ${COLORS.inputBorder};
       }
+
       .secret-btn-skip:hover {
         background: ${COLORS.inputBorder};
       }
+
       .secret-btn-save {
         background: ${COLORS.success};
         color: #fff;
       }
+
       .secret-btn-save:hover {
         opacity: 0.9;
       }

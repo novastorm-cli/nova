@@ -32,7 +32,7 @@ describe('SecretConsole', () => {
     console_.show(['API_KEY', 'DATABASE_URL']);
 
     const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
-    expect(host.style.display).toBe('block');
+    expect(host.style.display).toBe('flex');
 
     const shadow = host.shadowRoot!;
     const inputs = shadow.querySelectorAll('.secret-input');

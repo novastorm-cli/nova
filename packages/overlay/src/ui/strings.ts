@@ -49,6 +49,7 @@ export const strings = {
 
   // ── Diff modal ───────────────────────────────────────────
   diffCloseTitle: 'Close (Esc)',
+  closeDialogAriaLabel: 'Close dialog',
   closeX: '\u2715',
   diffModified: 'Modified: ',
   diffCreated: 'Created: ',

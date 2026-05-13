@@ -1,5 +1,6 @@
 import { strings } from './strings.js';
 import { Z_INDEX } from './styles.js';
+import { installFocusTrap, type FocusTrap } from './util/focusTrap.js';
 
 interface DiffLine {
   type: 'added' | 'removed' | 'context' | 'hunk' | 'file-header';
@@ -8,11 +9,13 @@ interface DiffLine {
   newNum: string;
 }
 
+let diffModalIdCounter = 0;
+
 export class DiffModal {
   private host: HTMLElement | null = null;
   private shadow: ShadowRoot | null = null;
   private overlayEl: HTMLElement | null = null;
-  private escHandler: ((e: KeyboardEvent) => void) | null = null;
+  private focusTrap: FocusTrap | null = null;
 
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
@@ -41,13 +44,6 @@ export class DiffModal {
 
     this.shadow.appendChild(this.overlayEl);
     container.appendChild(this.host);
-
-    this.escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        this.hide();
-      }
-    };
-    document.addEventListener('keydown', this.escHandler);
   }
 
   show(filePath: string, diffContent: string): void {
@@ -55,8 +51,15 @@ export class DiffModal {
 
     this.overlayEl.innerHTML = '';
 
+    diffModalIdCounter++;
+    const headingId = `nova-diff-modal-heading-${diffModalIdCounter}`;
+
     const modal = document.createElement('div');
     modal.className = 'diff-modal';
+    modal.setAttribute('data-nova', 'diff-modal');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', headingId);
 
     // Header
     const header = document.createElement('div');
@@ -64,10 +67,13 @@ export class DiffModal {
 
     const fileLabel = document.createElement('span');
     fileLabel.className = 'diff-file-path';
+    fileLabel.id = headingId;
     fileLabel.textContent = filePath;
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'diff-close-btn';
+    closeBtn.setAttribute('data-nova', 'close');
+    closeBtn.setAttribute('aria-label', strings.closeDialogAriaLabel);
     closeBtn.textContent = strings.closeX;
     closeBtn.title = strings.diffCloseTitle;
     closeBtn.addEventListener('click', () => this.hide());
@@ -111,16 +117,26 @@ export class DiffModal {
     modal.appendChild(body);
     this.overlayEl.appendChild(modal);
     this.overlayEl.classList.remove('hidden');
+
+    // Install focus trap on the host (which contains the modal in shadow DOM)
+    if (this.host) {
+      this.focusTrap = installFocusTrap(this.host);
+    }
   }
 
   hide(): void {
+    // Release focus trap (restores focus to opener)
+    if (this.focusTrap) {
+      this.focusTrap.release();
+      this.focusTrap = null;
+    }
     this.overlayEl?.classList.add('hidden');
   }
 
   unmount(): void {
-    if (this.escHandler) {
-      document.removeEventListener('keydown', this.escHandler);
-      this.escHandler = null;
+    if (this.focusTrap) {
+      this.focusTrap.release();
+      this.focusTrap = null;
     }
     this.host?.remove();
     this.host = null;

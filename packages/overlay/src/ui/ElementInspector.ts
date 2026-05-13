@@ -1,5 +1,8 @@
 import { strings } from './strings.js';
 import { Z_INDEX } from './styles.js';
+import { installFocusTrap, type FocusTrap } from './util/focusTrap.js';
+
+let inspectorPopupIdCounter = 0;
 
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList;
@@ -26,6 +29,7 @@ export class ElementInspector {
   private highlightLabel: HTMLElement | null = null;
   private selectedElement: HTMLElement | null = null;
   private submitHandlers: Array<(element: HTMLElement, instruction: string) => void> = [];
+  private focusTrap: FocusTrap | null = null;
 
   private popupRecognition: SpeechRecognition | null = null;
 
@@ -176,6 +180,12 @@ export class ElementInspector {
   }
 
   deactivate(): void {
+    // Release focus trap (restores focus to opener)
+    if (this.focusTrap) {
+      this.focusTrap.release();
+      this.focusTrap = null;
+    }
+
     this.active = false;
     this.popupVisible = false;
     this.selectedElement = null;
@@ -304,6 +314,12 @@ export class ElementInspector {
   private showPopup(x: number, y: number, element: HTMLElement): void {
     if (!this.popupEl) return;
 
+    // Release any previous focus trap
+    if (this.focusTrap) {
+      this.focusTrap.release();
+      this.focusTrap = null;
+    }
+
     this.popupVisible = true;
     const label = this.getElementLabel(element);
 
@@ -322,16 +338,43 @@ export class ElementInspector {
     if (left < 8) left = 8;
     if (top < 8) top = 8;
 
+    inspectorPopupIdCounter++;
+    const headingId = `nova-inspector-popup-heading-${inspectorPopupIdCounter}`;
+
     this.popupEl.style.left = `${left}px`;
     this.popupEl.style.top = `${top}px`;
     this.popupEl.style.display = 'flex';
 
+    // Set ARIA dialog attributes
+    this.popupEl.setAttribute('data-nova', 'inspector-popup');
+    this.popupEl.setAttribute('role', 'dialog');
+    this.popupEl.setAttribute('aria-modal', 'true');
+    this.popupEl.setAttribute('aria-labelledby', headingId);
+
     this.popupEl.innerHTML = '';
+
+    // Header row with title and close button
+    const headerRow = document.createElement('div');
+    headerRow.className = 'popup-header-row';
 
     const header = document.createElement('div');
     header.className = 'popup-header';
+    header.id = headingId;
     header.textContent = `${strings.targetEmoji} ${label}`;
-    this.popupEl.appendChild(header);
+    headerRow.appendChild(header);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'popup-close-btn';
+    closeBtn.setAttribute('data-nova', 'close');
+    closeBtn.setAttribute('aria-label', strings.closeDialogAriaLabel);
+    closeBtn.textContent = strings.closeX;
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.deactivate();
+    });
+    headerRow.appendChild(closeBtn);
+
+    this.popupEl.appendChild(headerRow);
 
     const question = document.createElement('div');
     question.className = 'popup-question';
@@ -386,15 +429,18 @@ export class ElementInspector {
     btnRow.appendChild(executeBtn);
     this.popupEl.appendChild(btnRow);
 
-    // Event listeners on input
+    // Event listeners on input — Enter submits, Escape handled by focus trap
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();
       if (e.key === 'Enter' && input.value.trim()) {
         this.handleSubmit(input.value);
-      } else if (e.key === 'Escape') {
-        this.deactivate();
       }
     });
+
+    // Install focus trap on the host (which contains the popup in shadow DOM)
+    if (this.host) {
+      this.focusTrap = installFocusTrap(this.host);
+    }
 
     // Auto-focus input after a tick (shadow DOM timing)
     requestAnimationFrame(() => input.focus());
@@ -504,6 +550,13 @@ export class ElementInspector {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
 
+      .popup-header-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
       .popup-header {
         font-size: 13px;
         font-weight: 600;
@@ -512,6 +565,29 @@ export class ElementInspector {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .popup-close-btn {
+        background: none;
+        border: 1px solid var(--nova-panel-border);
+        border-radius: 6px;
+        color: var(--nova-text-secondary);
+        font-size: 14px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        padding: 0;
+      }
+
+      .popup-close-btn:hover {
+        background: var(--nova-input-border);
+        color: var(--nova-text-primary);
       }
 
       .popup-question {
