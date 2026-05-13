@@ -49,18 +49,29 @@ export const COLORS = {
   textSecondary: 'var(--nova-text-secondary)',
 } as const;
 
+/**
+ * Z-index hierarchy (bottom → top):
+ *   1000  pill — always visible above host content
+ *   1100  panels — bottom-left stacked panels, transcript bar, selectors
+ *   1200  modals — full-screen overlays (DiffModal, SecretConsole)
+ *   1300  toasts — top-most floating notifications
+ */
 export const Z_INDEX = {
-  activityLog: 2147483635,
-  suggestionPanel: 2147483636,
-  selector: 2147483636,
-  transcriptBar: 2147483637,
-  taskPanel: 2147483638,
-  secretConsole: 2147483639,
-  pill: 2147483640,
-  commandInput: 2147483641,
-  multiSelector: 2147483641,
-  areaSelector: 2147483642,
-  toast: 2147483645,
+  pill: 1000,
+  // Panels
+  activityLog: 1100,
+  suggestionPanel: 1100,
+  taskPanel: 1100,
+  transcriptBar: 1100,
+  commandInput: 1100,
+  selector: 1100,
+  multiSelector: 1100,
+  areaSelector: 1100,
+  // Modals
+  diffModal: 1200,
+  secretConsole: 1200,
+  // Toasts
+  toast: 1300,
 } as const;
 
 export const PILL_SIZE = 48;

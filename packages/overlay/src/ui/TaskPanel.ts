@@ -35,12 +35,19 @@ export class TaskPanel {
   private isHovering = false;
   private isHistoryMode = false;
 
+  /** Returns the host element (for layout manager registration). */
+  getHost(): HTMLElement | null {
+    return this.host;
+  }
+
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-task-panel', '');
     this.host.style.position = 'fixed';
-    this.host.style.top = '20px';
-    this.host.style.right = '20px';
+    this.host.style.top = 'auto';
+    this.host.style.right = 'auto';
+    this.host.style.left = '20px';
+    this.host.style.bottom = '20px';
     this.host.style.zIndex = String(Z_INDEX.taskPanel);
     this.host.style.pointerEvents = 'none';
 

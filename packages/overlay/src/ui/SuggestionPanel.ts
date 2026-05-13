@@ -10,6 +10,11 @@ export class SuggestionPanel implements ISuggestionPanel {
   private suggestions: Map<string, SuggestionItem> = new Map();
   private responseHandler: ((suggestionId: string, approved: boolean) => void) | null = null;
 
+  /** Returns the host element (for layout manager registration). */
+  getHost(): HTMLElement | null {
+    return this.host;
+  }
+
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-suggestion-panel', '');

@@ -27,6 +27,11 @@ export class ActivityLog {
   private storedEntries: StoredEntry[] = [];
   private diffClickHandler: ((filePath: string, diff: string) => void) | null = null;
 
+  /** Returns the host element (for layout manager registration). */
+  getHost(): HTMLElement | null {
+    return this.host;
+  }
+
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-activity-log', '');

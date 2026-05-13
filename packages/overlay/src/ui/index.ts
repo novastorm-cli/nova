@@ -15,3 +15,12 @@ export { OverlayStateMachine } from './state-machine.js';
 export type { FsmState, FsmEventType, StateChangeEvent } from './state-machine.js';
 export { toStyleString, applyStyles, COLORS, Z_INDEX, PILL_SIZE, TRANSITION } from './styles.js';
 export type { StyleObject } from './styles.js';
+export {
+  LayoutSlots,
+  createLayoutSlots,
+  getLayoutSlots,
+  LAYOUT_GAP_PX,
+  LAYOUT_LEFT_PX,
+  LAYOUT_BOTTOM_PX,
+} from './layout.js';
+export type { SlotConfig } from './layout.js';

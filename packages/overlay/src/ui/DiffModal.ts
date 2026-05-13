@@ -40,7 +40,7 @@ export class DiffModal {
     this.host.style.width = '0';
     this.host.style.height = '0';
     this.host.style.overflow = 'visible';
-    this.host.style.zIndex = String(Z_INDEX.toast + 10);
+    this.host.style.zIndex = String(Z_INDEX.diffModal);
 
     this.shadow = this.host.attachShadow({ mode: 'open' });
 

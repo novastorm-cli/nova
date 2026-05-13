@@ -30,6 +30,8 @@ import type { BrowserObservation } from './transport/WebSocketClient.js';
 import { strings } from './ui/strings.js';
 import { restoreTheme } from './ui/theme.js';
 import { Z_INDEX } from './ui/styles.js';
+import { SuggestionPanel } from './ui/SuggestionPanel.js';
+import { createLayoutSlots } from './ui/layout.js';
 
 const DEFAULT_PORT = 3001;
 
@@ -117,6 +119,7 @@ function boot(): void {
   const transcriptBar = new TranscriptBar();
   const taskPanel = new TaskPanel();
   const activityLog = new ActivityLog();
+  const suggestionPanel = new SuggestionPanel();
   const diffModal = new DiffModal();
   const elementInspector = new ElementInspector();
   const multiSelector = new MultiElementSelector();
@@ -196,6 +199,9 @@ function boot(): void {
     novaRoot.style.pointerEvents = 'none';
     document.documentElement.appendChild(novaRoot);
   }
+
+  // Layout manager — controls stacking of bottom-left panels
+  const layoutSlots = createLayoutSlots();
 
   // Apply theme early so CSS custom properties are available when components mount
   restoreTheme();
@@ -285,8 +291,15 @@ function boot(): void {
   transcriptBar.mount(novaRoot);
   taskPanel.mount(novaRoot);
   activityLog.mount(novaRoot);
+  suggestionPanel.mount(novaRoot);
   diffModal.mount(novaRoot);
   elementInspector.mount(novaRoot);
+
+  // Register bottom-left panels with the layout slot manager.
+  // Order from bottom to top: ActivityLog → SuggestionPanel → TaskPanel.
+  layoutSlots.register('activityLog', activityLog.getHost()!);
+  layoutSlots.register('suggestionPanel', suggestionPanel.getHost()!);
+  layoutSlots.register('taskPanel', taskPanel.getHost()!);
 
   // Wire diff modal to activity log
   activityLog.onDiffClick((filePath, diff) => {
@@ -545,6 +558,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       remount: () => {
         taskPanel.unmount();
         taskPanel.mount(novaRoot!);
+        const host = taskPanel.getHost();
+        if (host) layoutSlots.register('taskPanel', host);
       },
     },
     {
@@ -552,6 +567,17 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       remount: () => {
         activityLog.unmount();
         activityLog.mount(novaRoot!);
+        const host = activityLog.getHost();
+        if (host) layoutSlots.register('activityLog', host);
+      },
+    },
+    {
+      attr: 'data-nova-suggestion-panel',
+      remount: () => {
+        suggestionPanel.unmount();
+        suggestionPanel.mount(novaRoot!);
+        const host = suggestionPanel.getHost();
+        if (host) layoutSlots.register('suggestionPanel', host);
       },
     },
     {
