@@ -191,6 +191,26 @@ test.describe('Voice Feedback', () => {
         page.locator('[data-nova="toast"]', { hasText: /No audio detected/ }),
       ).toBeVisible({ timeout: 5000 });
     });
+
+    test('[data-nova="mic-hint"] element exists in DOM', async ({ page }) => {
+      // The mic-hint element should exist (initially hidden)
+      const micHint = page.locator('[data-nova="mic-hint"]');
+      await expect(micHint).toBeAttached();
+    });
+
+    test('mic-hint element becomes visible with "No audio detected" after 3s silence', async ({
+      page,
+    }) => {
+      const mic = getMicButton(page);
+      await mic.click();
+
+      // Wait for the mic-hint to become visible (3s + some buffer)
+      const micHint = page.locator('[data-nova="mic-hint"]');
+      await expect(micHint).toBeVisible({ timeout: 5000 });
+
+      // Should contain the no-audio text
+      await expect(micHint).toContainText(/No audio detected/);
+    });
   });
 
   test.describe('VAL-OVERLAY-046: 10s silence auto-stops listening', () => {
@@ -235,6 +255,26 @@ test.describe('Voice Feedback', () => {
           hasText: /Microphone access denied/,
         }),
       ).toBeVisible({ timeout: 5000 });
+    });
+
+    test('mic-hint element shows permission error explanation with help URL', async ({
+      page,
+    }) => {
+      const mic = getMicButton(page);
+      await mic.click();
+
+      // The mic-hint element should be visible
+      const micHint = page.locator('[data-nova="mic-hint"]');
+      await expect(micHint).toBeVisible({ timeout: 5000 });
+
+      // Should contain permission denied text
+      await expect(micHint).toContainText(/Microphone access denied/);
+
+      // Should contain a help URL link
+      const link = micHint.locator('a');
+      await expect(link).toBeAttached();
+      const href = await link.getAttribute('href');
+      expect(href).toMatch(/https?:\/\//);
     });
 
     test('status line does NOT remain stuck on Listening after permission denied', async ({

@@ -52,7 +52,7 @@ describe('VoiceCapture', () => {
     originalGetUserMedia = navigator.mediaDevices?.getUserMedia;
     mockGetUserMedia = vi.fn().mockResolvedValue({
       getTracks: () => [{ stop: vi.fn() }],
-    } as unknown as MediaStream);
+    });
     if (navigator.mediaDevices) {
       (navigator.mediaDevices as unknown as Record<string, unknown>).getUserMedia =
         mockGetUserMedia;
@@ -260,10 +260,7 @@ describe('VoiceCapture', () => {
     capture.onPermissionError(handler);
 
     // Make getUserMedia reject with NotAllowedError
-    const notAllowedError = new DOMException(
-      'Permission denied',
-      'NotAllowedError',
-    );
+    const notAllowedError = new DOMException('Permission denied', 'NotAllowedError');
     mockGetUserMedia.mockRejectedValueOnce(notAllowedError);
 
     capture.start();
@@ -277,10 +274,7 @@ describe('VoiceCapture', () => {
     const handler = vi.fn();
     capture.onPermissionError(handler);
 
-    const permissionDeniedError = new DOMException(
-      'Permission denied',
-      'PermissionDeniedError',
-    );
+    const permissionDeniedError = new DOMException('Permission denied', 'PermissionDeniedError');
     mockGetUserMedia.mockRejectedValueOnce(permissionDeniedError);
 
     capture.start();
@@ -300,18 +294,17 @@ describe('VoiceCapture', () => {
     class CapturableMockRecognition extends MockSpeechRecognition {
       constructor() {
         super();
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        capturedRecognition = this as unknown as MockSpeechRecognition;
+
+        capturedRecognition = this;
       }
     }
 
-    (globalThis as Record<string, unknown>).SpeechRecognition =
-      CapturableMockRecognition;
+    (globalThis as Record<string, unknown>).SpeechRecognition = CapturableMockRecognition;
 
     // Start; getUserMedia resolves normally
     mockGetUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: vi.fn() }],
-    } as unknown as MediaStream);
+    });
 
     const capture3 = new VoiceCapture();
     capture3.onPermissionError(permissionErrorHandler);

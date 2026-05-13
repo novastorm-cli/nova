@@ -244,6 +244,60 @@ function boot(): void {
   ariaLive.textContent = fsm.label;
   novaRoot.appendChild(ariaLive);
 
+  // ── Mic hint element ────────────────────────────────────────────
+  const micHint = document.createElement('div');
+  micHint.setAttribute('data-nova', 'mic-hint');
+  micHint.setAttribute('role', 'status');
+  micHint.style.position = 'fixed';
+  micHint.style.bottom = '110px';
+  micHint.style.left = '50%';
+  micHint.style.transform = 'translateX(-50%)';
+  micHint.style.zIndex = String(Z_INDEX.transcriptBar);
+  micHint.style.pointerEvents = 'auto';
+  micHint.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  micHint.style.fontSize = '13px';
+  micHint.style.color = 'var(--nova-text-primary)';
+  micHint.style.background = 'var(--nova-panel-bg)';
+  micHint.style.backdropFilter = 'blur(8px)';
+  (micHint.style as unknown as Record<string, string>).webkitBackdropFilter = 'blur(8px)';
+  micHint.style.borderRadius = '10px';
+  micHint.style.padding = '8px 16px';
+  micHint.style.boxShadow = '0 2px 8px var(--nova-pill-shadow)';
+  micHint.style.display = 'none';
+  micHint.style.whiteSpace = 'nowrap';
+  micHint.style.maxWidth = '90vw';
+  micHint.style.textAlign = 'center';
+  micHint.textContent = '';
+  novaRoot.appendChild(micHint);
+
+  /** Show the mic hint element with a text message. */
+  function showMicHint(message: string, includeHelpLink?: boolean): void {
+    if (includeHelpLink && strings.micPermissionHelpUrl) {
+      const textSpan = document.createElement('span');
+      textSpan.textContent = message;
+      const link = document.createElement('a');
+      link.href = strings.micPermissionHelpUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = strings.micPermissionHelpUrl;
+      link.style.color = 'var(--nova-accent)';
+      link.style.textDecoration = 'underline';
+      micHint.innerHTML = '';
+      micHint.appendChild(textSpan);
+      micHint.appendChild(document.createTextNode(' '));
+      micHint.appendChild(link);
+    } else {
+      micHint.textContent = message;
+    }
+    micHint.style.display = '';
+  }
+
+  /** Hide the mic hint element. */
+  function hideMicHint(): void {
+    micHint.style.display = 'none';
+    micHint.textContent = '';
+  }
+
   /** Derive the pill's visual state from the FSM state. */
   function fsmStateToPillState(s: FsmState): 'idle' | 'listening' | 'processing' | 'error' {
     switch (s) {
@@ -608,6 +662,15 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         secretConsole.mount(novaRoot!);
       },
     },
+    {
+      attr: 'data-nova-mic-hint',
+      remount: () => {
+        // Re-append mic-hint if it was removed from nova-root
+        if (!novaRoot!.querySelector('[data-nova="mic-hint"]') && micHint.isConnected === false) {
+          novaRoot!.appendChild(micHint);
+        }
+      },
+    },
   ];
 
   const overlayObserver = new MutationObserver(() => {
@@ -697,6 +760,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     silenceHintShown = false;
     silenceStartTime = 0;
 
+    hideMicHint();
+
     voiceCapture.stop();
     voiceStarted = false;
     fsm.send({ type: 'voice_stopped' });
@@ -740,11 +805,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         stopMic();
       }, SILENCE_TIMEOUT_MS);
 
-      // Schedule hint toast for 3s of silence (if amplitude stays zero)
+      // Schedule hint toast and mic-hint for 3s of silence (if amplitude stays zero)
       silenceHintTimer = setTimeout(() => {
         if (voiceStarted && !silenceHintShown) {
           silenceHintShown = true;
           statusToast.show(strings.noAudioHint, 'info');
+          showMicHint(strings.noAudioHint);
         }
         silenceHintTimer = null;
       }, NO_AUDIO_HINT_MS);
@@ -950,16 +1016,20 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       }
       silenceHintShown = false;
       silenceStartTime = Date.now();
+      hideMicHint();
       resetSilenceTimer();
     }
   });
 
-  // Permission error handler — show explanatory toast
+  // Permission error handler — show explanatory toast and mic-hint
   voiceCapture.onPermissionError((_error: string) => {
     // Show an explanatory toast with a link to browser permission settings
     const helpUrl = strings.micPermissionHelpUrl;
     const msg = `${strings.micPermissionDenied}${helpUrl}`;
     statusToast.show(msg, 'error');
+
+    // Show persistent mic-hint with clickable help URL
+    showMicHint(strings.micPermissionDenied, true);
 
     // Ensure FSM returns to idle if it was stuck in listening
     if (fsm.state === 'listening') {
