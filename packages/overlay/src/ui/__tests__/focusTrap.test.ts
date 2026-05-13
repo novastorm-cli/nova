@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { installFocusTrap } from '../util/focusTrap.js';
+import { installFocusTrap, getFocusableDescendants } from '../util/focusTrap.js';
 
 /**
  * Helper: creates a modal root with N buttons, tracks focus via event listeners.
@@ -374,6 +374,48 @@ describe('installFocusTrap', () => {
   });
 
   describe('edge cases', () => {
+    it('getFocusableDescendants returns no duplicates', () => {
+      // Construct a DOM tree with nested focusable elements that would
+      // previously produce duplicates from the redundant querySelectorAll.
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+
+      // Nested structure: button inside a div
+      const wrapper = document.createElement('div');
+      root.appendChild(wrapper);
+      const btn1 = document.createElement('button');
+      btn1.textContent = 'Nested Button';
+      wrapper.appendChild(btn1);
+
+      // Sibling button at root level
+      const btn2 = document.createElement('button');
+      btn2.textContent = 'Sibling Button';
+      root.appendChild(btn2);
+
+      // Deeply nested button
+      const outer = document.createElement('div');
+      root.appendChild(outer);
+      const inner = document.createElement('div');
+      outer.appendChild(inner);
+      const btn3 = document.createElement('button');
+      btn3.textContent = 'Deep Button';
+      inner.appendChild(btn3);
+
+      const focusable = getFocusableDescendants(root);
+
+      // Each button should appear exactly once
+      expect(focusable.length).toBe(3);
+      expect(focusable.filter((el) => el === btn1).length).toBe(1);
+      expect(focusable.filter((el) => el === btn2).length).toBe(1);
+      expect(focusable.filter((el) => el === btn3).length).toBe(1);
+
+      // Verify order: pre-order traversal (root → wrapper → btn1 → btn2 → outer → inner → btn3)
+      // Note: wrapper (div) is not focusable, so btn1 comes first
+      expect(focusable[0]).toBe(btn1);
+      expect(focusable[1]).toBe(btn2);
+      expect(focusable[2]).toBe(btn3);
+    });
+
     it('handles root with no focusable elements gracefully', () => {
       const root = document.createElement('div');
       root.textContent = 'No focusable content';

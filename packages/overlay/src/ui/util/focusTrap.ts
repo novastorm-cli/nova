@@ -34,8 +34,10 @@ function isVisible(el: HTMLElement): boolean {
 
 /**
  * Collect all visible focusable elements within `root`, recursing into shadow DOM.
+ * Uses manual child recursion (which handles shadow DOM piercing) to avoid
+ * duplicates that would arise from mixing querySelectorAll with tree walk.
  */
-function getFocusableDescendants(root: HTMLElement): HTMLElement[] {
+export function getFocusableDescendants(root: HTMLElement): HTMLElement[] {
   const result: HTMLElement[] = [];
 
   function collect(node: Element | DocumentFragment | ShadowRoot): void {
@@ -49,18 +51,10 @@ function getFocusableDescendants(root: HTMLElement): HTMLElement[] {
       return;
     }
 
-    // node is an Element
+    // node is an Element — test it directly against the focusable selector
     const el = node as HTMLElement;
     if (el.matches(FOCUSABLE_SELECTOR) && isVisible(el)) {
       result.push(el);
-    }
-
-    // QuerySelectorAll on the element for other matches
-    const matches = el.querySelectorAll(FOCUSABLE_SELECTOR);
-    for (const match of matches) {
-      if (match !== el && isVisible(match as HTMLElement)) {
-        result.push(match as HTMLElement);
-      }
     }
 
     // Recurse into children, piercing shadow roots
