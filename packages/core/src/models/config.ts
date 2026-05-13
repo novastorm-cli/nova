@@ -34,6 +34,9 @@ export interface NovaConfig {
   git?: {
     allowProtectedBranchCommits?: boolean;
   };
+  rag?: {
+    embeddingProvider?: 'openai' | 'ollama' | 'tfidf';
+  };
 }
 
 export const DEFAULT_CONFIG: NovaConfig = {

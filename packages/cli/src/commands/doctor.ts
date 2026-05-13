@@ -287,8 +287,8 @@ export async function runDoctor(opts: DoctorOptions = {}): Promise<DoctorOutput>
     checks.push(checkClaudeCli());
   }
 
-  // 6. Ollama (conditional on provider=ollama OR embeddings configured)
-  if (config?.apiKeys?.provider === 'ollama') {
+  // 6. Ollama (conditional on provider=ollama OR RAG embeddings use Ollama)
+  if (config?.apiKeys?.provider === 'ollama' || config?.rag?.embeddingProvider === 'ollama') {
     checks.push(await checkOllamaReachable('127.0.0.1:11434'));
   }
 

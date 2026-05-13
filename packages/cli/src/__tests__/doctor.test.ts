@@ -636,6 +636,19 @@ describe('nova doctor - unit tests', () => {
       expect(names).toContain('Ollama');
     });
 
+    it('includes Ollama check when RAG embeddings use Ollama (provider != ollama)', async () => {
+      // Simulates: chat provider is deepseek, but RAG embedding provider is ollama
+      const { checks } = await runDoctor({
+        cwd: tmpDir,
+        port: 3590,
+        providerName: 'deepseek',
+        providerPing: () => Promise.resolve(true),
+        includeOllama: true, // RAG uses Ollama for embeddings
+      });
+      const names = checks.map((c) => c.name);
+      expect(names).toContain('Ollama');
+    });
+
     it('does NOT include Ollama check when not configured', async () => {
       const { checks } = await runDoctor({
         cwd: tmpDir,

@@ -37,6 +37,9 @@ export const NovaConfigSchema = z.object({
   git: z.object({
     allowProtectedBranchCommits: z.boolean().optional(),
   }).optional(),
+  rag: z.object({
+    embeddingProvider: z.enum(['openai', 'ollama', 'tfidf']).optional(),
+  }).optional(),
 }) satisfies z.ZodType<NovaConfig>;
 
 export function parseNovaConfig(raw: unknown): NovaConfig {
