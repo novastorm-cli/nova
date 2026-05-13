@@ -5,7 +5,26 @@ import { COLORS, PILL_SIZE, Z_INDEX, TRANSITION } from './styles.js';
 const STORAGE_KEY_X = 'nova-pill-x';
 const STORAGE_KEY_Y = 'nova-pill-y';
 
+/** Drag must exceed this distance (px) before it is considered a drag, not a click. */
+const DRAG_DEADZONE = 4;
+
 type PillState = 'idle' | 'listening' | 'processing' | 'error';
+
+/** Detect whether the user is on macOS (for shortcut glyph rendering). */
+function isMac(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  // navigator.platform is the classic check (e.g. "MacIntel").
+  if (/mac/i.test(navigator.platform)) return true;
+  // Modern check via User-Agent Client Hints API.
+  const uaData = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData;
+  if (uaData?.platform === 'macOS') return true;
+  return false;
+}
+
+/** Build the shortcut label for a key: ⌥I on macOS, Alt+I elsewhere. */
+function shortcutGlyph(key: string): string {
+  return isMac() ? `\u2325${key}` : `Alt+${key}`;
+}
 
 export class OverlayPill implements IOverlayPill {
   private host: HTMLElement | null = null;
@@ -20,14 +39,28 @@ export class OverlayPill implements IOverlayPill {
   private gestureModeActive = false;
   private currentState: PillState = 'idle';
 
-  private isDragging = false;
+  // Pointer-based drag state
+  private dragging = false;
+  private dragStartX = 0;
+  private dragStartY = 0;
   private dragOffsetX = 0;
   private dragOffsetY = 0;
+  /** Total distance moved since pointerdown (for deadzone check). */
+  private dragDist = 0;
+  /** Whether the deadzone threshold has been crossed. */
   private hasMoved = false;
+  /** The pointer ID of the active drag (for capture). */
+  private activePointerId = -1;
+  /** Set to true after pointerup handled the toggle, to suppress the subsequent click. */
+  private toggledViaPointer = false;
+  /** Set to true after a drag completed, to suppress the subsequent click. */
+  private dragCompleted = false;
 
-  private readonly boundMouseMove = this.handleMouseMove.bind(this);
-  private readonly boundMouseUp = this.handleMouseUp.bind(this);
+  private readonly boundPointerMove = this.handlePointerMove.bind(this);
+  private readonly boundPointerUp = this.handlePointerUp.bind(this);
   private readonly boundDocumentClick = this.handleDocumentClick.bind(this);
+
+  // ── mount ─────────────────────────────────────────────────────
 
   mount(container: HTMLElement): void {
     if (this.host) return;
@@ -43,44 +76,40 @@ export class OverlayPill implements IOverlayPill {
     this.pillEl = document.createElement('button');
     this.pillEl.className = 'nova-pill idle';
     this.pillEl.setAttribute('aria-label', strings.pillAriaLabel);
+    this.pillEl.setAttribute('aria-haspopup', 'menu');
+    this.pillEl.setAttribute('aria-expanded', 'false');
     this.pillEl.innerHTML = this.getIcon();
 
     this.shadow.appendChild(this.pillEl);
 
     this.dropdownEl = document.createElement('div');
     this.dropdownEl.className = 'pill-dropdown hidden';
-    this.dropdownEl.innerHTML = `
-      <button class="dropdown-item" data-mode="quickEdit">
-        <span class="dropdown-icon">&#127919;</span> ${strings.quickEditLabel} <span class="shortcut">&#x2325;I</span>
-      </button>
-      <button class="dropdown-item" data-mode="multiEdit">
-        <span class="dropdown-icon">&#128204;</span> ${strings.multiEditLabel} <span class="shortcut">&#x2325;K</span>
-      </button>
-      <button class="dropdown-item" data-mode="projectMap">
-        <span class="dropdown-icon">&#128506;</span> ${strings.projectMapLabel} <span class="shortcut">&#x2325;M</span>
-      </button>
-      <div class="dropdown-divider"></div>
-      <button class="dropdown-item gesture-toggle" data-mode="gestureMode">
-        <span class="dropdown-icon">&#9757;</span> ${strings.gestureModeLabel} <span class="shortcut">&#x2325;G</span>
-        <span class="toggle-indicator"></span>
-      </button>
-    `;
+    this.dropdownEl.setAttribute('role', 'menu');
+    this.dropdownEl.innerHTML = this.buildDropdownHtml();
     this.dropdownEl.addEventListener('click', this.handleDropdownClick.bind(this));
     this.shadow.appendChild(this.dropdownEl);
 
     document.addEventListener('click', this.boundDocumentClick, true);
 
-    // Always position at bottom-right of viewport
+    // Always use fixed positioning with left/top (never right/bottom)
     this.host.style.position = 'fixed';
-    this.host.style.right = '20px';
-    this.host.style.bottom = '80px'; // Above transcript bar
     this.host.style.left = 'auto';
     this.host.style.top = 'auto';
+    this.host.style.right = 'auto';
+    this.host.style.bottom = 'auto';
     this.host.style.zIndex = String(Z_INDEX.pill);
     this.host.style.pointerEvents = 'auto';
 
-    this.pillEl.addEventListener('mousedown', this.handleMouseDown.bind(this));
-    this.pillEl.addEventListener('click', this.handleClick.bind(this));
+    this.host.style.width = `${PILL_SIZE}px`;
+    this.host.style.height = `${PILL_SIZE}px`;
+
+    // Restore saved position from localStorage, clamped to viewport
+    this.restorePosition();
+
+    // Pointer events for drag (with deadzone) and click
+    this.pillEl.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+    // Synthetic click fallback (for Playwright and programmatic clicks)
+    this.pillEl.addEventListener('click', this.handlePillClick.bind(this));
 
     container.appendChild(this.host);
 
@@ -89,10 +118,16 @@ export class OverlayPill implements IOverlayPill {
     this.setGestureModeActive(savedGestureMode);
   }
 
+  // ── unmount ───────────────────────────────────────────────────
+
   unmount(): void {
-    document.removeEventListener('mousemove', this.boundMouseMove);
-    document.removeEventListener('mouseup', this.boundMouseUp);
+    document.removeEventListener('pointermove', this.boundPointerMove);
+    document.removeEventListener('pointerup', this.boundPointerUp);
     document.removeEventListener('click', this.boundDocumentClick, true);
+    // Release pointer capture if active
+    if (this.activePointerId >= 0 && this.pillEl?.hasPointerCapture?.(this.activePointerId)) {
+      this.pillEl.releasePointerCapture(this.activePointerId);
+    }
     this.host?.remove();
     this.host = null;
     this.shadow = null;
@@ -100,12 +135,16 @@ export class OverlayPill implements IOverlayPill {
     this.dropdownEl = null;
   }
 
+  // ── State ─────────────────────────────────────────────────────
+
   setState(state: PillState): void {
     this.currentState = state;
     if (!this.pillEl) return;
     this.pillEl.className = `nova-pill ${state}`;
     this.host?.setAttribute('data-state', state);
   }
+
+  // ── Callbacks ─────────────────────────────────────────────────
 
   onQuickEdit(handler: () => void): void {
     this.quickEditHandler = handler;
@@ -118,6 +157,8 @@ export class OverlayPill implements IOverlayPill {
   onGestureMode(handler: () => void): void {
     this.gestureModeHandler = handler;
   }
+
+  // ── Gesture mode visual ───────────────────────────────────────
 
   setGestureModeActive(active: boolean): void {
     this.gestureModeActive = active;
@@ -146,31 +187,66 @@ export class OverlayPill implements IOverlayPill {
     });
   }
 
-  private handleClick(e: MouseEvent): void {
-    if (this.hasMoved) {
-      e.preventDefault();
-      return;
-    }
-    this.toggleDropdown();
-  }
+  // ── Dropdown logic ────────────────────────────────────────────
 
   private toggleDropdown(): void {
     this.dropdownVisible = !this.dropdownVisible;
-    if (!this.dropdownEl) return;
+    if (!this.dropdownEl || !this.host || !this.pillEl) return;
+
     if (this.dropdownVisible) {
+      this.pillEl.setAttribute('aria-expanded', 'true');
+      this.positionDropdown();
       this.dropdownEl.classList.remove('hidden');
     } else {
+      this.pillEl.setAttribute('aria-expanded', 'false');
       this.dropdownEl.classList.add('hidden');
     }
   }
 
   private closeDropdown(): void {
     this.dropdownVisible = false;
+    if (this.pillEl) {
+      this.pillEl.setAttribute('aria-expanded', 'false');
+    }
     this.dropdownEl?.classList.add('hidden');
   }
 
+  /**
+   * Position the dropdown above or below the pill depending on
+   * available viewport space.
+   */
+  private positionDropdown(): void {
+    if (!this.dropdownEl || !this.host) return;
+
+    const pillRect = this.host.getBoundingClientRect();
+    const pillTop = pillRect.top;
+    const pillBottom = pillRect.bottom;
+    const windowHeight = window.innerHeight;
+
+    // Estimate dropdown height (use a safe minimum of 200px)
+    const dropdownEstHeight = Math.max(this.dropdownEl.scrollHeight || 200, 200);
+    const gap = 8;
+
+    const spaceAbove = pillTop;
+    // Used conceptually: if spaceAbove < dropdownEstHeight + gap, flip below
+
+    // Reset any inline overrides
+    this.dropdownEl.style.bottom = '';
+    this.dropdownEl.style.top = '';
+
+    if (spaceAbove >= dropdownEstHeight + gap) {
+      // Enough space above → position above the pill
+      this.dropdownEl.style.bottom = `${windowHeight - pillTop + gap}px`;
+    } else {
+      // Not enough space above → position below the pill
+      this.dropdownEl.style.top = `${pillBottom + gap}px`;
+    }
+  }
+
+  // ── Dropdown click handler ────────────────────────────────────
+
   private handleDropdownClick(e: MouseEvent): void {
-    const target = (e.target as HTMLElement).closest('.dropdown-item') as HTMLElement | null;
+    const target = (e.target as HTMLElement).closest<HTMLElement>('.dropdown-item');
     if (!target) return;
     e.stopPropagation();
     const mode = target.dataset.mode;
@@ -186,6 +262,8 @@ export class OverlayPill implements IOverlayPill {
     this.closeDropdown();
   }
 
+  // ── Document click to close dropdown ──────────────────────────
+
   private handleDocumentClick(e: MouseEvent): void {
     if (!this.dropdownVisible || !this.host) return;
     const path = e.composedPath();
@@ -194,45 +272,162 @@ export class OverlayPill implements IOverlayPill {
     }
   }
 
-  private handleMouseDown(e: MouseEvent): void {
-    if (!this.host) return;
-    this.isDragging = true;
+  // ── Pointer event handlers (drag + click via deadzone) ─────────
+
+  private handlePointerDown(e: PointerEvent): void {
+    if (!this.host || !this.pillEl) return;
+    if (e.button !== 0) return; // Only left button
+
+    this.dragging = true;
     this.hasMoved = false;
+    this.dragDist = 0;
+    this.activePointerId = e.pointerId;
 
     const rect = this.host.getBoundingClientRect();
+    this.dragStartX = e.clientX;
+    this.dragStartY = e.clientY;
     this.dragOffsetX = e.clientX - rect.left;
     this.dragOffsetY = e.clientY - rect.top;
 
-    document.addEventListener('mousemove', this.boundMouseMove);
-    document.addEventListener('mouseup', this.boundMouseUp);
+    // Capture pointer so we get events even if the pointer leaves the element
+    try {
+      this.pillEl.setPointerCapture(e.pointerId);
+    } catch {
+      // setPointerCapture may not be available in some jsdom versions
+    }
+
+    document.addEventListener('pointermove', this.boundPointerMove);
+    document.addEventListener('pointerup', this.boundPointerUp);
+    // Prevent the subsequent click event — we handle toggle in pointerup
     e.preventDefault();
+    e.stopPropagation();
   }
 
-  private handleMouseMove(e: MouseEvent): void {
-    if (!this.isDragging || !this.host) return;
-    this.hasMoved = true;
+  private handlePointerMove(e: PointerEvent): void {
+    if (!this.dragging || !this.host) return;
 
-    const x = Math.max(0, Math.min(e.clientX - this.dragOffsetX, window.innerWidth - PILL_SIZE));
-    const y = Math.max(0, Math.min(e.clientY - this.dragOffsetY, window.innerHeight - PILL_SIZE));
+    const dx = e.clientX - this.dragStartX;
+    const dy = e.clientY - this.dragStartY;
+    this.dragDist = Math.hypot(dx, dy);
 
-    this.host.style.left = `${x}px`;
-    this.host.style.top = `${y}px`;
+    if (this.dragDist > DRAG_DEADZONE) {
+      this.hasMoved = true;
+    }
+
+    if (this.hasMoved) {
+      const x = Math.max(0, Math.min(e.clientX - this.dragOffsetX, window.innerWidth - PILL_SIZE));
+      const y = Math.max(0, Math.min(e.clientY - this.dragOffsetY, window.innerHeight - PILL_SIZE));
+
+      this.host.style.left = `${x}px`;
+      this.host.style.top = `${y}px`;
+      this.host.style.right = 'auto';
+      this.host.style.bottom = 'auto';
+    }
+  }
+
+  private handlePointerUp(): void {
+    if (!this.dragging || !this.host || !this.pillEl) return;
+    this.dragging = false;
+
+    document.removeEventListener('pointermove', this.boundPointerMove);
+    document.removeEventListener('pointerup', this.boundPointerUp);
+
+    // Release pointer capture
+    try {
+      if (this.activePointerId >= 0 && this.pillEl.hasPointerCapture?.(this.activePointerId)) {
+        this.pillEl.releasePointerCapture(this.activePointerId);
+      }
+    } catch {
+      // Ignore
+    }
+    this.activePointerId = -1;
+
+    if (this.hasMoved) {
+      // Drag completed — save position
+      const rect = this.host.getBoundingClientRect();
+      localStorage.setItem(STORAGE_KEY_X, String(Math.round(rect.left)));
+      localStorage.setItem(STORAGE_KEY_Y, String(Math.round(rect.top)));
+      this.hasMoved = false;
+      this.dragCompleted = true;
+    } else {
+      // No drag (within deadzone) — treat as a click → toggle dropdown
+      this.hasMoved = false;
+      this.toggledViaPointer = true;
+      this.toggleDropdown();
+    }
+  }
+
+  /** Handles synthetic click events (e.g., from Playwright or programmatic clicks). */
+  private handlePillClick(): void {
+    // If already handled by pointer events (toggle or drag), suppress this click.
+    if (this.toggledViaPointer) {
+      this.toggledViaPointer = false;
+      return;
+    }
+    if (this.dragCompleted) {
+      this.dragCompleted = false;
+      return;
+    }
+    this.toggleDropdown();
+  }
+
+  // ── Position restore ──────────────────────────────────────────
+
+  private restorePosition(): void {
+    if (!this.host) return;
+
+    let x: number | null = null;
+    let y: number | null = null;
+
+    try {
+      const sx = localStorage.getItem(STORAGE_KEY_X);
+      const sy = localStorage.getItem(STORAGE_KEY_Y);
+      if (sx !== null) x = parseFloat(sx);
+      if (sy !== null) y = parseFloat(sy);
+    } catch {
+      // localStorage unavailable
+    }
+
+    if (x === null || y === null || isNaN(x) || isNaN(y)) {
+      // Default: bottom-right area of viewport
+      x = window.innerWidth - PILL_SIZE - 20;
+      y = window.innerHeight - PILL_SIZE - 80;
+    }
+
+    // Clamp to viewport
+    const clampedX = Math.max(0, Math.min(window.innerWidth - PILL_SIZE, x));
+    const clampedY = Math.max(0, Math.min(window.innerHeight - PILL_SIZE, y));
+
+    this.host.style.left = `${clampedX}px`;
+    this.host.style.top = `${clampedY}px`;
     this.host.style.right = 'auto';
     this.host.style.bottom = 'auto';
   }
 
-  private handleMouseUp(): void {
-    if (!this.isDragging || !this.host) return;
-    this.isDragging = false;
+  // ── HTML builders ─────────────────────────────────────────────
 
-    document.removeEventListener('mousemove', this.boundMouseMove);
-    document.removeEventListener('mouseup', this.boundMouseUp);
+  private buildDropdownHtml(): string {
+    const alt = shortcutGlyph('I');
+    const altK = shortcutGlyph('K');
+    const altM = shortcutGlyph('M');
+    const altG = shortcutGlyph('G');
 
-    if (this.hasMoved) {
-      const rect = this.host.getBoundingClientRect();
-      localStorage.setItem(STORAGE_KEY_X, String(rect.left));
-      localStorage.setItem(STORAGE_KEY_Y, String(rect.top));
-    }
+    return `
+      <button class="dropdown-item" data-mode="quickEdit">
+        <span class="dropdown-icon">&#127919;</span> ${strings.quickEditLabel} <span class="shortcut">${alt}</span>
+      </button>
+      <button class="dropdown-item" data-mode="multiEdit">
+        <span class="dropdown-icon">&#128204;</span> ${strings.multiEditLabel} <span class="shortcut">${altK}</span>
+      </button>
+      <button class="dropdown-item" data-mode="projectMap">
+        <span class="dropdown-icon">&#128506;</span> ${strings.projectMapLabel} <span class="shortcut">${altM}</span>
+      </button>
+      <div class="dropdown-divider"></div>
+      <button class="dropdown-item gesture-toggle" data-mode="gestureMode">
+        <span class="dropdown-icon">&#9757;</span> ${strings.gestureModeLabel} <span class="shortcut">${altG}</span>
+        <span class="toggle-indicator"></span>
+      </button>
+    `;
   }
 
   private getIcon(): string {
@@ -257,6 +452,7 @@ export class OverlayPill implements IOverlayPill {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         outline: none;
         user-select: none;
+        touch-action: none;
       }
       .nova-pill:hover {
         transform: scale(1.1);
@@ -284,9 +480,8 @@ export class OverlayPill implements IOverlayPill {
         100% { transform: rotate(360deg); }
       }
       .pill-dropdown {
-        position: absolute;
-        bottom: calc(100% + 8px);
-        right: 0;
+        position: fixed;
+        right: 20px;
         background: var(--nova-dropdown-bg);
         border-radius: 10px;
         border: 1px solid var(--nova-panel-border);
@@ -294,6 +489,7 @@ export class OverlayPill implements IOverlayPill {
         overflow: hidden;
         min-width: 180px;
         pointer-events: auto;
+        z-index: ${Z_INDEX.pill};
       }
       .pill-dropdown.hidden { display: none; }
       .dropdown-item {
