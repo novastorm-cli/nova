@@ -1,3 +1,4 @@
+import { strings } from './strings.js';
 import { COLORS, Z_INDEX, applyStyles } from './styles.js';
 
 export class SecretConsole {
@@ -87,13 +88,13 @@ export class SecretConsole {
     // Header
     const header = document.createElement('div');
     header.className = 'secret-header';
-    header.textContent = 'Environment Variables Required';
+    header.textContent = strings.secretConsoleTitle;
     panel.appendChild(header);
 
     // Description
     const desc = document.createElement('div');
     desc.className = 'secret-desc';
-    desc.textContent = 'The generated code requires these environment variables. Enter values to save to .env.local (gitignored).';
+    desc.textContent = strings.secretConsoleDesc;
     panel.appendChild(desc);
 
     // Fields
@@ -119,13 +120,13 @@ export class SecretConsole {
       input.id = inputId;
       input.className = 'secret-input';
       input.setAttribute('data-var', varName);
-      input.placeholder = `Enter ${varName}`;
+      input.placeholder = `${strings.secretPlaceholderPrefix}${varName}`;
       inputWrap.appendChild(input);
 
       const toggle = document.createElement('button');
       toggle.className = 'secret-toggle';
-      toggle.textContent = '\u{1F441}';
-      toggle.title = 'Toggle visibility';
+      toggle.textContent = strings.secretToggleIcon;
+      toggle.title = strings.secretToggleTitle;
       toggle.addEventListener('click', () => {
         input.type = input.type === 'password' ? 'text' : 'password';
       });
@@ -143,7 +144,7 @@ export class SecretConsole {
 
     const skipBtn = document.createElement('button');
     skipBtn.className = 'secret-btn secret-btn-skip';
-    skipBtn.textContent = 'Skip';
+    skipBtn.textContent = strings.secretConsoleSkip;
     skipBtn.addEventListener('click', () => {
       this.hide();
       this.skipHandler?.();
@@ -152,7 +153,7 @@ export class SecretConsole {
 
     const saveBtn = document.createElement('button');
     saveBtn.className = 'secret-btn secret-btn-save';
-    saveBtn.textContent = 'Save';
+    saveBtn.textContent = strings.secretConsoleSave;
     saveBtn.addEventListener('click', () => {
       const secrets: Record<string, string> = {};
       const inputs = this.shadow!.querySelectorAll<HTMLInputElement>('.secret-input');

@@ -29,9 +29,7 @@ export class BrowserLogger implements ILogger {
 
   private format(message: string, context?: Record<string, unknown>): string {
     const merged = { ...this.baseContext, ...context };
-    const contextStr = Object.keys(merged).length > 0
-      ? ` ${JSON.stringify(merged)}`
-      : '';
+    const contextStr = Object.keys(merged).length > 0 ? ` ${JSON.stringify(merged)}` : '';
     return `[Nova] ${message}${contextStr}`;
   }
 }

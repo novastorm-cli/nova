@@ -14,9 +14,9 @@ beforeEach(() => {
   const origImage = globalThis.Image;
   const origHTMLCanvasElement = globalThis.HTMLCanvasElement;
 
-  globalThis.document = dom.window.document as unknown as Document;
-  globalThis.HTMLCanvasElement = dom.window.HTMLCanvasElement as unknown as typeof HTMLCanvasElement;
-  globalThis.Image = dom.window.Image as unknown as typeof Image;
+  globalThis.document = dom.window.document;
+  globalThis.HTMLCanvasElement = dom.window.HTMLCanvasElement;
+  globalThis.Image = dom.window.Image;
 
   cleanup = () => {
     globalThis.document = origDocument;
@@ -51,8 +51,12 @@ describe('AreaCapture', () => {
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
         const el = origCreateElement(tag);
         if (tag === 'canvas') {
-          vi.spyOn(el as HTMLCanvasElement, 'getContext').mockReturnValue(mockCtx as unknown as CanvasRenderingContext2D);
-          vi.spyOn(el as HTMLCanvasElement, 'toDataURL').mockReturnValue('data:image/png;base64,cropped');
+          vi.spyOn(el as HTMLCanvasElement, 'getContext').mockReturnValue(
+            mockCtx as unknown as CanvasRenderingContext2D,
+          );
+          vi.spyOn(el as HTMLCanvasElement, 'toDataURL').mockReturnValue(
+            'data:image/png;base64,cropped',
+          );
         }
         return el;
       });
@@ -65,7 +69,9 @@ describe('AreaCapture', () => {
         onerror: (() => void) | null = null;
         private _src = '';
 
-        get src() { return this._src; }
+        get src() {
+          return this._src;
+        }
         set src(value: string) {
           this._src = value;
           // Trigger onload asynchronously
@@ -73,17 +79,15 @@ describe('AreaCapture', () => {
         }
       } as unknown as typeof Image;
 
-      const result = await capture.cropFromScreenshot(
-        'iVBORw0KGgoAAAANS',
-        { x: 10, y: 20, width: 100, height: 50 },
-      );
+      const result = await capture.cropFromScreenshot('iVBORw0KGgoAAAANS', {
+        x: 10,
+        y: 20,
+        width: 100,
+        height: 50,
+      });
 
       expect(result).toBe('data:image/png;base64,cropped');
-      expect(drawImageFn).toHaveBeenCalledWith(
-        expect.anything(),
-        10, 20, 100, 50,
-        0, 0, 100, 50,
-      );
+      expect(drawImageFn).toHaveBeenCalledWith(expect.anything(), 10, 20, 100, 50, 0, 0, 100, 50);
 
       globalThis.Image = OrigImage;
     });
@@ -99,7 +103,9 @@ describe('AreaCapture', () => {
           vi.spyOn(el as HTMLCanvasElement, 'getContext').mockReturnValue({
             drawImage: drawImageFn,
           } as unknown as CanvasRenderingContext2D);
-          vi.spyOn(el as HTMLCanvasElement, 'toDataURL').mockReturnValue('data:image/png;base64,result');
+          vi.spyOn(el as HTMLCanvasElement, 'toDataURL').mockReturnValue(
+            'data:image/png;base64,result',
+          );
         }
         return el;
       });
@@ -111,7 +117,9 @@ describe('AreaCapture', () => {
         onerror: (() => void) | null = null;
         private _src = '';
 
-        get src() { return this._src; }
+        get src() {
+          return this._src;
+        }
         set src(value: string) {
           this._src = value;
           capturedSrc = value;
@@ -119,10 +127,12 @@ describe('AreaCapture', () => {
         }
       } as unknown as typeof Image;
 
-      await capture.cropFromScreenshot(
-        'data:image/png;base64,existingPrefix',
-        { x: 0, y: 0, width: 50, height: 50 },
-      );
+      await capture.cropFromScreenshot('data:image/png;base64,existingPrefix', {
+        x: 0,
+        y: 0,
+        width: 50,
+        height: 50,
+      });
 
       // Should not double-prefix
       expect(capturedSrc).toBe('data:image/png;base64,existingPrefix');
@@ -139,7 +149,9 @@ describe('AreaCapture', () => {
         onerror: (() => void) | null = null;
         private _src = '';
 
-        get src() { return this._src; }
+        get src() {
+          return this._src;
+        }
         set src(value: string) {
           this._src = value;
           setTimeout(() => this.onerror?.(), 0);

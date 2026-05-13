@@ -6,7 +6,7 @@ vi.mock('html2canvas', () => ({ default: vi.fn() }));
 import { ScreenshotCapture } from '../ScreenshotCapture.js';
 import html2canvas from 'html2canvas';
 
-const mockedHtml2canvas = vi.mocked(html2canvas);
+const mockedHtml2canvas = vi.mocked(html2canvas as unknown as ReturnType<typeof vi.fn>);
 
 describe('ScreenshotCapture', () => {
   let capture: ScreenshotCapture;

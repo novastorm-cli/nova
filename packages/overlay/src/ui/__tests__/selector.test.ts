@@ -29,9 +29,7 @@ describe('ElementSelector', () => {
   it('mouseover on element gives it an outline style when active', () => {
     selector.activate();
 
-    targetEl.dispatchEvent(
-      new MouseEvent('mouseover', { bubbles: true }),
-    );
+    targetEl.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
 
     // Contract says "2px solid blue" outline
     const outline = targetEl.style.outline;
@@ -44,9 +42,7 @@ describe('ElementSelector', () => {
     selector.onSelect(selectHandler);
     selector.activate();
 
-    targetEl.dispatchEvent(
-      new MouseEvent('click', { bubbles: true, cancelable: true }),
-    );
+    targetEl.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
     expect(selectHandler).toHaveBeenCalledWith(targetEl);
     expect(selector.isActive()).toBe(false);
@@ -57,9 +53,7 @@ describe('ElementSelector', () => {
     selector.onCancel(cancelHandler);
     selector.activate();
 
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    );
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     expect(cancelHandler).toHaveBeenCalledTimes(1);
     expect(selector.isActive()).toBe(false);
@@ -69,9 +63,7 @@ describe('ElementSelector', () => {
     selector.activate();
 
     // Hover to apply outline
-    targetEl.dispatchEvent(
-      new MouseEvent('mouseover', { bubbles: true }),
-    );
+    targetEl.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     expect(targetEl.style.outline).toContain('2px');
 
     selector.deactivate();

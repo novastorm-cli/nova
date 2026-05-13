@@ -83,6 +83,14 @@ export default tseslint.config(
     },
   },
 
+  // Allow non-ASCII in test files (test data may contain non-English text)
+  {
+    files: ['packages/*/src/**/__tests__/**'],
+    rules: {
+      'nova/no-non-ascii-literals': 'off',
+    },
+  },
+
   // Browser globals for overlay package
   {
     files: ['packages/overlay/src/**/*.ts'],

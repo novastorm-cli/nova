@@ -66,10 +66,12 @@ describe('CursorTracker', () => {
 
     for (let i = 0; i < 600; i++) {
       vi.setSystemTime(baseTime + i * 70);
-      document.dispatchEvent(new MouseEvent('mousemove', {
-        clientX: i % 100,
-        clientY: i % 100,
-      }));
+      document.dispatchEvent(
+        new MouseEvent('mousemove', {
+          clientX: i % 100,
+          clientY: i % 100,
+        }),
+      );
       vi.advanceTimersByTime(1);
     }
 
@@ -84,10 +86,12 @@ describe('CursorTracker', () => {
     const offsets = [100, 200, 300, 400, 500];
     for (const offset of offsets) {
       vi.setSystemTime(baseTime + offset);
-      document.dispatchEvent(new MouseEvent('mousemove', {
-        clientX: offset,
-        clientY: offset,
-      }));
+      document.dispatchEvent(
+        new MouseEvent('mousemove', {
+          clientX: offset,
+          clientY: offset,
+        }),
+      );
       vi.advanceTimersByTime(1);
     }
 
@@ -142,10 +146,12 @@ describe('CursorTracker', () => {
     // 4th frame, so we need many moves + timer advances.
     for (let i = 0; i < 40; i++) {
       vi.setSystemTime(baseTime + i * 50);
-      document.dispatchEvent(new MouseEvent('mousemove', {
-        clientX: 100 + (i % 3),
-        clientY: 100 + (i % 3),
-      }));
+      document.dispatchEvent(
+        new MouseEvent('mousemove', {
+          clientX: 100 + (i % 3),
+          clientY: 100 + (i % 3),
+        }),
+      );
       // Advance timers to trigger rAF callbacks and allow dwell timer to fire
       vi.advanceTimersByTime(50);
     }

@@ -1,3 +1,4 @@
+import { strings } from './strings.js';
 import { Z_INDEX, COLORS } from './styles.js';
 import type { ISuggestionPanel, SuggestionItem } from '../contracts/IOverlayUI.js';
 
@@ -29,7 +30,7 @@ export class SuggestionPanel implements ISuggestionPanel {
 
     const title = document.createElement('div');
     title.className = 'suggestion-panel-title';
-    title.textContent = 'Nova Suggestions';
+    title.textContent = strings.suggestionPanelTitle;
     this.panelEl.appendChild(title);
 
     this.listEl = document.createElement('div');
@@ -106,7 +107,7 @@ export class SuggestionPanel implements ISuggestionPanel {
 
     const approveBtn = document.createElement('button');
     approveBtn.className = 'suggestion-btn approve';
-    approveBtn.textContent = 'Approve';
+    approveBtn.textContent = strings.suggestionApprove;
     approveBtn.addEventListener('click', () => {
       this.responseHandler?.(suggestion.id, true);
       this.removeSuggestion(suggestion.id);
@@ -114,7 +115,7 @@ export class SuggestionPanel implements ISuggestionPanel {
 
     const rejectBtn = document.createElement('button');
     rejectBtn.className = 'suggestion-btn reject';
-    rejectBtn.textContent = 'Reject';
+    rejectBtn.textContent = strings.suggestionReject;
     rejectBtn.addEventListener('click', () => {
       this.responseHandler?.(suggestion.id, false);
       this.removeSuggestion(suggestion.id);

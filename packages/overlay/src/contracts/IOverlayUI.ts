@@ -59,7 +59,7 @@ export interface IStatusToast {
    * Click on toast → calls onClick handler with toast id.
    * Max 5 visible toasts. Oldest dismissed when limit exceeded.
    */
-  show(message: string, type: 'info' | 'success' | 'error', durationMs?: number): string;  // returns toast id
+  show(message: string, type: 'info' | 'success' | 'error', durationMs?: number): string; // returns toast id
   dismiss(id: string): void;
   dismissAll(): void;
   onClick(handler: (id: string) => void): void;
@@ -77,7 +77,12 @@ export interface IMultiElementSelector {
   toggle(): void;
   isActive(): boolean;
   deactivate(): void;
-  onSubmit(handler: (elements: Array<{number: number; element: HTMLElement}>, instruction: string) => void): void;
+  onSubmit(
+    handler: (
+      elements: Array<{ number: number; element: HTMLElement }>,
+      instruction: string,
+    ) => void,
+  ): void;
 }
 
 export interface IAreaSelector {

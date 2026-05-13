@@ -53,7 +53,7 @@ describe('TemporalCorrelator', () => {
     correlator = new TemporalCorrelator(tracker, gestureRecognizer, domCapture);
   });
 
-  it('maps deictic word "это" to element under cursor at pronunciation time', () => {
+  it('maps deictic word "this" to element under cursor at pronunciation time', () => {
     const targetEl = document.createElement('button');
     targetEl.textContent = 'Submit';
     document.body.appendChild(targetEl);
@@ -62,7 +62,7 @@ describe('TemporalCorrelator', () => {
     (tracker.getElementAtTime as ReturnType<typeof vi.fn>).mockReturnValue(targetEl);
 
     correlator.addTranscript({
-      text: 'измени это',
+      text: 'change this',
       isFinal: true,
       timestamp: 1000,
     });
@@ -70,8 +70,8 @@ describe('TemporalCorrelator', () => {
     const context = correlator.resolve();
 
     expect(context.gestures.length).toBeGreaterThan(0);
-    const gestureWithElement = context.gestures.find(
-      (g) => g.elements.some((e) => e.tagName === 'button'),
+    const gestureWithElement = context.gestures.find((g) =>
+      g.elements.some((e) => e.tagName === 'button'),
     );
     expect(gestureWithElement).toBeDefined();
 
@@ -80,7 +80,7 @@ describe('TemporalCorrelator', () => {
 
   it('returns empty context when no gestures and no deictic words', () => {
     correlator.addTranscript({
-      text: 'привет мир',
+      text: 'hello world',
       isFinal: true,
       timestamp: 1000,
     });
@@ -108,7 +108,7 @@ describe('TemporalCorrelator', () => {
     });
 
     correlator.addTranscript({
-      text: 'перемести это туда',
+      text: 'move this there',
       isFinal: true,
       timestamp: 1000,
     });
@@ -130,7 +130,7 @@ describe('TemporalCorrelator', () => {
     // Add many transcripts with deictic words to generate long summary
     for (let i = 0; i < 20; i++) {
       correlator.addTranscript({
-        text: `это элемент номер ${i} и вот тут тоже there и here`,
+        text: `this is element number ${i} and also here and there`,
         isFinal: true,
         timestamp: 1000 + i * 100,
       });
@@ -150,7 +150,7 @@ describe('TemporalCorrelator', () => {
     (tracker.getElementAtTime as ReturnType<typeof vi.fn>).mockReturnValue(el);
 
     correlator.addTranscript({
-      text: 'это элемент',
+      text: 'this element',
       isFinal: true,
       timestamp: 1000,
     });
@@ -160,8 +160,8 @@ describe('TemporalCorrelator', () => {
     // After clear, should have no deictic gestures (only recognizer gestures)
     const context = correlator.resolve();
     // The gesture recognizer may return some gestures but deictic references should be empty
-    const deicticGestures = context.gestures.filter(
-      (g) => g.elements.some((e) => e.tagName === 'div'),
+    const deicticGestures = context.gestures.filter((g) =>
+      g.elements.some((e) => e.tagName === 'div'),
     );
     // Since we cleared transcripts, no deictic resolution should happen
     // (GestureRecognizer may still have its own gestures)

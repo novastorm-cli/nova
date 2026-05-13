@@ -120,7 +120,9 @@ describe('GestureRecognizer', () => {
     targetEl.textContent = 'Target';
     document.body.appendChild(targetEl);
 
-    const tracker = createMockTracker(trail) as ICursorTracker & { _fireDwell: (el: Element, pt: CursorPoint) => void };
+    const tracker = createMockTracker(trail) as ICursorTracker & {
+      _fireDwell: (el: Element, pt: CursorPoint) => void;
+    };
 
     const recognizer = new GestureRecognizer(tracker, domCapture);
 
@@ -144,15 +146,15 @@ describe('GestureRecognizer', () => {
 
   it('detects a dwell gesture', () => {
     const now = Date.now();
-    const trail: CursorPoint[] = [
-      { x: 100, y: 100, timestamp: now },
-    ];
+    const trail: CursorPoint[] = [{ x: 100, y: 100, timestamp: now }];
 
     const dwellEl = document.createElement('span');
     dwellEl.textContent = 'Hover target';
     document.body.appendChild(dwellEl);
 
-    const tracker = createMockTracker(trail) as ICursorTracker & { _fireDwell: (el: Element, pt: CursorPoint) => void };
+    const tracker = createMockTracker(trail) as ICursorTracker & {
+      _fireDwell: (el: Element, pt: CursorPoint) => void;
+    };
 
     const recognizer = new GestureRecognizer(tracker, domCapture);
     tracker._fireDwell(dwellEl, { x: 100, y: 100, timestamp: now });
@@ -173,7 +175,9 @@ describe('GestureRecognizer', () => {
     el.textContent = 'Target';
     document.body.appendChild(el);
 
-    const tracker = createMockTracker(trail) as ICursorTracker & { _fireDwell: (el: Element, pt: CursorPoint) => void };
+    const tracker = createMockTracker(trail) as ICursorTracker & {
+      _fireDwell: (el: Element, pt: CursorPoint) => void;
+    };
 
     const recognizer = new GestureRecognizer(tracker, domCapture);
 
@@ -201,7 +205,9 @@ describe('GestureRecognizer', () => {
       captureElement: vi.fn(() => 'a'.repeat(1000)),
     };
 
-    const tracker = createMockTracker(trail) as ICursorTracker & { _fireDwell: (el: Element, pt: CursorPoint) => void };
+    const tracker = createMockTracker(trail) as ICursorTracker & {
+      _fireDwell: (el: Element, pt: CursorPoint) => void;
+    };
 
     const recognizer = new GestureRecognizer(tracker, longDomCapture);
     tracker._fireDwell(el, { x: 100, y: 100, timestamp: now });

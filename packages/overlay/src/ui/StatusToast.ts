@@ -1,4 +1,5 @@
 import type { IStatusToast } from '../contracts/IOverlayUI.js';
+import { strings } from './strings.js';
 import { COLORS, Z_INDEX, TRANSITION } from './styles.js';
 
 interface ToastEntry {
@@ -72,11 +73,7 @@ export class StatusToast implements IStatusToast {
     this.clickHandler = handler;
   }
 
-  showConfirmation(
-    message: string,
-    onExecute: () => void,
-    onCancel: () => void,
-  ): string {
+  showConfirmation(message: string, onExecute: () => void, onCancel: () => void): string {
     this.ensureContainer();
 
     const id = `nova-toast-${++idCounter}`;
@@ -113,7 +110,7 @@ export class StatusToast implements IStatusToast {
     });
 
     const execBtn = document.createElement('button');
-    execBtn.textContent = 'Execute';
+    execBtn.textContent = strings.toastExecute;
     Object.assign(execBtn.style, {
       background: '#22c55e',
       color: '#fff',
@@ -131,7 +128,7 @@ export class StatusToast implements IStatusToast {
     });
 
     const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.textContent = strings.toastCancel;
     Object.assign(cancelBtn.style, {
       background: '#6b7280',
       color: '#fff',

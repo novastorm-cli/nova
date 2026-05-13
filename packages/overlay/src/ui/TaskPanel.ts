@@ -1,3 +1,4 @@
+import { strings } from './strings.js';
 import { Z_INDEX } from './styles.js';
 
 interface TaskEntry {
@@ -50,7 +51,7 @@ export class TaskPanel {
 
     const title = document.createElement('div');
     title.className = 'task-panel-title';
-    title.textContent = 'Nova Tasks';
+    title.textContent = strings.taskPanelTitle;
     this.panelEl.appendChild(title);
 
     this.listEl = document.createElement('div');
@@ -149,7 +150,7 @@ export class TaskPanel {
     if (!entry || !this.shadow) return;
 
     const row = entry.element;
-    let streamArea = row.querySelector('.task-stream') as HTMLElement | null;
+    let streamArea = row.querySelector('.task-stream');
     if (!streamArea) {
       streamArea = document.createElement('div');
       streamArea.className = `task-stream phase-${phase}`;
@@ -181,7 +182,9 @@ export class TaskPanel {
       this.clearHideTimer();
       this.hideTimer = setTimeout(() => {
         this.hide();
-        try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+        try {
+          sessionStorage.removeItem(STORAGE_KEY);
+        } catch {}
       }, AUTO_HIDE_DELAY_MS);
     }
   }

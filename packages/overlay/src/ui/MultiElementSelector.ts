@@ -1,3 +1,4 @@
+import { strings } from './strings.js';
 import { Z_INDEX } from './styles.js';
 
 interface SpeechRecognitionEvent {
@@ -15,7 +16,10 @@ interface SpeechRecognition extends EventTarget {
   onend: (() => void) | null;
 }
 
-type SubmitHandler = (elements: Array<{number: number; element: HTMLElement}>, instruction: string) => void;
+type SubmitHandler = (
+  elements: Array<{ number: number; element: HTMLElement }>,
+  instruction: string,
+) => void;
 
 export class MultiElementSelector {
   private active = false;
@@ -211,7 +215,11 @@ export class MultiElementSelector {
     if (this.highlightEl) this.highlightEl.style.display = prevHighlight ?? '';
 
     // Ignore Nova UI elements
-    if (el?.closest('#nova-root') || el?.closest('[data-nova-pill]') || el?.closest('[data-nova-multi-selector]')) {
+    if (
+      el?.closest('#nova-root') ||
+      el?.closest('[data-nova-pill]') ||
+      el?.closest('[data-nova-multi-selector]')
+    ) {
       return null;
     }
 
@@ -235,9 +243,10 @@ export class MultiElementSelector {
 
   private getElementLabel(el: HTMLElement): string {
     const tag = el.tagName.toLowerCase();
-    const classes = el.className && typeof el.className === 'string'
-      ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
-      : '';
+    const classes =
+      el.className && typeof el.className === 'string'
+        ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
+        : '';
     const id = el.id ? `#${el.id}` : '';
     return `<${tag}${id}${classes}>`;
   }
@@ -327,7 +336,7 @@ export class MultiElementSelector {
 
     const title = document.createElement('div');
     title.className = 'ms-panel-title';
-    title.textContent = 'Multi-Edit';
+    title.textContent = strings.multiEditTitle;
     this.panelEl.appendChild(title);
 
     this.listEl = document.createElement('div');
@@ -337,7 +346,7 @@ export class MultiElementSelector {
 
     const hint = document.createElement('div');
     hint.className = 'ms-panel-hint';
-    hint.textContent = "Describe what to do. Use numbers to reference elements (e.g. 'swap 1 and 2', 'make 1 look like 3')";
+    hint.textContent = strings.multiEditHint;
     this.panelEl.appendChild(hint);
 
     const inputRow = document.createElement('div');
@@ -346,12 +355,12 @@ export class MultiElementSelector {
     this.inputEl = document.createElement('input');
     this.inputEl.className = 'ms-panel-input';
     this.inputEl.type = 'text';
-    this.inputEl.placeholder = 'e.g. "swap 1 and 2", "align all elements"...';
+    this.inputEl.placeholder = strings.multiEditPlaceholder;
     inputRow.appendChild(this.inputEl);
 
     const micBtn = document.createElement('button');
     micBtn.className = 'ms-mic';
-    micBtn.textContent = '\uD83C\uDFA4';
+    micBtn.textContent = strings.micEmoji;
     micBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.togglePopupVoice(this.inputEl!, micBtn);
@@ -365,7 +374,7 @@ export class MultiElementSelector {
 
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'ms-btn ms-btn-cancel';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.textContent = strings.multiEditCancel;
     cancelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.deactivate();
@@ -373,7 +382,7 @@ export class MultiElementSelector {
 
     const executeBtn = document.createElement('button');
     executeBtn.className = 'ms-btn ms-btn-execute';
-    executeBtn.textContent = 'Execute';
+    executeBtn.textContent = strings.multiEditExecute;
     executeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.handleSubmit();
@@ -421,7 +430,7 @@ export class MultiElementSelector {
     const instruction = this.inputEl?.value.trim();
     if (!instruction || this.markedElements.size === 0) return;
 
-    const elements: Array<{number: number; element: HTMLElement}> = [];
+    const elements: Array<{ number: number; element: HTMLElement }> = [];
     for (const [num, el] of this.markedElements) {
       elements.push({ number: num, element: el });
     }

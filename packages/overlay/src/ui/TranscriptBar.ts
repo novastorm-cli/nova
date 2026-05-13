@@ -1,4 +1,5 @@
 import type { ITranscriptBar } from '../contracts/IOverlayUI.js';
+import { strings } from './strings.js';
 import { Z_INDEX, TRANSITION } from './styles.js';
 
 const IDLE_TIMEOUT_MS = 3000;
@@ -6,23 +7,23 @@ const CLEAR_FINAL_MS = 2000;
 const GREEN_FLASH_MS = 400;
 
 const LANGUAGES = [
-  { code: '', label: 'Auto' },
-  { code: 'en-US', label: 'EN' },
-  { code: 'ru-RU', label: 'RU' },
-  { code: 'de-DE', label: 'DE' },
-  { code: 'fr-FR', label: 'FR' },
-  { code: 'es-ES', label: 'ES' },
-  { code: 'uk-UA', label: 'UA' },
-  { code: 'ja-JP', label: 'JP' },
-  { code: 'zh-CN', label: 'ZH' },
-  { code: 'ko-KR', label: 'KO' },
-  { code: 'pt-BR', label: 'PT' },
-  { code: 'it-IT', label: 'IT' },
-  { code: 'pl-PL', label: 'PL' },
-  { code: 'nl-NL', label: 'NL' },
-  { code: 'tr-TR', label: 'TR' },
-  { code: 'ar-SA', label: 'AR' },
-  { code: 'hi-IN', label: 'HI' },
+  { code: '', label: strings.langAuto },
+  { code: 'en-US', label: strings.langEN },
+  { code: 'ru-RU', label: strings.langRU },
+  { code: 'de-DE', label: strings.langDE },
+  { code: 'fr-FR', label: strings.langFR },
+  { code: 'es-ES', label: strings.langES },
+  { code: 'uk-UA', label: strings.langUA },
+  { code: 'ja-JP', label: strings.langJP },
+  { code: 'zh-CN', label: strings.langZH },
+  { code: 'ko-KR', label: strings.langKO },
+  { code: 'pt-BR', label: strings.langPT },
+  { code: 'it-IT', label: strings.langIT },
+  { code: 'pl-PL', label: strings.langPL },
+  { code: 'nl-NL', label: strings.langNL },
+  { code: 'tr-TR', label: strings.langTR },
+  { code: 'ar-SA', label: strings.langAR },
+  { code: 'hi-IN', label: strings.langHI },
 ];
 
 export class TranscriptBar implements ITranscriptBar {
@@ -69,8 +70,8 @@ export class TranscriptBar implements ITranscriptBar {
     // Mic toggle button
     this.micBtn = document.createElement('button');
     this.micBtn.className = 'mic-btn muted';
-    this.micBtn.textContent = '\uD83C\uDFA4';
-    this.micBtn.title = 'Voice OFF — click to enable';
+    this.micBtn.textContent = strings.micEmoji;
+    this.micBtn.title = strings.micOffTitle;
     this.recording = false;
     this.micBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -80,7 +81,7 @@ export class TranscriptBar implements ITranscriptBar {
     this.inputEl = document.createElement('input');
     this.inputEl.className = 'transcript-input';
     this.inputEl.type = 'text';
-    this.inputEl.placeholder = 'Type a command or use mic...';
+    this.inputEl.placeholder = strings.transcriptPlaceholder;
     this.inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -97,8 +98,8 @@ export class TranscriptBar implements ITranscriptBar {
     // Send button
     this.sendBtn = document.createElement('button');
     this.sendBtn.className = 'send-btn';
-    this.sendBtn.textContent = '\u27A4'; // ➤ arrow
-    this.sendBtn.title = 'Send command';
+    this.sendBtn.textContent = strings.sendButtonArrow;
+    this.sendBtn.title = strings.sendButtonTitle;
     this.sendBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const text = this.inputEl?.value.trim();
@@ -118,13 +119,14 @@ export class TranscriptBar implements ITranscriptBar {
       }
     } catch {}
 
-    const savedLabel = LANGUAGES.find(l => l.code === this.currentLang)?.label ?? 'Auto';
+    const savedLabel =
+      LANGUAGES.find((l) => l.code === this.currentLang)?.label ?? strings.langAuto;
 
     // Language button
     this.langBtn = document.createElement('button');
     this.langBtn.className = 'lang-btn';
     this.langBtn.textContent = savedLabel;
-    this.langBtn.title = 'Change language';
+    this.langBtn.title = strings.languageButtonTitle;
     this.langBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggleLangMenu();
@@ -138,7 +140,7 @@ export class TranscriptBar implements ITranscriptBar {
       item.className = 'lang-item';
       if (lang.code === this.currentLang) item.classList.add('active');
       item.textContent = lang.label;
-      item.title = lang.code || 'Auto-detect';
+      item.title = lang.code || strings.autoDetectLabel;
       item.addEventListener('click', (e) => {
         e.stopPropagation();
         this.selectLanguage(lang.code, lang.label);
@@ -243,7 +245,9 @@ export class TranscriptBar implements ITranscriptBar {
     }
     if (this.inputEl) {
       this.inputEl.readOnly = active;
-      this.inputEl.placeholder = active ? 'Listening...' : 'Type a command or use mic...';
+      this.inputEl.placeholder = active
+        ? strings.listeningPlaceholder
+        : strings.transcriptPlaceholder;
     }
     if (active) {
       this.showActive();
@@ -287,7 +291,7 @@ export class TranscriptBar implements ITranscriptBar {
       this.answerInputEl = answerInput;
       answerInput.className = 'confirm-answer-input';
       answerInput.type = 'text';
-      answerInput.placeholder = options?.placeholder ?? 'Describe what to add...';
+      answerInput.placeholder = options?.placeholder ?? strings.confirmAnswerPlaceholder;
       answerInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -310,7 +314,7 @@ export class TranscriptBar implements ITranscriptBar {
 
     const execBtn = document.createElement('button');
     execBtn.className = 'confirm-exec-btn';
-    execBtn.textContent = hasInput ? 'Go' : 'Send';
+    execBtn.textContent = hasInput ? strings.confirmGo : strings.confirmSend;
     execBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const userInput = answerInput?.value.trim() ?? '';
@@ -320,7 +324,7 @@ export class TranscriptBar implements ITranscriptBar {
 
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'confirm-cancel-btn';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.textContent = strings.confirmCancel;
     cancelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.hideConfirmation();
@@ -333,7 +337,7 @@ export class TranscriptBar implements ITranscriptBar {
     this.confirmBar.classList.remove('hidden');
 
     if (hasInput && answerInput) {
-      requestAnimationFrame(() => answerInput!.focus());
+      requestAnimationFrame(() => answerInput.focus());
     }
   }
 
@@ -356,7 +360,10 @@ export class TranscriptBar implements ITranscriptBar {
   /** Show a question with an input field and return the user's answer (or null if cancelled). */
   askQuestion(question: string): Promise<string | null> {
     return new Promise((resolve) => {
-      this.showConfirmation(question, { showInput: true, placeholder: 'Type your answer...' });
+      this.showConfirmation(question, {
+        showInput: true,
+        placeholder: strings.confirmQuestionPlaceholder,
+      });
 
       const origExecHandlers = [...this.confirmExecuteHandlers];
       const origCancelHandlers = [...this.confirmCancelHandlers];
@@ -366,17 +373,21 @@ export class TranscriptBar implements ITranscriptBar {
         this.confirmCancelHandlers = origCancelHandlers;
       };
 
-      this.confirmExecuteHandlers = [(userInput: string) => {
-        this.hideConfirmation();
-        cleanup();
-        resolve(userInput || null);
-      }];
+      this.confirmExecuteHandlers = [
+        (userInput: string) => {
+          this.hideConfirmation();
+          cleanup();
+          resolve(userInput || null);
+        },
+      ];
 
-      this.confirmCancelHandlers = [() => {
-        this.hideConfirmation();
-        cleanup();
-        resolve(null);
-      }];
+      this.confirmCancelHandlers = [
+        () => {
+          this.hideConfirmation();
+          cleanup();
+          resolve(null);
+        },
+      ];
     });
   }
 
@@ -391,16 +402,18 @@ export class TranscriptBar implements ITranscriptBar {
       if (this.recording) {
         this.micBtn.classList.add('recording');
         this.micBtn.classList.remove('muted');
-        this.micBtn.title = 'Voice ON — click to stop';
+        this.micBtn.title = strings.micOnTitle;
       } else {
         this.micBtn.classList.remove('recording');
         this.micBtn.classList.add('muted');
-        this.micBtn.title = 'Voice OFF — click to enable';
+        this.micBtn.title = strings.micOffTitle;
       }
     }
     if (this.inputEl) {
       this.inputEl.readOnly = this.recording;
-      this.inputEl.placeholder = this.recording ? 'Listening...' : 'Type a command or use mic...';
+      this.inputEl.placeholder = this.recording
+        ? strings.listeningPlaceholder
+        : strings.transcriptPlaceholder;
       if (!this.recording) {
         this.inputEl.focus();
       }
@@ -412,7 +425,9 @@ export class TranscriptBar implements ITranscriptBar {
 
   private selectLanguage(code: string, label: string): void {
     this.currentLang = code;
-    try { localStorage.setItem(TranscriptBar.LANG_STORAGE_KEY, code); } catch {}
+    try {
+      localStorage.setItem(TranscriptBar.LANG_STORAGE_KEY, code);
+    } catch {}
     if (this.langBtn) {
       this.langBtn.textContent = label;
     }
@@ -420,7 +435,7 @@ export class TranscriptBar implements ITranscriptBar {
     if (this.langMenu) {
       for (const item of this.langMenu.children) {
         item.classList.remove('active');
-        if (item.getAttribute('title') === (code || 'Auto-detect')) {
+        if (item.getAttribute('title') === (code || strings.autoDetectLabel)) {
           item.classList.add('active');
         }
       }

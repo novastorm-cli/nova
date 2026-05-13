@@ -3,10 +3,7 @@ import type { GestureRecognizer } from './GestureRecognizer.js';
 import type { Gesture, GestureContext } from './GestureTypes.js';
 import { buildGestureElement } from './gestureUtils.js';
 
-const DEICTIC_WORDS = new Set([
-  'это', 'туда', 'сюда', 'этот', 'эта', 'эти', 'вот',
-  'this', 'that', 'here', 'there', 'these', 'those',
-]);
+const DEICTIC_WORDS = new Set(['this', 'that', 'here', 'there', 'these', 'those']);
 
 const TIME_WINDOW_MS = 200;
 const MAX_SUMMARY_LENGTH = 800;
@@ -79,9 +76,10 @@ export class TemporalCorrelator {
       const words = entry.text.split(/\s+/);
 
       // Estimate duration from gap to next transcript
-      const nextTs = i + 1 < this.transcripts.length
-        ? this.transcripts[i + 1].timestamp
-        : entry.timestamp + DEFAULT_DURATION_MS;
+      const nextTs =
+        i + 1 < this.transcripts.length
+          ? this.transcripts[i + 1].timestamp
+          : entry.timestamp + DEFAULT_DURATION_MS;
       const duration = Math.max(nextTs - entry.timestamp, DEFAULT_DURATION_MS);
 
       for (let wIdx = 0; wIdx < words.length; wIdx++) {
@@ -96,8 +94,9 @@ export class TemporalCorrelator {
 
         if (!element) {
           // Try nearby timestamps
-          element = this.tracker.getElementAtTime(wordTs - TIME_WINDOW_MS)
-            ?? this.tracker.getElementAtTime(wordTs + TIME_WINDOW_MS);
+          element =
+            this.tracker.getElementAtTime(wordTs - TIME_WINDOW_MS) ??
+            this.tracker.getElementAtTime(wordTs + TIME_WINDOW_MS);
         }
 
         if (!element) {

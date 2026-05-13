@@ -25,6 +25,7 @@ import { MultiElementSelector } from './ui/MultiElementSelector.js';
 import { SecretConsole } from './ui/SecretConsole.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
+import { strings } from './ui/strings.js';
 
 const DEFAULT_PORT = 3001;
 
@@ -107,7 +108,7 @@ function boot(): void {
       setTimeout(() => window.location.reload(), 1500);
     } else {
       pendingReload = true;
-      statusToast.show('Changes ready — reload pending (stop mic to apply)', 'info');
+      statusToast.show(strings.changesReadyReload, 'info');
     }
   }
 
@@ -181,7 +182,7 @@ function boot(): void {
     selectedElement = element;
     autoExecute = true;
     const snapshot = domCapture.captureElement(element);
-    const scopedInstruction = `SCOPED EDIT — change ONLY the selected element and its contents. Do NOT modify sibling elements or unrelated parts of the page.
+    const scopedInstruction = `SCOPED EDIT -- change ONLY the selected element and its contents. Do NOT modify sibling elements or unrelated parts of the page.
 
 Selected element:
 ${snapshot}
@@ -329,7 +330,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
         deadClickElement = clickedElement;
 
         const elementSnapshot = domCapture.captureElement(clickedElement);
-        const instruction = `DEAD CLICK DETECTED — this interactive element does nothing when clicked. Add appropriate functionality to it.
+        const instruction = `DEAD CLICK DETECTED -- this interactive element does nothing when clicked. Add appropriate functionality to it.
 
 Element snapshot:
 ${elementSnapshot}
@@ -347,7 +348,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         // Piggyback on existing confirmation flow via pendingVoiceCommand
         pendingVoiceCommand = instruction;
         awaitingSendConfirmation = true;
-        transcriptBar.showConfirmation('Кнопка не работает. Хотите добавить функционал?', {
+        transcriptBar.showConfirmation(strings.deadClickPrompt, {
           showInput: true,
         });
       }, DEAD_CLICK_DELAY_MS);
@@ -512,7 +513,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       pendingVoiceCommand = text;
       awaitingSendConfirmation = true;
 
-      transcriptBar.showConfirmation(`Send: "${text}"?`);
+      transcriptBar.showConfirmation(`${strings.sendConfirmation}"${text}"?`);
     }
     hasRecordedText = false;
   }
@@ -533,7 +534,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   // Mic toggle from TranscriptBar → start/stop VoiceCapture
   transcriptBar.onMicToggle((active: boolean) => {
     if (autofixInProgress) {
-      statusToast.show('Build fix in progress — please wait...', 'info', 2000);
+      statusToast.show(strings.buildFixInProgress, 'info', 2000);
       return;
     }
     if (active) {
@@ -553,8 +554,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   // Language change from TranscriptBar → update VoiceCapture
   transcriptBar.onLanguageChange((lang: string) => {
     voiceCapture.setLanguage(lang);
-    const label = lang || 'Auto-detect';
-    statusToast.show(`Voice language: ${label}`, 'info', 2000);
+    const label = lang || strings.autoDetectLabel;
+    statusToast.show(`${strings.voiceLanguage}${label}`, 'info', 2000);
   });
 
   // Typed command from transcript bar input
@@ -590,7 +591,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       } else {
         wsClient.sendRaw({ type: 'confirm' });
       }
-      statusToast.show('Confirmed!', 'success', 2000);
+      statusToast.show(strings.confirmed, 'success', 2000);
       pill.setState('processing');
     }
   });
@@ -600,11 +601,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       awaitingSendConfirmation = false;
       pendingVoiceCommand = '';
       deadClickElement = null;
-      statusToast.show('Command discarded.', 'info', 2000);
+      statusToast.show(strings.commandDiscarded, 'info', 2000);
     } else if (awaitingConfirmation) {
       awaitingConfirmation = false;
       wsClient.sendRaw({ type: 'cancel' });
-      statusToast.show('Cancelled.', 'info', 2000);
+      statusToast.show(strings.cancelled, 'info', 2000);
       pill.setState('listening');
     }
   });
@@ -625,14 +626,14 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
     // Block commands during autofix
     if (autofixInProgress) {
-      statusToast.show('Build fix in progress — please wait...', 'info', 2000);
+      statusToast.show(strings.buildFixInProgress, 'info', 2000);
       return;
     }
 
     // If awaiting confirmation, append to existing request instead of sending new one
     if (awaitingConfirmation) {
       wsClient.sendRaw({ type: 'append', data: { text: transcript } });
-      statusToast.show(`Added to request: "${transcript}"`, 'info', 3000);
+      statusToast.show(`${strings.addedToRequest}"${transcript}"`, 'info', 3000);
       return;
     }
 
@@ -671,11 +672,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       cursorTracker.clear();
       temporalCorrelator.clear();
       pill.setState('processing');
-      executingToastId = statusToast.show('🧠 AI is thinking... please wait', 'info', 0);
+      executingToastId = statusToast.show(strings.aiThinking, 'info', 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[Nova] Failed to send observation:', message);
-      statusToast.show(`Failed to send: ${message}`, 'error');
+      statusToast.show(`${strings.sendFailed}${message}`, 'error');
       pill.setState('error');
     } finally {
       isProcessing = false;
@@ -723,7 +724,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     elementInspector.toggle();
     pill.setActiveMode(elementInspector.isActive() ? 'quickEdit' : 'none');
     if (elementInspector.isActive()) {
-      statusToast.show('Quick Edit mode — click any element (Option+I)', 'info', 2000);
+      statusToast.show(strings.quickEditModeOn, 'info', 2000);
     }
   });
 
@@ -733,7 +734,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     multiSelector.toggle();
     pill.setActiveMode(multiSelector.isActive() ? 'multiEdit' : 'none');
     if (multiSelector.isActive()) {
-      statusToast.show('Multi-Edit mode — click elements to mark them (Option+K)', 'info', 2000);
+      statusToast.show(strings.multiEditModeOn, 'info', 2000);
     }
   });
 
@@ -744,13 +745,9 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     pill.setGestureModeActive(gestureModeEnabled);
     updateCursorTracking();
     if (gestureModeEnabled) {
-      statusToast.show(
-        'Gesture Mode ON \u2014 point at elements while speaking (Option+G)',
-        'info',
-        2000,
-      );
+      statusToast.show(strings.gestureModeOn, 'info', 2000);
     } else {
-      statusToast.show('Gesture Mode OFF', 'info', 1500);
+      statusToast.show(strings.gestureModeOff, 'info', 1500);
     }
   });
 
@@ -794,13 +791,9 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       pill.setGestureModeActive(gestureModeEnabled);
       updateCursorTracking();
       if (gestureModeEnabled) {
-        statusToast.show(
-          'Gesture Mode ON \u2014 point at elements while speaking (Option+G)',
-          'info',
-          2000,
-        );
+        statusToast.show(strings.gestureModeOn, 'info', 2000);
       } else {
-        statusToast.show('Gesture Mode OFF', 'info', 1500);
+        statusToast.show(strings.gestureModeOff, 'info', 1500);
       }
     }
   });
@@ -850,7 +843,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             executingToastId = null;
           }
           pill.setState('listening');
-          statusToast.show(`All ${totalTasks} task(s) completed! Reloading...`, 'success');
+          statusToast.show(strings.allTasksCompleted, 'success');
           totalTasks = 0;
           completedTasks = 0;
           // Reload page to pick up changes via hot reload
@@ -873,7 +866,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             executingToastId = null;
           }
           pill.setState('error');
-          statusToast.show('Some tasks failed. Check task panel.', 'error');
+          statusToast.show(strings.someTasksFailed, 'error');
           totalTasks = 0;
           completedTasks = 0;
         }
@@ -888,7 +881,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         // Show brief phase status instead of raw code in task panel
         if (event.data.taskId) {
           const phaseLabel =
-            event.data.phase === 'reasoning' ? 'Thinking...' : 'Generating code...';
+            event.data.phase === 'reasoning' ? strings.thinkingPhase : strings.generatingCodePhase;
           taskPanel.setStreamingText(event.data.taskId, phaseLabel, event.data.phase);
         }
         // Activity log: accumulate all LLM output, detect file/diff blocks in both phases
@@ -961,12 +954,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'analysis_complete': {
         const { fileCount, methodCount } = event.data;
         statusToast.show(
-          `Project analyzed: ${fileCount} files, ${methodCount} methods`,
+          `${strings.projectAnalyzed}${fileCount} files, ${methodCount} methods`,
           'success',
           4000,
         );
         activityLog.addEntry(
-          `Project analyzed: ${fileCount} files, ${methodCount} methods`,
+          `${strings.projectAnalyzed}${fileCount} files, ${methodCount} methods`,
           'success',
           false,
           ts,
@@ -991,7 +984,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         }
 
         const taskCount = pendingTaskList?.length ?? 0;
-        const shortMsg = `Awaiting confirmation — ${taskCount} task(s) ready. Execute?`;
+        const shortMsg = `${strings.awaitingConfirmation}${taskCount}${strings.taskCountReady}`;
         transcriptBar.showConfirmation(shortMsg);
         activityLog.addEntry(
           message ?? `Awaiting confirmation for ${taskCount} task(s)`,
@@ -1019,12 +1012,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           awaitingSendConfirmation = true;
           pendingVoiceCommand = '';
 
-          void transcriptBar.askQuestion(`🤔 ${question}`).then((answer) => {
+          void transcriptBar.askQuestion(`${strings.questionEmoji} ${question}`).then((answer) => {
             awaitingSendConfirmation = false;
             if (answer) {
               void sendObservation(`Answer to question "${question}": ${answer}`);
             } else {
-              statusToast.show('Question dismissed.', 'info', 2000);
+              statusToast.show(strings.questionDismissed, 'info', 2000);
             }
           });
         } else if (msg.startsWith('Pending:')) {
@@ -1048,12 +1041,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
           // Show confirmation above transcript bar (persistent until Execute/Cancel)
           const taskCount = statusTasks?.length ?? 0;
-          const shortMsg = `${taskCount} task(s) ready. Execute?`;
+          const shortMsg = `${taskCount}${strings.taskCountReady}`;
           transcriptBar.showConfirmation(shortMsg);
         } else if (msg === 'autofix_start') {
           autofixInProgress = true;
           pill.setState('processing');
-          autofixToastId = statusToast.show('Fixing build errors... please wait', 'info', 0);
+          autofixToastId = statusToast.show(strings.fixingBuildErrors, 'info', 0);
         } else if (msg === 'autofix_end') {
           autofixInProgress = false;
           if (autofixToastId) {
@@ -1061,7 +1054,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             autofixToastId = null;
           }
           pill.setState('idle');
-          statusToast.show('Build fix applied! Reloading...', 'success', 3000);
+          statusToast.show(strings.buildFixApplied, 'success', 3000);
           // Reload page after short delay to pick up hot-reload changes
           scheduleReload();
         } else if (msg === 'autofix_failed') {
@@ -1071,7 +1064,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             autofixToastId = null;
           }
           pill.setState('error');
-          statusToast.show('Auto-fix failed. Check console for details.', 'error');
+          statusToast.show(strings.buildFixFailed, 'error');
         } else if (msg.startsWith('Confirmed!')) {
           pill.setState('processing');
           executingToastId = statusToast.show(msg, 'info', 0);

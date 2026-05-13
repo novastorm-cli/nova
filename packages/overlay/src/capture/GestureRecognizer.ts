@@ -200,5 +200,4 @@ export class GestureRecognizer {
       elements: [buildGestureElement(record.element, 'source', this.domCapture)],
     }));
   }
-
 }

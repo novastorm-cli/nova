@@ -56,11 +56,13 @@ describe('SuggestionPanel', () => {
 
   it('should render suggestion title and description', () => {
     panel.mount(container);
-    panel.addSuggestion(createSuggestionItem({
-      id: 'render-test',
-      title: 'My Title',
-      description: 'My Description',
-    }));
+    panel.addSuggestion(
+      createSuggestionItem({
+        id: 'render-test',
+        title: 'My Title',
+        description: 'My Description',
+      }),
+    );
 
     const host = container.querySelector('[data-nova-suggestion-panel]');
     const title = host?.shadowRoot?.querySelector('.suggestion-title');

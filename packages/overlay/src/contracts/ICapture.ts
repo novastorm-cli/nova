@@ -44,7 +44,9 @@ export interface IVoiceCapture {
    * Register callback for transcription results.
    * @param handler - receives { text: string, isFinal: boolean, timestamp: number }
    */
-  onTranscript(handler: (result: { text: string; isFinal: boolean; timestamp: number }) => void): void;
+  onTranscript(
+    handler: (result: { text: string; isFinal: boolean; timestamp: number }) => void,
+  ): void;
 }
 
 export interface CursorPoint {

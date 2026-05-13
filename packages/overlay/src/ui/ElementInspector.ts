@@ -1,3 +1,4 @@
+import { strings } from './strings.js';
 import { Z_INDEX } from './styles.js';
 
 interface SpeechRecognitionEvent {
@@ -179,7 +180,9 @@ export class ElementInspector {
     this.popupVisible = false;
     this.selectedElement = null;
     document.body.style.cursor = '';
-    try { sessionStorage.removeItem('nova-inspector-popup'); } catch {}
+    try {
+      sessionStorage.removeItem('nova-inspector-popup');
+    } catch {}
 
     if (this.popupRecognition) {
       this.popupRecognition.stop();
@@ -235,9 +238,10 @@ export class ElementInspector {
 
   private getElementLabel(el: HTMLElement): string {
     const tag = el.tagName.toLowerCase();
-    const classes = el.className && typeof el.className === 'string'
-      ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
-      : '';
+    const classes =
+      el.className && typeof el.className === 'string'
+        ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
+        : '';
     const id = el.id ? `#${el.id}` : '';
     return `${tag}${id}${classes}`;
   }
@@ -245,13 +249,14 @@ export class ElementInspector {
   private getUniqueSelector(el: HTMLElement): string {
     if (el.id) return `#${el.id}`;
     const tag = el.tagName.toLowerCase();
-    const cls = el.className && typeof el.className === 'string'
-      ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
-      : '';
+    const cls =
+      el.className && typeof el.className === 'string'
+        ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.')
+        : '';
     // Add nth-child for uniqueness
     const parent = el.parentElement;
     if (parent) {
-      const siblings = Array.from(parent.children).filter(c => c.tagName === el.tagName);
+      const siblings = Array.from(parent.children).filter((c) => c.tagName === el.tagName);
       if (siblings.length > 1) {
         const idx = siblings.indexOf(el) + 1;
         return `${tag}${cls}:nth-of-type(${idx})`;
@@ -262,11 +267,15 @@ export class ElementInspector {
 
   private savePopupState(element: HTMLElement, inputText: string, x: number, y: number): void {
     try {
-      sessionStorage.setItem('nova-inspector-popup', JSON.stringify({
-        selector: this.getUniqueSelector(element),
-        text: inputText,
-        x, y,
-      }));
+      sessionStorage.setItem(
+        'nova-inspector-popup',
+        JSON.stringify({
+          selector: this.getUniqueSelector(element),
+          text: inputText,
+          x,
+          y,
+        }),
+      );
     } catch {}
   }
 
@@ -321,12 +330,12 @@ export class ElementInspector {
 
     const header = document.createElement('div');
     header.className = 'popup-header';
-    header.textContent = `\uD83C\uDFAF ${label}`;
+    header.textContent = `${strings.targetEmoji} ${label}`;
     this.popupEl.appendChild(header);
 
     const question = document.createElement('div');
     question.className = 'popup-question';
-    question.textContent = 'What do you want to do with this element?';
+    question.textContent = strings.inspectorQuestion;
     this.popupEl.appendChild(question);
 
     const inputRow = document.createElement('div');
@@ -335,7 +344,7 @@ export class ElementInspector {
     const input = document.createElement('input');
     input.className = 'popup-input';
     input.type = 'text';
-    input.placeholder = 'e.g. "change color to red", "make it bigger"...';
+    input.placeholder = strings.inspectorPlaceholder;
     input.addEventListener('input', () => {
       if (this.selectedElement) {
         this.savePopupState(this.selectedElement, input.value, x, y);
@@ -345,7 +354,7 @@ export class ElementInspector {
 
     const micBtn = document.createElement('button');
     micBtn.className = 'popup-mic';
-    micBtn.textContent = '\uD83C\uDFA4';
+    micBtn.textContent = strings.micEmoji;
     micBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.togglePopupVoice(input, micBtn);
@@ -359,7 +368,7 @@ export class ElementInspector {
 
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'popup-btn popup-btn-cancel';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.textContent = strings.inspectorCancel;
     cancelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.deactivate();
@@ -367,7 +376,7 @@ export class ElementInspector {
 
     const executeBtn = document.createElement('button');
     executeBtn.className = 'popup-btn popup-btn-execute';
-    executeBtn.textContent = 'Execute';
+    executeBtn.textContent = strings.inspectorExecute;
     executeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.handleSubmit(input.value);

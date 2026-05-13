@@ -1,4 +1,5 @@
 import type { IOverlayPill } from '../contracts/IOverlayUI.js';
+import { strings } from './strings.js';
 import { COLORS, PILL_SIZE, Z_INDEX, TRANSITION } from './styles.js';
 
 const STORAGE_KEY_X = 'nova-pill-x';
@@ -41,7 +42,7 @@ export class OverlayPill implements IOverlayPill {
 
     this.pillEl = document.createElement('button');
     this.pillEl.className = 'nova-pill idle';
-    this.pillEl.setAttribute('aria-label', 'Nova Architect');
+    this.pillEl.setAttribute('aria-label', strings.pillAriaLabel);
     this.pillEl.innerHTML = this.getIcon();
 
     this.shadow.appendChild(this.pillEl);
@@ -50,17 +51,17 @@ export class OverlayPill implements IOverlayPill {
     this.dropdownEl.className = 'pill-dropdown hidden';
     this.dropdownEl.innerHTML = `
       <button class="dropdown-item" data-mode="quickEdit">
-        <span class="dropdown-icon">&#127919;</span> Quick Edit <span class="shortcut">&#x2325;I</span>
+        <span class="dropdown-icon">&#127919;</span> ${strings.quickEditLabel} <span class="shortcut">&#x2325;I</span>
       </button>
       <button class="dropdown-item" data-mode="multiEdit">
-        <span class="dropdown-icon">&#128204;</span> Multi-Edit <span class="shortcut">&#x2325;K</span>
+        <span class="dropdown-icon">&#128204;</span> ${strings.multiEditLabel} <span class="shortcut">&#x2325;K</span>
       </button>
       <button class="dropdown-item" data-mode="projectMap">
-        <span class="dropdown-icon">&#128506;</span> Project Map <span class="shortcut">&#x2325;M</span>
+        <span class="dropdown-icon">&#128506;</span> ${strings.projectMapLabel} <span class="shortcut">&#x2325;M</span>
       </button>
       <div class="dropdown-divider"></div>
       <button class="dropdown-item gesture-toggle" data-mode="gestureMode">
-        <span class="dropdown-icon">&#9757;</span> Gesture Mode <span class="shortcut">&#x2325;G</span>
+        <span class="dropdown-icon">&#9757;</span> ${strings.gestureModeLabel} <span class="shortcut">&#x2325;G</span>
         <span class="toggle-indicator"></span>
       </button>
     `;

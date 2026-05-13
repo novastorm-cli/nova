@@ -1,3 +1,4 @@
+import { strings } from './strings.js';
 import { Z_INDEX } from './styles.js';
 
 type EntryType = 'info' | 'thinking' | 'success' | 'error' | 'code';
@@ -46,12 +47,12 @@ export class ActivityLog {
     this.titleEl.className = 'activity-title';
 
     const titleText = document.createElement('span');
-    titleText.textContent = 'Nova Activity';
+    titleText.textContent = strings.activityLogTitle;
 
     this.collapseBtn = document.createElement('button');
     this.collapseBtn.className = 'collapse-btn';
-    this.collapseBtn.textContent = '\u2796'; // ➖ minimize
-    this.collapseBtn.title = 'Collapse';
+    this.collapseBtn.textContent = strings.collapseIcon;
+    this.collapseBtn.title = strings.collapseButtonTitle;
     this.collapseBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggleCollapse();
@@ -76,7 +77,12 @@ export class ActivityLog {
     this.restoreState();
   }
 
-  addEntry(message: string, type: EntryType, skipSave = false, serverTimestamp?: number): HTMLElement | null {
+  addEntry(
+    message: string,
+    type: EntryType,
+    skipSave = false,
+    serverTimestamp?: number,
+  ): HTMLElement | null {
     if (!this.logEl || !this.panelEl) return null;
 
     // Show panel on first entry
@@ -133,7 +139,12 @@ export class ActivityLog {
   }
 
   /** Add an entry with a summary line and collapsible details (click to expand). */
-  addCollapsibleEntry(summary: string, details: string, type: EntryType, serverTimestamp?: number): HTMLElement | null {
+  addCollapsibleEntry(
+    summary: string,
+    details: string,
+    type: EntryType,
+    serverTimestamp?: number,
+  ): HTMLElement | null {
     if (!this.logEl || !this.panelEl) return null;
 
     if (this.entryCount === 0) {
@@ -156,7 +167,7 @@ export class ActivityLog {
     const summaryEl = document.createElement('span');
     summaryEl.className = 'message collapsible-summary';
     summaryEl.textContent = prefix ? `${prefix} ${summary}` : summary;
-    summaryEl.title = 'Click to expand';
+    summaryEl.title = strings.clickToExpand;
 
     const detailsEl = document.createElement('pre');
     detailsEl.className = 'collapsible-details hidden';
@@ -190,7 +201,12 @@ export class ActivityLog {
   }
 
   /** Add a clickable entry that opens a diff modal when clicked. */
-  addDiffEntry(filePath: string, diffContent: string, type: EntryType, serverTimestamp?: number): HTMLElement | null {
+  addDiffEntry(
+    filePath: string,
+    diffContent: string,
+    type: EntryType,
+    serverTimestamp?: number,
+  ): HTMLElement | null {
     if (!this.logEl || !this.panelEl) return null;
 
     if (this.entryCount === 0) {
@@ -211,12 +227,14 @@ export class ActivityLog {
 
     const prefix = this.getPrefix(type);
     const isDiff = diffContent.includes('-') || diffContent.includes('+');
-    const label = isDiff ? `Modified: ${filePath}` : `Created: ${filePath}`;
+    const label = isDiff
+      ? `${strings.diffModified}${filePath}`
+      : `${strings.diffCreated}${filePath}`;
 
     const msg = document.createElement('span');
     msg.className = 'message diff-link';
     msg.textContent = prefix ? `${prefix} ${label}` : label;
-    msg.title = 'Click to view diff';
+    msg.title = strings.clickToViewDiff;
     msg.addEventListener('click', () => {
       if (this.diffClickHandler) {
         this.diffClickHandler(filePath, diffContent);
@@ -271,8 +289,8 @@ export class ActivityLog {
     this.collapsed = true;
     this.logEl?.classList.add('collapsed');
     if (this.collapseBtn) {
-      this.collapseBtn.textContent = '\u2795'; // ➕ expand
-      this.collapseBtn.title = 'Expand';
+      this.collapseBtn.textContent = strings.expandIcon;
+      this.collapseBtn.title = strings.expandButtonTitle;
     }
   }
 
@@ -280,8 +298,8 @@ export class ActivityLog {
     this.collapsed = false;
     this.logEl?.classList.remove('collapsed');
     if (this.collapseBtn) {
-      this.collapseBtn.textContent = '\u2796'; // ➖ minimize
-      this.collapseBtn.title = 'Collapse';
+      this.collapseBtn.textContent = strings.collapseIcon;
+      this.collapseBtn.title = strings.collapseButtonTitle;
     }
     // Scroll to bottom after expand
     if (this.logEl) {
@@ -313,11 +331,16 @@ export class ActivityLog {
 
   private getPrefix(type: EntryType): string {
     switch (type) {
-      case 'thinking': return '\u{1F9E0}';
-      case 'success': return '\u2705';
-      case 'error': return '\u274C';
-      case 'code': return '\u{1F4DD}';
-      default: return '';
+      case 'thinking':
+        return strings.thinkingEmoji;
+      case 'success':
+        return strings.successEmoji;
+      case 'error':
+        return strings.errorEmoji;
+      case 'code':
+        return strings.codeEmoji;
+      default:
+        return '';
     }
   }
 

@@ -64,9 +64,7 @@ describe('VoiceCapture', () => {
     // Simulate a recognition result event
     // The SpeechRecognition API fires onresult with a SpeechRecognitionEvent-like object
     const mockEvent = {
-      results: [
-        [{ transcript: 'hello world' }],
-      ],
+      results: [[{ transcript: 'hello world' }]],
       resultIndex: 0,
     };
     // Access the underlying recognition instance's onresult

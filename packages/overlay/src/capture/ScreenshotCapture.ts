@@ -26,9 +26,11 @@ export class ScreenshotCapture implements IScreenshotCapture {
         logging: false,
         ignoreElements: (element: Element) => {
           // Skip Nova overlay elements
-          return element.hasAttribute('data-nova-transcript') ||
-                 element.hasAttribute('data-nova-pill') ||
-                 element.hasAttribute('data-nova-toast');
+          return (
+            element.hasAttribute('data-nova-transcript') ||
+            element.hasAttribute('data-nova-pill') ||
+            element.hasAttribute('data-nova-toast')
+          );
         },
       });
 

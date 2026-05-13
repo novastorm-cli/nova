@@ -5,7 +5,9 @@ const MIN_SELECTION_SIZE = 10;
 
 export class AreaSelector implements IAreaSelector {
   private active = false;
-  private selectHandler: ((area: { x: number; y: number; width: number; height: number }) => void) | null = null;
+  private selectHandler:
+    | ((area: { x: number; y: number; width: number; height: number }) => void)
+    | null = null;
   private cancelHandler: (() => void) | null = null;
 
   private overlay: HTMLDivElement | null = null;

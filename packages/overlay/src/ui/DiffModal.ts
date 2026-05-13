@@ -1,3 +1,4 @@
+import { strings } from './strings.js';
 import { Z_INDEX } from './styles.js';
 
 interface DiffLine {
@@ -67,8 +68,8 @@ export class DiffModal {
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'diff-close-btn';
-    closeBtn.textContent = '\u2715';
-    closeBtn.title = 'Close (Esc)';
+    closeBtn.textContent = strings.closeX;
+    closeBtn.title = strings.diffCloseTitle;
     closeBtn.addEventListener('click', () => this.hide());
 
     header.appendChild(fileLabel);

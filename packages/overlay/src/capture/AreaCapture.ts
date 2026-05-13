@@ -24,10 +24,12 @@ export class AreaCapture {
       allowTaint: false,
       logging: false,
       ignoreElements: (element: Element) => {
-        return element.hasAttribute('data-nova-area-selector') ||
-               element.hasAttribute('data-nova-pill') ||
-               element.hasAttribute('data-nova-toast') ||
-               element.hasAttribute('data-nova-transcript');
+        return (
+          element.hasAttribute('data-nova-area-selector') ||
+          element.hasAttribute('data-nova-pill') ||
+          element.hasAttribute('data-nova-toast') ||
+          element.hasAttribute('data-nova-transcript')
+        );
       },
     });
 
@@ -59,11 +61,7 @@ export class AreaCapture {
           return;
         }
 
-        ctx.drawImage(
-          img,
-          area.x, area.y, area.width, area.height,
-          0, 0, area.width, area.height,
-        );
+        ctx.drawImage(img, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
 
         resolve(canvas.toDataURL('image/png'));
       };
@@ -93,11 +91,7 @@ export class AreaCapture {
       throw new Error('Failed to get canvas 2d context');
     }
 
-    ctx.drawImage(
-      source,
-      area.x, area.y, area.width, area.height,
-      0, 0, area.width, area.height,
-    );
+    ctx.drawImage(source, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
 
     return canvas.toDataURL('image/png');
   }

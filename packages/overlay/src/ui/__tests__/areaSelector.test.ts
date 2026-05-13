@@ -16,12 +16,12 @@ beforeEach(() => {
   const origImage = globalThis.Image;
 
   // Expose DOM globals
-  globalThis.document = dom.window.document as unknown as Document;
-  globalThis.HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement;
-  globalThis.HTMLDivElement = dom.window.HTMLDivElement as unknown as typeof HTMLDivElement;
-  globalThis.Image = dom.window.Image as unknown as typeof Image;
-  globalThis.MouseEvent = dom.window.MouseEvent as unknown as typeof MouseEvent;
-  globalThis.KeyboardEvent = dom.window.KeyboardEvent as unknown as typeof KeyboardEvent;
+  globalThis.document = dom.window.document;
+  globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.HTMLDivElement = dom.window.HTMLDivElement;
+  globalThis.Image = dom.window.Image;
+  globalThis.MouseEvent = dom.window.MouseEvent;
+  globalThis.KeyboardEvent = dom.window.KeyboardEvent;
 
   cleanup = () => {
     globalThis.document = origDocument;
@@ -161,13 +161,23 @@ describe('AreaSelector', () => {
     const overlay = document.querySelector('[data-nova-area-selector]') as HTMLElement;
 
     // Start from bottom-right (300, 300), end at top-left (100, 100)
-    overlay.dispatchEvent(new MouseEvent('mousedown', {
-      clientX: 300, clientY: 300, bubbles: true, cancelable: true,
-    }));
+    overlay.dispatchEvent(
+      new MouseEvent('mousedown', {
+        clientX: 300,
+        clientY: 300,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
-    document.dispatchEvent(new MouseEvent('mouseup', {
-      clientX: 100, clientY: 100, bubbles: true, cancelable: true,
-    }));
+    document.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 100,
+        clientY: 100,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
     expect(selectFn).toHaveBeenCalledWith({
       x: 100,
@@ -188,13 +198,23 @@ describe('AreaSelector', () => {
     const overlay = document.querySelector('[data-nova-area-selector]') as HTMLElement;
 
     // Tiny drag: 5x5 pixels
-    overlay.dispatchEvent(new MouseEvent('mousedown', {
-      clientX: 100, clientY: 100, bubbles: true, cancelable: true,
-    }));
+    overlay.dispatchEvent(
+      new MouseEvent('mousedown', {
+        clientX: 100,
+        clientY: 100,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
-    document.dispatchEvent(new MouseEvent('mouseup', {
-      clientX: 105, clientY: 105, bubbles: true, cancelable: true,
-    }));
+    document.dispatchEvent(
+      new MouseEvent('mouseup', {
+        clientX: 105,
+        clientY: 105,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
     expect(selectFn).not.toHaveBeenCalled();
     // Should still be active (not deactivated on tiny selection)
@@ -207,22 +227,26 @@ describe('AreaSelector', () => {
     const selector = await createSelector();
 
     // Alt+A to activate
-    document.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'a',
-      altKey: true,
-      bubbles: true,
-      cancelable: true,
-    }));
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'a',
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
     expect(selector.isActive()).toBe(true);
 
     // Alt+A again to deactivate
-    document.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'a',
-      altKey: true,
-      bubbles: true,
-      cancelable: true,
-    }));
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'a',
+        altKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
 
     expect(selector.isActive()).toBe(false);
     selector.destroy();

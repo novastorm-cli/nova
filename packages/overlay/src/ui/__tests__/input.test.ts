@@ -65,22 +65,19 @@ describe('CommandInput', () => {
     input.show(anchor);
 
     // Find the actual input element and set its value
-    const inputEl = (document.querySelector('input') ??
-      document.querySelector('textarea'))!;
+    const inputEl = (document.querySelector('input') ?? document.querySelector('textarea'))!;
     expect(inputEl).not.toBeNull();
 
     // Simulate typing
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      'value',
-    )?.set?.call(inputEl, 'hello world');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(
+      inputEl,
+      'hello world',
+    );
     inputEl.value = 'hello world';
     inputEl.dispatchEvent(new Event('input', { bubbles: true }));
 
     // Press Enter
-    inputEl.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-    );
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
     expect(submitHandler).toHaveBeenCalledWith('hello world');
   });
@@ -90,12 +87,9 @@ describe('CommandInput', () => {
     input.onClose(closeHandler);
     input.show(anchor);
 
-    const inputEl = (document.querySelector('input') ??
-      document.querySelector('textarea'))!;
+    const inputEl = (document.querySelector('input') ?? document.querySelector('textarea'))!;
 
-    inputEl.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
-    );
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     expect(closeHandler).toHaveBeenCalledTimes(1);
   });
@@ -104,8 +98,7 @@ describe('CommandInput', () => {
     input.show(anchor);
     input.setTranscript('transcribed text');
 
-    const inputEl = (document.querySelector('input') ??
-      document.querySelector('textarea'))!;
+    const inputEl = (document.querySelector('input') ?? document.querySelector('textarea'))!;
 
     expect(inputEl.value).toBe('transcribed text');
   });

@@ -1,4 +1,5 @@
 import type { ICommandInput } from '../contracts/IOverlayUI.js';
+import { strings } from './strings.js';
 import { COLORS, Z_INDEX, TRANSITION } from './styles.js';
 
 const HISTORY_KEY = 'nova-command-history';
@@ -41,7 +42,7 @@ export class CommandInput implements ICommandInput {
 
     this.inputEl = document.createElement('input');
     this.inputEl.type = 'text';
-    this.inputEl.placeholder = 'Type a command...';
+    this.inputEl.placeholder = strings.commandInputPlaceholder;
     Object.assign(this.inputEl.style, {
       width: '100%',
       boxSizing: 'border-box',
