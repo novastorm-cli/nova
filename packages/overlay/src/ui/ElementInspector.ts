@@ -27,9 +27,11 @@ export class ElementInspector {
   private host: HTMLElement | null = null;
   private highlightEl: HTMLElement | null = null;
   private highlightLabel: HTMLElement | null = null;
+  private backdropEl: HTMLElement | null = null;
   private selectedElement: HTMLElement | null = null;
   private submitHandlers: Array<(element: HTMLElement, instruction: string) => void> = [];
   private focusTrap: FocusTrap | null = null;
+  private deactivateCallbacks: Array<() => void> = [];
 
   private popupRecognition: SpeechRecognition | null = null;
 
@@ -38,10 +40,15 @@ export class ElementInspector {
   private mousemoveHandler: ((e: MouseEvent) => void) | null = null;
   private clickHandler: ((e: MouseEvent) => void) | null = null;
 
+  onDeactivate(callback: () => void): void {
+    this.deactivateCallbacks.push(callback);
+  }
+
   mount(container: HTMLElement): void {
     if (this.host) return;
 
     this.host = document.createElement('div');
+    this.host.setAttribute('data-nova', 'inspector');
     this.host.setAttribute('data-nova-inspector', '');
     this.shadow = this.host.attachShadow({ mode: 'open' });
 
@@ -49,9 +56,28 @@ export class ElementInspector {
     style.textContent = this.getStyleSheet();
     this.shadow.appendChild(style);
 
+    // Backdrop layer — intercepts clicks meant for the inspector,
+    // preventing host elements from activating during selection mode.
+    this.backdropEl = document.createElement('div');
+    this.backdropEl.className = 'inspector-backdrop';
+    this.backdropEl.style.display = 'none';
+    this.backdropEl.addEventListener('click', (e: MouseEvent) => {
+      if (!this.active || this.popupVisible) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      const target = this.getElementAt(e.clientX, e.clientY);
+      if (target) {
+        this.selectedElement = target;
+        this.showPopup(e.clientX, e.clientY, target);
+      }
+    });
+    this.shadow.appendChild(this.backdropEl);
+
     // Highlight overlay element
     this.highlightEl = document.createElement('div');
     this.highlightEl.className = 'inspector-highlight';
+    this.highlightEl.setAttribute('data-nova', 'inspector-highlight');
     this.shadow.appendChild(this.highlightEl);
 
     // Label inside highlight
@@ -77,11 +103,13 @@ export class ElementInspector {
   unmount(): void {
     this.deactivate();
     this.unbindGlobalEvents();
+    this.deactivateCallbacks = [];
     if (this.host && this.host.parentNode) {
       this.host.parentNode.removeChild(this.host);
     }
     this.host = null;
     this.shadow = null;
+    this.backdropEl = null;
     this.highlightEl = null;
     this.highlightLabel = null;
     this.popupEl = null;
@@ -89,8 +117,10 @@ export class ElementInspector {
 
   private bindGlobalEvents(): void {
     this.keydownHandler = (e: KeyboardEvent) => {
-      // Escape deactivates
-      if (e.key === 'Escape' && this.active && !this.popupVisible) {
+      // Escape deactivates — exits selection mode, FSM returns to idle
+      if (e.key === 'Escape' && this.active) {
+        e.preventDefault();
+        e.stopPropagation();
         this.deactivate();
       }
     };
@@ -165,6 +195,12 @@ export class ElementInspector {
   private activate(): void {
     this.active = true;
     document.body.style.cursor = 'crosshair';
+    if (this.backdropEl) {
+      this.backdropEl.style.display = 'block';
+    }
+    if (this.host) {
+      this.host.setAttribute('data-active', 'true');
+    }
   }
 
   deactivate(): void {
@@ -187,11 +223,27 @@ export class ElementInspector {
       this.popupRecognition = null;
     }
 
+    if (this.backdropEl) {
+      this.backdropEl.style.display = 'none';
+    }
     if (this.highlightEl) {
       this.highlightEl.style.display = 'none';
+      this.highlightEl.removeAttribute('data-visible');
     }
     if (this.popupEl) {
       this.popupEl.style.display = 'none';
+    }
+    if (this.host) {
+      this.host.removeAttribute('data-active');
+    }
+
+    // Notify deactivation callbacks (e.g., to update FSM)
+    for (const cb of this.deactivateCallbacks) {
+      try {
+        cb();
+      } catch {
+        /* swallow */
+      }
     }
   }
 
@@ -220,12 +272,16 @@ export class ElementInspector {
   private highlightElementAt(x: number, y: number): void {
     const el = this.getElementAt(x, y);
     if (!el || !this.highlightEl || !this.highlightLabel) {
-      if (this.highlightEl) this.highlightEl.style.display = 'none';
+      if (this.highlightEl) {
+        this.highlightEl.style.display = 'none';
+        this.highlightEl.removeAttribute('data-visible');
+      }
       return;
     }
 
     const rect = el.getBoundingClientRect();
     this.highlightEl.style.display = 'block';
+    this.highlightEl.setAttribute('data-visible', 'true');
     this.highlightEl.style.top = `${rect.top}px`;
     this.highlightEl.style.left = `${rect.left}px`;
     this.highlightEl.style.width = `${rect.width}px`;
@@ -498,12 +554,25 @@ export class ElementInspector {
       .inspector-highlight {
         display: none;
         position: fixed;
-        border: 2px dashed var(--nova-accent);
-        background: rgba(59, 130, 246, 0.08);
+        outline: 2px solid #ffffff;
+        box-shadow: 0 0 0 4px var(--nova-accent);
         pointer-events: none;
         z-index: ${Z_INDEX.commandInput};
         transition: top 0.05s, left 0.05s, width 0.05s, height 0.05s;
         box-sizing: border-box;
+        border-radius: 2px;
+      }
+
+      .inspector-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: auto;
+        z-index: ${Z_INDEX.commandInput - 1};
+        background: transparent;
       }
 
       .inspector-highlight-label {

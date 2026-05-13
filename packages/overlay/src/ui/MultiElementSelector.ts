@@ -35,6 +35,7 @@ export class MultiElementSelector {
   private markerOverlays: Map<number, HTMLElement> = new Map();
   private nextNumber = 1;
   private submitHandlers: SubmitHandler[] = [];
+  private deactivateCallbacks: Array<() => void> = [];
   private animFrameId: number | null = null;
 
   private popupRecognition: SpeechRecognition | null = null;
@@ -78,6 +79,7 @@ export class MultiElementSelector {
   unmount(): void {
     this.deactivate();
     this.unbindGlobalEvents();
+    this.deactivateCallbacks = [];
     if (this.host && this.host.parentNode) {
       this.host.parentNode.removeChild(this.host);
     }
@@ -92,6 +94,10 @@ export class MultiElementSelector {
 
   onSubmit(handler: SubmitHandler): void {
     this.submitHandlers.push(handler);
+  }
+
+  onDeactivate(callback: () => void): void {
+    this.deactivateCallbacks.push(callback);
   }
 
   toggle(): void {
@@ -123,6 +129,15 @@ export class MultiElementSelector {
     this.clearMarkers();
     this.hidePanel();
     this.stopPositionLoop();
+
+    // Notify deactivation callbacks (e.g., to update FSM)
+    for (const cb of this.deactivateCallbacks) {
+      try {
+        cb();
+      } catch {
+        /* swallow */
+      }
+    }
   }
 
   private activate(): void {

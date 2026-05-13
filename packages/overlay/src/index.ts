@@ -336,6 +336,15 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     void sendObservation(scopedInstruction);
   });
 
+  // Element inspector deactivation → reset FSM to idle
+  elementInspector.onDeactivate(() => {
+    if (fsm.state === 'quick-edit') {
+      fsm.send({ type: 'quick_edit_end' });
+    }
+    pill.setActiveMode('none');
+    updateCursorTracking();
+  });
+
   // Multi-element selector: send directly, auto-execute
   multiSelector.onSubmit((elements, instruction) => {
     const snapshots = elements.map(({ number, element }) => {
@@ -345,6 +354,23 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     const combinedInstruction = `${instruction}\n\nMarked elements:\n${snapshots.join('\n\n')}`;
     autoExecute = true;
     void sendObservation(combinedInstruction);
+  });
+
+  // Multi-element selector deactivation → reset FSM to idle
+  multiSelector.onDeactivate(() => {
+    if (fsm.state === 'multi-edit') {
+      fsm.send({ type: 'multi_edit_end' });
+    }
+    pill.setActiveMode('none');
+    updateCursorTracking();
+  });
+
+  // Area selector cancel (Escape) → reset FSM to idle
+  areaSelector.onCancel(() => {
+    if (fsm.state === 'gesture') {
+      fsm.send({ type: 'gesture_mode_end' });
+    }
+    updateCursorTracking();
   });
 
   // Rage click detection: 3+ clicks within 1.5s on same element → open inspector popup
