@@ -32,6 +32,7 @@
     "html2canvas": "^1.4.1",
     "http-proxy": "^1.18.1",
     "inquirer": "^13.3.2",
+    "open": "^11.0.0",
     "openai": "^4.77.0",
     "ora": "^9.3.0",
     "picomatch": "^4.0.2",
