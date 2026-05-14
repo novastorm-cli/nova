@@ -2,6 +2,7 @@ import type { TaskItem, ProjectMap, ExecutionResult, LlmClient } from '../models
 import type { IGitManager } from '../contracts/IGitManager.js';
 import type { IPathGuard } from '../contracts/IPathGuard.js';
 import type { IAgentPromptLoader } from '../contracts/IStorage.js';
+import type { ILogger } from '../contracts/ILogger.js';
 import type { EventBus } from '../models/events.js';
 import { Lane3Executor } from './Lane3Executor.js';
 import { BackgroundQueue } from './BackgroundQueue.js';
@@ -21,6 +22,7 @@ export class Lane4Executor {
     private readonly model?: string,
     private readonly agentPromptLoader?: IAgentPromptLoader,
     private readonly pathGuard?: IPathGuard,
+    private readonly logger?: ILogger,
   ) {}
 
   async execute(task: TaskItem, projectMap: ProjectMap): Promise<ExecutionResult> {
@@ -34,7 +36,10 @@ export class Lane4Executor {
 
     // Fire-and-forget: process in background
     this.processTask(bgTask.id, task, projectMap).catch((err) => {
-      console.log(`[Nova] Lane4: unhandled error processing ${task.id}: ${err instanceof Error ? err.message : String(err)}`);
+      this.logger?.error('Lane4: unhandled error processing task', {
+        taskId: task.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
 
     return { success: true, taskId: task.id };
@@ -59,7 +64,9 @@ export class Lane4Executor {
     if (this.pollTimer) return;
     this.pollTimer = setInterval(() => {
       this.processQueue().catch((err) => {
-        console.log(`[Nova] Lane4: poll error: ${err instanceof Error ? err.message : String(err)}`);
+        this.logger?.error('Lane4: poll error', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
     }, POLL_INTERVAL_MS);
   }
@@ -104,6 +111,9 @@ export class Lane4Executor {
         this.model,
         this.agentPromptLoader,
         this.pathGuard,
+        undefined, // commitQueue — use default
+        false, // forceSkipValidation
+        this.logger?.child({ lane: 'lane4-bg' }),
       );
 
       // If no projectMap provided (from processQueue), build a minimal one

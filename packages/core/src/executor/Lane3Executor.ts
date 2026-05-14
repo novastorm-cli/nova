@@ -5,6 +5,7 @@ import type { TaskItem, ProjectMap, ExecutionResult, LlmClient } from '../models
 import type { IGitManager } from '../contracts/IGitManager.js';
 import type { IPathGuard } from '../contracts/IPathGuard.js';
 import type { IAgentPromptLoader } from '../contracts/IStorage.js';
+import type { ILogger } from '../contracts/ILogger.js';
 import type { EventBus } from '../models/events.js';
 import type { FileBlock, ParsedBlock } from './fileBlocks.js';
 import { parseFileBlocks, parseMixedBlocks, addLineNumbers } from './fileBlocks.js';
@@ -124,6 +125,7 @@ export class Lane3Executor {
     private readonly pathGuard?: IPathGuard,
     commitQueue?: CommitQueue,
     private readonly forceSkipValidation: boolean = false,
+    private readonly logger?: ILogger,
   ) {
     this.diffApplier = new DiffApplier();
     this.commitQueue = commitQueue ?? new CommitQueue(this.gitManager);
@@ -131,8 +133,8 @@ export class Lane3Executor {
 
   async execute(task: TaskItem, projectMap: ProjectMap): Promise<ExecutionResult> {
     try {
-      console.log(`[Nova] Developer: task "${task.description}"`);
-      console.log(`[Nova] Developer: sending to LLM...`);
+      this.logger?.info(`Developer: task "${task.description}"`, { taskId: task.id });
+      this.logger?.info('Developer: sending to LLM...', { taskId: task.id });
       this.eventBus?.emit({
         type: 'status',
         data: { message: `Generating code for: ${task.description.slice(0, 80)}...` },
@@ -192,7 +194,10 @@ export class Lane3Executor {
         task.id,
       );
 
-      console.log(`[Nova] Developer: LLM responded (${response.length} chars)`);
+      this.logger?.info(`Developer: LLM responded (${response.length} chars)`, {
+        taskId: task.id,
+        responseLength: response.length,
+      });
 
       // Parse mixed blocks (FILE + DIFF), with fallback to legacy FILE-only parsing
       let mixedBlocks = parseMixedBlocks(response);
@@ -208,8 +213,10 @@ export class Lane3Executor {
       }
 
       if (mixedBlocks.length === 0) {
-        console.log(`[Nova] Developer: no file blocks found in response. First 300 chars:`);
-        console.log(`[Nova] ${response.slice(0, 300)}`);
+        this.logger?.warn('Developer: no file blocks found in response', {
+          taskId: task.id,
+          responseStart: response.slice(0, 300),
+        });
         return {
           success: false,
           taskId: task.id,
@@ -218,14 +225,14 @@ export class Lane3Executor {
       }
 
       // DEVELOPER phase done — files generated
-      console.log(`[Nova] Developer: generated ${mixedBlocks.length} block(s):`);
-      for (const block of mixedBlocks) {
-        if (block.type === 'file') {
-          console.log(`[Nova]   + ${block.path} (${block.content.length} chars, full file)`);
-        } else {
-          console.log(`[Nova]   ~ ${block.path} (${block.diff.length} chars, diff)`);
-        }
-      }
+      this.logger?.info(`Developer: generated ${mixedBlocks.length} block(s)`, {
+        taskId: task.id,
+        blocks: mixedBlocks.map((b) => ({
+          type: b.type,
+          path: b.path,
+          size: b.type === 'file' ? b.content.length : b.diff.length,
+        })),
+      });
 
       // Apply blocks: write full files or apply diffs
       const { files: fileBlocks, failedDiffPaths } = await this.applyMixedBlocks(mixedBlocks);
@@ -240,16 +247,18 @@ export class Lane3Executor {
           );
           fileBlocks.push(...retriedBlocks);
         } catch (retryErr) {
-          console.log(`[Nova] Warning: retry failed diffs threw, continuing with existing blocks`);
-          console.log(
-            `[Nova]   Reason: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
-          );
+          this.logger?.warn('Diff retry threw, continuing with existing blocks', {
+            taskId: task.id,
+            error: retryErr instanceof Error ? retryErr.message : String(retryErr),
+          });
         }
       }
 
       // If no files were written at all, fail early instead of trying to commit nothing
       if (fileBlocks.length === 0) {
-        console.log(`[Nova] Developer: all blocks failed, nothing to commit`);
+        this.logger?.warn('Developer: all blocks failed, nothing to commit', {
+          taskId: task.id,
+        });
         return {
           success: false,
           taskId: task.id,
@@ -285,9 +294,10 @@ export class Lane3Executor {
       // Quick syntax check: verify brackets are balanced in generated files
       for (const fb of fileBlocks) {
         if (fb.path.match(/\.[tj]sx?$/) && !this.hasBalancedBrackets(fb.content)) {
-          console.log(
-            `[Nova] Syntax check failed for ${fb.path} — unbalanced brackets, marking for retry`,
-          );
+          this.logger?.warn(`Syntax check failed for ${fb.path} — unbalanced brackets`, {
+            taskId: task.id,
+            file: fb.path,
+          });
           // Re-ask LLM for the full file
           try {
             const response = await this.llmClient.chat(
@@ -306,10 +316,10 @@ export class Lane3Executor {
               fb.content = fileMatch[1].trimEnd();
               const absPath = join(this.projectPath, fb.path);
               await writeFile(absPath, fb.content, 'utf-8');
-              console.log(`[Nova] Syntax fix applied for ${fb.path}`);
+              this.logger?.info(`Syntax fix applied for ${fb.path}`, { taskId: task.id });
             }
           } catch {
-            console.log(`[Nova] Syntax fix failed for ${fb.path}`);
+            this.logger?.warn(`Syntax fix failed for ${fb.path}`, { taskId: task.id });
           }
         }
       }
@@ -324,15 +334,18 @@ export class Lane3Executor {
       let errors: ValidationError[] = [];
 
       if (skipValidation) {
-        console.log(`[Nova] Tester: skipping validation (small single-file change)`);
+        this.logger?.info('Tester: skipping validation (small single-file change)', {
+          taskId: task.id,
+        });
       } else if (tscSkip.skipTsc) {
-        console.log(`[Nova] Tester: skipping tsc (${tscSkip.reason})`);
+        this.logger?.info(`Tester: skipping tsc (${tscSkip.reason})`, { taskId: task.id });
       }
 
       for (let iteration = 1; !skipValidation && iteration <= this.maxFixIterations; iteration++) {
         // TESTER phase
-        console.log(
-          `[Nova] Tester: validating (iteration ${iteration}/${this.maxFixIterations})...`,
+        this.logger?.info(
+          `Tester: validating (iteration ${iteration}/${this.maxFixIterations})...`,
+          { taskId: task.id },
         );
         this.eventBus?.emit({
           type: 'status',
@@ -347,7 +360,9 @@ export class Lane3Executor {
         } catch (validationCrash: unknown) {
           const msg =
             validationCrash instanceof Error ? validationCrash.message : String(validationCrash);
-          console.log(`[Nova] Tester: validation crashed, skipping validation: ${msg}`);
+          this.logger?.warn(`Tester: validation crashed, skipping validation: ${msg}`, {
+            taskId: task.id,
+          });
           this.eventBus?.emit({
             type: 'status',
             data: { message: 'Validation unavailable, committing as-is...' },
@@ -356,22 +371,29 @@ export class Lane3Executor {
         }
 
         if (errors.length === 0) {
-          console.log(`[Nova] Tester: all checks passed!`);
+          this.logger?.info('Tester: all checks passed!', { taskId: task.id });
           this.eventBus?.emit({ type: 'status', data: { message: 'Code validation passed!' } });
           break;
         }
 
-        console.log(`[Nova] Tester: found ${errors.length} error(s)`);
-        for (const err of errors.slice(0, 5)) {
-          console.log(`[Nova]   ${err.file}${err.line ? ':' + err.line : ''} — ${err.message}`);
-        }
+        this.logger?.warn(`Tester: found ${errors.length} error(s)`, {
+          taskId: task.id,
+          errors: errors.slice(0, 5).map((e) => ({
+            file: e.file,
+            line: e.line,
+            message: e.message,
+          })),
+        });
         this.eventBus?.emit({
           type: 'status',
           data: { message: `Found ${errors.length} error(s) in generated code, auto-fixing...` },
         });
 
         if (iteration >= this.maxFixIterations) {
-          console.log(`[Nova] Director: max iterations reached, committing with warnings`);
+          this.logger?.warn('Director: max iterations reached, committing with warnings', {
+            taskId: task.id,
+            remainingErrors: errors.length,
+          });
           this.eventBus?.emit({
             type: 'status',
             data: { message: `Committing with ${errors.length} remaining warnings` },
@@ -380,8 +402,9 @@ export class Lane3Executor {
         }
 
         // DIRECTOR phase — fix errors
-        console.log(
-          `[Nova] Director: requesting fixes (attempt ${iteration}/${this.maxFixIterations})...`,
+        this.logger?.info(
+          `Director: requesting fixes (attempt ${iteration}/${this.maxFixIterations})...`,
+          { taskId: task.id },
         );
         this.eventBus?.emit({
           type: 'status',
@@ -589,31 +612,32 @@ export class Lane3Executor {
           const updatedContent = await readFile(absPath, 'utf-8');
           result.push({ path: block.path, content: updatedContent });
         } catch (err) {
-          console.log(`[Nova] Warning: diff apply failed for ${block.path}`);
-          console.log(`[Nova]   Reason: ${err instanceof Error ? err.message : String(err)}`);
+          this.logger?.warn(`Diff apply failed for ${block.path}`, {
+            reason: err instanceof Error ? err.message : String(err),
+          });
 
           // For JSX/TSX files, skip fuzzy apply — too risky, go straight to full file retry
           const isJsx = /\.[tj]sx$/.test(block.path);
           if (isJsx) {
-            console.log(`[Nova]   JSX file — skipping fuzzy, marking for full file retry`);
+            this.logger?.warn(`JSX file — skipping fuzzy, marking ${block.path} for full file retry`);
             failedDiffPaths.push(block.path);
             continue;
           }
 
-          console.log(`[Nova]   Trying fuzzy apply...`);
+          this.logger?.info(`Trying fuzzy apply for ${block.path}`);
           try {
             const existingContent = await readFile(absPath, 'utf-8');
             const patched = this.fuzzyApplyDiff(existingContent, block.diff);
             if (patched !== existingContent) {
               await writeFile(absPath, patched, 'utf-8');
               result.push({ path: block.path, content: patched });
-              console.log(`[Nova]   Fuzzy apply succeeded for ${block.path}`);
+              this.logger?.info(`Fuzzy apply succeeded for ${block.path}`);
             } else {
-              console.log(`[Nova]   Fuzzy apply made no changes, marking for retry`);
+              this.logger?.warn(`Fuzzy apply made no changes, marking ${block.path} for retry`);
               failedDiffPaths.push(block.path);
             }
           } catch {
-            console.log(`[Nova]   Fuzzy apply threw, marking ${block.path} for retry`);
+            this.logger?.warn(`Fuzzy apply threw, marking ${block.path} for retry`);
             failedDiffPaths.push(block.path);
           }
         }
@@ -632,8 +656,9 @@ export class Lane3Executor {
     task: TaskItem,
     systemPrompt: string = SYSTEM_PROMPT,
   ): Promise<FileBlock[]> {
-    console.log(
-      `[Nova] Diff apply failed for ${failedPaths.length} file(s), retrying with full file request...`,
+    this.logger?.info(
+      `Diff apply failed for ${failedPaths.length} file(s), retrying with full file request...`,
+      { taskId: task.id, failedPaths },
     );
     this.eventBus?.emit({
       type: 'status',
@@ -672,7 +697,10 @@ Output ONLY === FILE === blocks with the complete updated content. No diffs. No 
       task.id,
     );
 
-    console.log(`[Nova] Retry LLM responded (${response.length} chars)`);
+    this.logger?.info(`Retry LLM responded (${response.length} chars)`, {
+      taskId: task.id,
+      responseLength: response.length,
+    });
 
     // Parse only FILE blocks from retry response
     const retryBlocks = parseFileBlocks(response);
@@ -680,7 +708,9 @@ Output ONLY === FILE === blocks with the complete updated content. No diffs. No 
 
     for (const block of retryBlocks) {
       if (!failedPaths.includes(block.path)) {
-        console.log(`[Nova]   Ignoring unexpected file from retry: ${block.path}`);
+        this.logger?.warn(`Ignoring unexpected file from retry: ${block.path}`, {
+          taskId: task.id,
+        });
         continue;
       }
       const absPath = join(this.projectPath, block.path);
@@ -688,14 +718,16 @@ Output ONLY === FILE === blocks with the complete updated content. No diffs. No 
       await mkdir(dirname(absPath), { recursive: true });
       await writeFile(absPath, block.content, 'utf-8');
       result.push(block);
-      console.log(`[Nova]   Retry succeeded for ${block.path} (${block.content.length} chars)`);
+      this.logger?.info(`Retry succeeded for ${block.path} (${block.content.length} chars)`, {
+        taskId: task.id,
+      });
     }
 
     // Report files that still failed
     const retriedPaths = new Set(result.map((b) => b.path));
     for (const p of failedPaths) {
       if (!retriedPaths.has(p)) {
-        console.log(`[Nova]   Retry did not produce output for ${p}`);
+        this.logger?.warn(`Retry did not produce output for ${p}`, { taskId: task.id });
       }
     }
 

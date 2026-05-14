@@ -1,4 +1,10 @@
-import type { Observation, TaskItem, BehaviorEvent, BehaviorPattern, PassiveSuggestion } from './types.js';
+import type {
+  Observation,
+  TaskItem,
+  BehaviorEvent,
+  BehaviorPattern,
+  PassiveSuggestion,
+} from './types.js';
 
 export type NovaEvent =
   | { type: 'observation'; data: Observation }
@@ -8,7 +14,10 @@ export type NovaEvent =
   | { type: 'task_failed'; data: { taskId: string; error: string } }
   | { type: 'file_changed'; data: { filePath: string; source: 'user' | 'nova' } }
   | { type: 'index_updated'; data: { filesChanged: string[] } }
-  | { type: 'status'; data: { message: string; tasks?: Array<{ id: string; description: string; lane: number }> } }
+  | {
+      type: 'status';
+      data: { message: string; tasks?: Array<{ id: string; description: string; lane: number }> };
+    }
   | { type: 'confirm'; data: Record<string, never> }
   | { type: 'cancel'; data: Record<string, never> }
   | { type: 'llm_chunk'; data: { text: string; phase: 'reasoning' | 'code'; taskId?: string } }
@@ -21,15 +30,31 @@ export type NovaEvent =
   | { type: 'background_queued'; data: { taskId: string; position: number } }
   | { type: 'background_started'; data: { taskId: string; branch: string } }
   | { type: 'background_progress'; data: { taskId: string; progress: string } }
-  | { type: 'background_completed'; data: { taskId: string; branch: string; commitHash: string; diff: string } }
+  | {
+      type: 'background_completed';
+      data: { taskId: string; branch: string; commitHash: string; diff: string };
+    }
   | { type: 'background_failed'; data: { taskId: string; error: string } }
-  | { type: 'pending_tasks'; data: { tasks: Array<{ id: string; description: string; lane: number; preConfirmed?: boolean }>; message: string } }
-  | { type: 'confirm_tasks'; data: { taskIds: string[] } }; 
+  | {
+      type: 'pending_tasks';
+      data: {
+        tasks: Array<{ id: string; description: string; lane: number; preConfirmed?: boolean }>;
+        message: string;
+      };
+    }
+  | { type: 'confirm_tasks'; data: { taskIds: string[] } }
+  | { type: 'fsm_transition'; task_id: string; prev: string; next: string; ts: number };
 
 export type NovaEventType = NovaEvent['type'];
 
 export interface EventBus {
   emit(event: NovaEvent): void;
-  on<T extends NovaEventType>(type: T, handler: (event: Extract<NovaEvent, { type: T }>) => void): void;
-  off<T extends NovaEventType>(type: T, handler: (event: Extract<NovaEvent, { type: T }>) => void): void;
+  on<T extends NovaEventType>(
+    type: T,
+    handler: (event: Extract<NovaEvent, { type: T }>) => void,
+  ): void;
+  off<T extends NovaEventType>(
+    type: T,
+    handler: (event: Extract<NovaEvent, { type: T }>) => void,
+  ): void;
 }
