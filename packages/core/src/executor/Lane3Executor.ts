@@ -501,70 +501,6 @@ export class Lane3Executor {
     return { skipTsc: false, skipImportCheck: false, reason: '' };
   }
 
-  /**
-   * Fuzzy diff apply — find removed lines in the file and replace with added lines.
-   * Ignores context lines (doesn't require exact line numbers).
-   */
-  /**
-   * Fuzzy diff apply: process each hunk separately (not all removals merged).
-   * Validates result has balanced brackets/tags before returning.
-   */
-  private fuzzyApplyDiff(content: string, diff: string): string {
-    const diffLines = diff.split('\n');
-
-    // Parse into separate hunks (each starts with @@)
-    const hunks: Array<{ removals: string[]; additions: string[] }> = [];
-    let current: { removals: string[]; additions: string[] } | null = null;
-
-    for (const dl of diffLines) {
-      if (dl.startsWith('@@')) {
-        if (current) hunks.push(current);
-        current = { removals: [], additions: [] };
-      } else if (current) {
-        if (dl.startsWith('-') && !dl.startsWith('---')) {
-          current.removals.push(dl.slice(1));
-        } else if (dl.startsWith('+') && !dl.startsWith('+++')) {
-          current.additions.push(dl.slice(1));
-        }
-      }
-    }
-    if (current && (current.removals.length || current.additions.length)) hunks.push(current);
-
-    if (hunks.length === 0) return content;
-
-    let lines = content.split('\n');
-
-    // Apply each hunk separately
-    for (const hunk of hunks) {
-      if (hunk.removals.length > 0) {
-        const firstRemoval = hunk.removals[0].trim();
-        const idx = lines.findIndex((l) => l.trim() === firstRemoval);
-
-        if (idx !== -1) {
-          let removeCount = 0;
-          for (let i = 0; i < hunk.removals.length && idx + removeCount < lines.length; i++) {
-            if (lines[idx + removeCount].trim() === hunk.removals[i].trim()) {
-              removeCount++;
-            }
-          }
-          lines.splice(idx, removeCount, ...hunk.additions);
-        }
-      } else if (hunk.additions.length > 0) {
-        // Pure additions — append at end
-        lines = [...lines, ...hunk.additions];
-      }
-    }
-
-    const result = lines.join('\n');
-
-    // Validate: check balanced brackets/parens
-    if (!this.hasBalancedBrackets(result)) {
-      throw new Error('Fuzzy apply produced unbalanced brackets — aborting');
-    }
-
-    return result;
-  }
-
   /** Quick check that curly braces, parens, and brackets are roughly balanced. */
   private hasBalancedBrackets(content: string): boolean {
     let curly = 0;
@@ -616,30 +552,8 @@ export class Lane3Executor {
             reason: err instanceof Error ? err.message : String(err),
           });
 
-          // For JSX/TSX files, skip fuzzy apply — too risky, go straight to full file retry
-          const isJsx = /\.[tj]sx$/.test(block.path);
-          if (isJsx) {
-            this.logger?.warn(`JSX file — skipping fuzzy, marking ${block.path} for full file retry`);
-            failedDiffPaths.push(block.path);
-            continue;
-          }
-
-          this.logger?.info(`Trying fuzzy apply for ${block.path}`);
-          try {
-            const existingContent = await readFile(absPath, 'utf-8');
-            const patched = this.fuzzyApplyDiff(existingContent, block.diff);
-            if (patched !== existingContent) {
-              await writeFile(absPath, patched, 'utf-8');
-              result.push({ path: block.path, content: patched });
-              this.logger?.info(`Fuzzy apply succeeded for ${block.path}`);
-            } else {
-              this.logger?.warn(`Fuzzy apply made no changes, marking ${block.path} for retry`);
-              failedDiffPaths.push(block.path);
-            }
-          } catch {
-            this.logger?.warn(`Fuzzy apply threw, marking ${block.path} for retry`);
-            failedDiffPaths.push(block.path);
-          }
+          // Diff apply failed — mark for full-file retry (retryFailedDiffsAsFullFiles)
+          failedDiffPaths.push(block.path);
         }
       }
     }
