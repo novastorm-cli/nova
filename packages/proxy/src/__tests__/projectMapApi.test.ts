@@ -16,7 +16,7 @@ function makeResponse(): http.ServerResponse & { _status: number; _body: string 
   const res: Record<string, unknown> = {
     _status: 0,
     _body: '',
-    _headers: {} as Record<string, string>,
+    _headers: {},
     writeHead(status: number, headers?: Record<string, string>) {
       res._status = status;
       if (headers) Object.assign(res._headers as Record<string, string>, headers);

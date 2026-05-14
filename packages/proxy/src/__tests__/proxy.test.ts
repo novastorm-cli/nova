@@ -17,13 +17,17 @@ function getRandomPort(): Promise<number> {
   });
 }
 
-function fetch(url: string): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
+function fetch(
+  url: string,
+): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
   return new Promise((resolve, reject) => {
-    http.get(url, (res) => {
-      let body = '';
-      res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => resolve({ status: res.statusCode!, headers: res.headers, body }));
-    }).on('error', reject);
+    http
+      .get(url, (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => resolve({ status: res.statusCode!, headers: res.headers, body }));
+      })
+      .on('error', reject);
   });
 }
 
@@ -151,7 +155,7 @@ describe('ProxyServer', () => {
     expect(result.body).toBe(expectedContent);
   });
 
-  it('CSP headers are stripped from responses', async () => {
+  it('CSP headers are processed, not stripped (VAL-SEC-028, VAL-SEC-029)', async () => {
     await startTarget((_req, res) => {
       res.writeHead(200, {
         'Content-Type': 'text/html',
@@ -164,8 +168,93 @@ describe('ProxyServer', () => {
     await proxy.start(targetPort, proxyPort, overlayScriptPath);
 
     const result = await fetch(`http://localhost:${proxyPort}/`);
+    // CSP-Report-Only must be preserved verbatim (VAL-SEC-028)
+    expect(result.headers['content-security-policy-report-only']).toBe("default-src 'none'");
+    // Enforcement CSP must be present and modified (VAL-SEC-029)
+    const csp = result.headers['content-security-policy'];
+    expect(csp).toBeDefined();
+    expect(csp).toContain('nonce-');
+    expect(csp).toContain(`http://127.0.0.1:${proxyPort}`);
+  });
+
+  it('script tag nonce matches CSP nonce (VAL-SEC-030)', async () => {
+    await startTarget((_req, res) => {
+      res.writeHead(200, {
+        'Content-Type': 'text/html',
+        'Content-Security-Policy': "default-src 'self'",
+      });
+      res.end('<html><body>test</body></html>');
+    });
+
+    await proxy.start(targetPort, proxyPort, overlayScriptPath);
+
+    const result = await fetch(`http://localhost:${proxyPort}/`);
+    const csp = result.headers['content-security-policy'] as string;
+    const nonceInCsp = csp.match(/'nonce-([^']+)'/)?.[1];
+    const nonceInScript = result.body.match(/nonce="([^"]+)"/)?.[1];
+
+    expect(nonceInCsp).toBeTruthy();
+    expect(nonceInScript).toBeTruthy();
+    expect(nonceInCsp).toBe(nonceInScript);
+  });
+
+  it('generates unique nonce per response', async () => {
+    await startTarget((_req, res) => {
+      res.writeHead(200, {
+        'Content-Type': 'text/html',
+        'Content-Security-Policy': "default-src 'self'",
+      });
+      res.end('<html><body>test</body></html>');
+    });
+
+    await proxy.start(targetPort, proxyPort, overlayScriptPath);
+
+    const result1 = await fetch(`http://localhost:${proxyPort}/`);
+    const result2 = await fetch(`http://localhost:${proxyPort}/`);
+
+    const nonce1 = result1.body.match(/nonce="([^"]+)"/)?.[1];
+    const nonce2 = result2.body.match(/nonce="([^"]+)"/)?.[1];
+
+    expect(nonce1).toBeTruthy();
+    expect(nonce2).toBeTruthy();
+    expect(nonce1).not.toBe(nonce2);
+  });
+
+  it('no CSP enforcement header on upstream → proxy does not add one', async () => {
+    await startTarget((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<html><body>test</body></html>');
+    });
+
+    await proxy.start(targetPort, proxyPort, overlayScriptPath);
+
+    const result = await fetch(`http://localhost:${proxyPort}/`);
+    // When upstream has no enforcement CSP, proxy should not add one
+    // (the script tag still gets a nonce, but no CSP header is injected)
     expect(result.headers['content-security-policy']).toBeUndefined();
-    expect(result.headers['content-security-policy-report-only']).toBeUndefined();
+    // Script tag should still have a nonce for potential future CSP use
+    expect(result.body).toMatch(/nonce="([^"]+)"/);
+  });
+
+  it('CSP-Report-Only is preserved verbatim even when enforcement CSP is modified (VAL-SEC-028)', async () => {
+    const reportOnlyValue = "default-src 'self'; report-uri /csp-report";
+    await startTarget((_req, res) => {
+      res.writeHead(200, {
+        'Content-Type': 'text/html',
+        'Content-Security-Policy-Report-Only': reportOnlyValue,
+        'Content-Security-Policy': "default-src 'self'",
+      });
+      res.end('<html><body>test</body></html>');
+    });
+
+    await proxy.start(targetPort, proxyPort, overlayScriptPath);
+
+    const result = await fetch(`http://localhost:${proxyPort}/`);
+    // Report-Only must be byte-for-byte identical
+    expect(result.headers['content-security-policy-report-only']).toBe(reportOnlyValue);
+    // Enforcement CSP should still be modified
+    expect(result.headers['content-security-policy']).toBeDefined();
+    expect(result.headers['content-security-policy']).toContain('nonce-');
   });
 
   it('stop() frees the port', async () => {

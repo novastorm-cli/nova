@@ -4,6 +4,7 @@ import zlib from 'node:zlib';
 import fs from 'node:fs';
 import httpProxy from 'http-proxy';
 import type { IProxyServer } from '@novastorm-ai/core';
+import { generateNonce, modifyEnforcementCsp } from './csp.js';
 
 export class ProxyServer implements IProxyServer {
   private server: http.Server | null = null;
@@ -38,10 +39,10 @@ export class ProxyServer implements IProxyServer {
 
   /**
    * Builds the overlay script tag injected into proxied HTML.
-   * Includes data-nova-session token when available.
+   * Includes data-nova-session token, nonce for CSP, and port info.
    */
-  private buildScriptTag(proxyPort: number): string {
-    const attrs: string[] = ['src="/nova-overlay.js"', 'async'];
+  private buildScriptTag(proxyPort: number, nonce: string): string {
+    const attrs: string[] = ['src="/nova-overlay.js"', 'async', `nonce="${nonce}"`];
     if (this.sessionToken) {
       attrs.push(`data-nova-session="${this.sessionToken}"`);
     }
@@ -70,16 +71,39 @@ export class ProxyServer implements IProxyServer {
     });
 
     this.proxy.on('proxyRes', (proxyRes, req, res) => {
-      // Strip CSP headers for dev mode
       const headers = { ...proxyRes.headers };
-      delete headers['content-security-policy'];
-      delete headers['content-security-policy-report-only'];
+
+      // Preserve Content-Security-Policy-Report-Only verbatim (VAL-SEC-028)
+      // CSP-Report-Only is passed through exactly as the upstream sent it.
 
       const contentType = proxyRes.headers['content-type'] ?? '';
       const isHtml = contentType.includes('text/html');
 
+      // Generate a unique nonce for HTML responses (used for CSP + script tag)
+      const nonce = isHtml ? generateNonce() : '';
+
+      if (isHtml) {
+        // Modify the enforcement Content-Security-Policy to allow the overlay
+        // (VAL-SEC-029: not stripped; VAL-SEC-030: nonce matches script tag)
+        const proxyOrigin = `http://${bindHost}:${proxyPort}`;
+        const originalEnforcementCsp = headers['content-security-policy'] as string | undefined;
+
+        const modifiedEnforcementCsp = modifyEnforcementCsp(
+          originalEnforcementCsp,
+          nonce,
+          proxyOrigin,
+        );
+
+        if (modifiedEnforcementCsp) {
+          headers['content-security-policy'] = modifiedEnforcementCsp;
+        } else {
+          delete headers['content-security-policy'];
+        }
+      }
+      // For non-HTML: leave headers as-is from upstream
+
       if (!isHtml) {
-        // Non-HTML: pipe through unchanged, but remove CSP from response
+        // Non-HTML: pipe through unchanged
         for (const [key, value] of Object.entries(headers)) {
           if (value !== undefined) {
             res.setHeader(key, value);
@@ -119,8 +143,8 @@ export class ProxyServer implements IProxyServer {
         let body = Buffer.concat(chunks).toString('utf-8');
 
         // Append AFTER </html> — outside React's hydration scope
-        // Includes data-nova-session token and data-nova-port for WS auth
-        body += this.buildScriptTag(proxyPort);
+        // Includes data-nova-session token, nonce, and data-nova-port for WS auth
+        body += this.buildScriptTag(proxyPort, nonce);
 
         // Remove content-length and content-encoding since we modified + decompressed
         delete headers['content-length'];
@@ -144,7 +168,7 @@ export class ProxyServer implements IProxyServer {
     this.proxy.on('error', (err, req, res) => {
       // Retry with IPv6 loopback if IPv4 fails
       if (res instanceof http.ServerResponse && !res.headersSent) {
-        proxyRef.web(req, res, { target: `http://[::1]:${targetPort}` }, (retryErr) => {
+        proxyRef.web(req, res, { target: `http://[::1]:${targetPort}` }, () => {
           if (res instanceof http.ServerResponse && !res.headersSent) {
             res.writeHead(502, { 'Content-Type': 'text/html' });
             res.end(`
@@ -154,7 +178,7 @@ export class ProxyServer implements IProxyServer {
                   <p>Waiting for dev server on port ${targetPort}...</p>
                   <p style="color:#888">This page will auto-refresh.</p>
                   <script>setTimeout(() => location.reload(), 2000)</script>
-                  ${this.buildScriptTag(proxyPort)}
+                  ${this.buildScriptTag(proxyPort, generateNonce())}
                 </div>
               </body></html>
             `);
