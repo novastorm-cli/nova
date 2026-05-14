@@ -76,6 +76,7 @@ export class OverlayPill implements IOverlayPill {
 
     this.pillEl = document.createElement('button');
     this.pillEl.className = 'nova-pill idle';
+    this.pillEl.setAttribute('data-nova', 'pill');
     this.pillEl.setAttribute('aria-label', strings.pillAriaLabel);
     this.pillEl.setAttribute('aria-haspopup', 'menu');
     this.pillEl.setAttribute('aria-expanded', 'false');

@@ -60,6 +60,16 @@ describe('OverlayPill', () => {
     expect(hostEl.shadowRoot).not.toBeNull();
   });
 
+  it('pill button has data-nova="pill" attribute', () => {
+    pill.mount(container);
+
+    const hostEl = container.querySelector('*')!;
+    const shadow = hostEl.shadowRoot!;
+    const pillBtn = shadow.querySelector('button.nova-pill') as HTMLElement;
+    expect(pillBtn).not.toBeNull();
+    expect(pillBtn.getAttribute('data-nova')).toBe('pill');
+  });
+
   it('unmount() removes element from container', () => {
     pill.mount(container);
     expect(container.children.length).toBeGreaterThan(0);
