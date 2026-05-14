@@ -2,19 +2,12 @@ import type { IBrain } from '../contracts/IBrain.js';
 import { BrainError } from '../contracts/IBrain.js';
 import type { ILogger } from '../contracts/ILogger.js';
 import { StructuredLogger } from '../logging/StructuredLogger.js';
-import type {
-  LlmClient,
-} from '../contracts/ILlmClient.js';
-import type {
-  Observation,
-  ProjectMap,
-  TaskItem,
-  Lane,
-  TaskType,
-} from '../models/types.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
+import type { Observation, ProjectMap, TaskItem, Lane, TaskType } from '../models/types.js';
 import type { EventBus } from '../contracts/IEventBus.js';
 import { LaneClassifier } from './LaneClassifier.js';
 import { PromptBuilder } from './PromptBuilder.js';
+import { parseJsonArray } from './parseJsonArray.js';
 
 const MAX_ATTEMPTS = 2;
 
@@ -125,46 +118,7 @@ export class Brain implements IBrain {
   }
 
   private parseJsonArray(response: string): RawTask[] {
-    let trimmed = response.trim();
-
-    // Strip markdown code fences if present
-    if (trimmed.includes('```')) {
-      const fenceMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
-      if (fenceMatch) {
-        trimmed = fenceMatch[1].trim();
-      }
-    }
-
-    // Try direct parse first
-    try {
-      const direct = JSON.parse(trimmed);
-      if (Array.isArray(direct)) return direct as RawTask[];
-    } catch {
-      /* try extraction */
-    }
-
-    // Find all JSON arrays in the response and use the last valid one
-    // (Claude CLI sometimes outputs multiple: first attempt + "let me reconsider" + second attempt)
-    const jsonCandidates: string[] = [];
-    const bracketRegex = /\[[\s\S]*?\]/g;
-    let match;
-    while ((match = bracketRegex.exec(trimmed)) !== null) {
-      jsonCandidates.push(match[0]);
-    }
-
-    // Try candidates from last to first (last is usually the final answer)
-    for (let i = jsonCandidates.length - 1; i >= 0; i--) {
-      try {
-        const parsed = JSON.parse(jsonCandidates[i]);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed as RawTask[];
-        }
-      } catch {
-        /* try next */
-      }
-    }
-
-    throw new Error('No valid JSON array found in response');
+    return parseJsonArray(response) as RawTask[];
   }
 
   private toTaskItems(raw: RawTask[]): TaskItem[] {
