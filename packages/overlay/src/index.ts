@@ -28,10 +28,13 @@ import { OverlayStateMachine, type FsmState, type StateChangeEvent } from './ui/
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 import { strings } from './ui/strings.js';
+import { BrowserLogger } from './logging/BrowserLogger.js';
 import { restoreTheme } from './ui/theme.js';
 import { Z_INDEX } from './ui/styles.js';
 import { SuggestionPanel } from './ui/SuggestionPanel.js';
 import { createLayoutSlots } from './ui/layout.js';
+
+const overlayLogger = new BrowserLogger({ component: 'overlay' });
 
 const DEFAULT_PORT = 3001;
 
@@ -946,8 +949,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         gestureContext: gestureContext?.gestures.length ? gestureContext : undefined,
       };
 
-      console.log(
-        `[Nova] Sending observation: screenshot=${screenshotBase64.length} chars, url=${window.location.href}, transcript="${transcript}", autoExec=${autoExecute}`,
+      overlayLogger.debug(
+        `Sending observation: screenshot=${screenshotBase64.length} chars, url=${window.location.href}, transcript="${transcript}", autoExec=${autoExecute}`,
       );
       // Send autoExecute flag alongside observation
       if (autoExecute) {

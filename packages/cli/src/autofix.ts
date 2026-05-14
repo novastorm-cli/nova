@@ -5,8 +5,9 @@ import type {
   TaskItem,
   IGitManager,
   EventBus,
+  ILogger,
 } from '@novastorm-ai/core';
-import { Lane2Executor, Lane3Executor, CommitQueue } from '@novastorm-ai/core';
+import { Lane2Executor, Lane3Executor, CommitQueue, StructuredLogger } from '@novastorm-ai/core';
 import type { WebSocketServer } from '@novastorm-ai/proxy';
 
 // Patterns that indicate fixable compilation errors
@@ -44,6 +45,7 @@ export class ErrorAutoFixer {
   private lastErrorSignature = '';
   private cooldownUntil = 0;
   readonly autofixTaskIds = new Set<string>();
+  private readonly logger: ILogger;
 
   constructor(
     private readonly projectPath: string,
@@ -54,7 +56,10 @@ export class ErrorAutoFixer {
     private readonly projectMap: ProjectMap,
     private readonly commitQueue?: CommitQueue,
     private readonly microModel?: string,
-  ) {}
+    logger?: ILogger,
+  ) {
+    this.logger = logger ?? new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
+  }
 
   isAutofixTask(taskId: string): boolean {
     return this.autofixTaskIds.has(taskId);
@@ -70,11 +75,11 @@ export class ErrorAutoFixer {
 
     if (!hasError) return;
     if (this.isFixing) {
-      console.log(chalk.dim('[Nova] AutoFixer: already fixing, queuing...'));
+      this.logger.debug('[Nova] AutoFixer: already fixing, queuing...');
       return;
     }
     if (Date.now() < this.cooldownUntil) {
-      console.log(chalk.dim('[Nova] AutoFixer: in cooldown, skipping'));
+      this.logger.debug('[Nova] AutoFixer: in cooldown, skipping');
       return;
     }
 
@@ -91,7 +96,7 @@ export class ErrorAutoFixer {
   /** Force an immediate fix attempt, bypassing debounce and pattern check. */
   forceFixNow(errorOutput: string): void {
     if (this.isFixing) {
-      console.log(chalk.dim('[Nova] AutoFixer: already fixing, skipping forced fix'));
+      this.logger.debug('[Nova] AutoFixer: already fixing, skipping forced fix');
       return;
     }
     void this.attemptAutoFix(errorOutput);
@@ -110,7 +115,7 @@ export class ErrorAutoFixer {
     }
 
     if (this.fixAttempts > this.MAX_FIX_ATTEMPTS) {
-      console.log(chalk.yellow(`[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`));
+      this.logger.warn(`[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`);
       this.cooldownUntil = Date.now() + 60_000; // 1 minute cooldown
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
       return;
@@ -121,7 +126,7 @@ export class ErrorAutoFixer {
     // Safety timeout: reset isFixing after 5 minutes max
     const safetyTimer = setTimeout(() => {
       if (this.isFixing) {
-        console.log(chalk.dim('[Nova] AutoFixer: safety timeout, resetting'));
+        this.logger.debug('[Nova] AutoFixer: safety timeout, resetting');
         this.isFixing = false;
       }
     }, 300_000);
@@ -142,10 +147,8 @@ export class ErrorAutoFixer {
   }
 
   private async fixImageError(errorOutput: string): Promise<void> {
-    console.log(
-      chalk.yellow(
-        '[Nova] Detected image loading error — replacing with placeholders',
-      ),
+    this.logger.warn(
+      '[Nova] Detected image loading error — replacing with placeholders',
     );
     this.wsServer.sendEvent({
       type: 'status',
@@ -193,7 +196,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       true, // skipValidation — auto-fix tasks skip tsc
     );
 
-    console.log(chalk.cyan('[Nova] Auto-fixing image errors...'));
+    this.logger.info('[Nova] Auto-fixing image errors...');
     this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
     this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
     this.wsServer.sendEvent({ type: 'task_created', data: task });
@@ -202,14 +205,14 @@ Error: ${errorOutput.slice(0, 300)}`;
     setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
 
     if (result.success) {
-      console.log(chalk.green('[Nova] Image errors fixed automatically'));
+      this.logger.info('[Nova] Image errors fixed automatically');
       this.eventBus.emit({
         type: 'task_completed',
         data: { taskId: task.id, diff: result.diff ?? '', commitHash: result.commitHash ?? '' },
       });
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
-      console.log(chalk.red(`[Nova] Failed to fix image errors: ${result.error}`));
+      this.logger.error(`[Nova] Failed to fix image errors: ${result.error}`);
       const failEvent = { type: 'task_failed' as const, data: { taskId: task.id, error: result.error ?? 'Image fix failed' } };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
@@ -218,8 +221,8 @@ Error: ${errorOutput.slice(0, 300)}`;
   }
 
   private async fixCompilationError(errorOutput: string): Promise<void> {
-    console.log(
-      chalk.yellow('[Nova] Detected compilation error — attempting auto-fix'),
+    this.logger.warn(
+      '[Nova] Detected compilation error — attempting auto-fix',
     );
     this.wsServer.sendEvent({
       type: 'status',
@@ -259,7 +262,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.microModel,
     );
 
-    console.log(chalk.cyan(`[Nova] Auto-fixing compilation error via Lane 2 (${targetFile})...`));
+    this.logger.info(`[Nova] Auto-fixing compilation error via Lane 2 (${targetFile})...`);
     this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
     this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
     this.wsServer.sendEvent({ type: 'task_created', data: task });
@@ -268,14 +271,14 @@ Error: ${errorOutput.slice(0, 300)}`;
     setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
 
     if (result.success) {
-      console.log(chalk.green('[Nova] Compilation error fixed automatically (Lane 2)'));
+      this.logger.info('[Nova] Compilation error fixed automatically (Lane 2)');
       this.eventBus.emit({
         type: 'task_completed',
         data: { taskId: task.id, diff: result.diff ?? '', commitHash: result.commitHash ?? '' },
       });
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
-      console.log(chalk.red(`[Nova] Auto-fix failed: ${result.error}`));
+      this.logger.error(`[Nova] Auto-fix failed: ${result.error}`);
       const failEvent = { type: 'task_failed' as const, data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' } };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
@@ -309,7 +312,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       true, // skipValidation — auto-fix tasks skip tsc
     );
 
-    console.log(chalk.cyan('[Nova] Auto-fixing compilation error...'));
+    this.logger.info('[Nova] Auto-fixing compilation error...');
     this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
     this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
     this.wsServer.sendEvent({ type: 'task_created', data: task });
@@ -326,14 +329,14 @@ Error: ${errorOutput.slice(0, 300)}`;
     } catch { /* cache dir may not exist */ }
 
     if (result.success) {
-      console.log(chalk.green('[Nova] Compilation error fixed automatically'));
+      this.logger.info('[Nova] Compilation error fixed automatically');
       this.eventBus.emit({
         type: 'task_completed',
         data: { taskId: task.id, diff: result.diff ?? '', commitHash: result.commitHash ?? '' },
       });
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
-      console.log(chalk.red(`[Nova] Auto-fix failed: ${result.error}`));
+      this.logger.error(`[Nova] Auto-fix failed: ${result.error}`);
       const failEvent = { type: 'task_failed' as const, data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' } };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);

@@ -1,5 +1,7 @@
 import type { IGitManager } from '../contracts/IGitManager.js';
 import { GitError } from '../contracts/IGitManager.js';
+import type { ILogger } from '../contracts/ILogger.js';
+import { StructuredLogger } from '../logging/StructuredLogger.js';
 
 /** Branches that Nova refuses to commit to directly unless explicitly opted in. */
 const PROTECTED_BRANCHES = new Set(['main', 'master', 'develop']);
@@ -19,11 +21,15 @@ export interface CommitQueueOptions {
  */
 export class CommitQueue {
   private queue: Promise<string> = Promise.resolve('');
+  private readonly logger: ILogger;
 
   constructor(
     private readonly gitManager: IGitManager,
     private readonly options: CommitQueueOptions = {},
-  ) {}
+    logger?: ILogger,
+  ) {
+    this.logger = logger ?? new StructuredLogger({ isTTY: false });
+  }
 
   /**
    * Enqueues a commit operation. The commit will execute after all
@@ -38,7 +44,7 @@ export class CommitQueue {
     this.queue = this.queue.then(
       () => this.guardedCommit(message, files),
       (err) => {
-        console.warn('[Nova] Previous commit failed:', err instanceof Error ? err.message : err);
+        this.logger.warn(`Previous commit failed: ${err instanceof Error ? err.message : err}`);
         return this.guardedCommit(message, files);
       },
     );

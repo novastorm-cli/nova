@@ -1,10 +1,11 @@
-import chalk from 'chalk';
 import ora from 'ora';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { select, input } from '@inquirer/prompts';
 import { Separator } from '@inquirer/prompts';
-import { ProjectScaffolder, SCAFFOLD_PRESETS } from '@novastorm-ai/core';
+import { ProjectScaffolder, SCAFFOLD_PRESETS, StructuredLogger } from '@novastorm-ai/core';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 export interface ScaffoldInfo {
   scaffolded: boolean;
@@ -17,10 +18,7 @@ export interface ScaffoldInfo {
  * Returns scaffold info including frontend/backends directories for multi-stack projects.
  */
 export async function promptAndScaffold(projectPath: string): Promise<ScaffoldInfo> {
-  console.log(
-    chalk.yellow('\nNo project detected.') +
-    ' What would you like to create?\n',
-  );
+  logger.warn('\nNo project detected. What would you like to create?\n');
 
   let selection: string;
   try {
@@ -30,11 +28,11 @@ export async function promptAndScaffold(projectPath: string): Promise<ScaffoldIn
         ...SCAFFOLD_PRESETS.map((p) => ({ name: p.label, value: p.label })),
         new Separator(),
         { name: 'Other (type your own command)', value: '__other__' },
-        { name: 'Empty (I\'ll set up manually)', value: '__empty__' },
+        { name: "Empty (I'll set up manually)", value: '__empty__' },
       ],
     });
   } catch {
-    console.log('\nCancelled.');
+    logger.info('\nCancelled.');
     process.exit(0);
   }
 
@@ -42,12 +40,7 @@ export async function promptAndScaffold(projectPath: string): Promise<ScaffoldIn
   if (selection === '__empty__') {
     const scaffolder = new ProjectScaffolder();
     await scaffolder.scaffoldEmpty(projectPath);
-    console.log(
-      chalk.green('\nCreated nova.toml.') +
-      ' Configure your project and run ' +
-      chalk.cyan('nova') +
-      ' again.',
-    );
+    logger.info('\nCreated nova.toml. Configure your project and run nova again.');
     return { scaffolded: false };
   }
 
@@ -64,12 +57,12 @@ export async function promptAndScaffold(projectPath: string): Promise<ScaffoldIn
         message: 'Describe the project (e.g. "React + Tailwind", "Django REST API", "Go fiber server"):',
       });
     } catch {
-      console.log('\nCancelled.');
+      logger.info('\nCancelled.');
       process.exit(0);
     }
 
     if (!description.trim()) {
-      console.log(chalk.red('No description provided. Exiting.'));
+      logger.error('No description provided. Exiting.');
       return { scaffolded: false };
     }
 
@@ -83,7 +76,7 @@ export async function promptAndScaffold(projectPath: string): Promise<ScaffoldIn
     // Preset selected
     const preset = SCAFFOLD_PRESETS.find((p) => p.label === selection);
     if (!preset) {
-      console.log(chalk.red('Unknown template. Exiting.'));
+      logger.error('Unknown template. Exiting.');
       return { scaffolded: false };
     }
     command = preset.command;
@@ -127,10 +120,8 @@ export async function promptAndScaffold(projectPath: string): Promise<ScaffoldIn
   } catch (err) {
     spinner.fail('Failed to scaffold project.');
     const message = err instanceof Error ? err.message : String(err);
-    console.error(chalk.red(`\nError: ${message}`));
-    console.error(
-      chalk.dim('Make sure npx/npm is available and you have an internet connection.'),
-    );
+    logger.error(`\nError: ${message}`);
+    logger.error('Make sure npx/npm is available and you have an internet connection.');
     process.exit(1);
   }
 }

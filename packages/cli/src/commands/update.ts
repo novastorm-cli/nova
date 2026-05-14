@@ -4,6 +4,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import ora from 'ora';
+import { StructuredLogger } from '@novastorm-ai/core';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 const PKG_NAME = '@novastorm-ai/cli';
 
@@ -227,16 +230,16 @@ export async function updateCommand(): Promise<void> {
 
   if (isPermError) {
     spinner.fail('Permission denied — cannot write to the global install location.');
-    console.log();
-    console.log(chalk.yellow(PM_COMMANDS[pm].remedy));
+    logger.info('');
+    logger.warn(PM_COMMANDS[pm].remedy);
     process.exit(result.exitCode);
   }
 
   // ── Non-EACCES failure ─────────────────────────────────────────────
   spinner.fail('Update failed. Try manually:');
-  console.log(chalk.cyan(`  ${PM_COMMANDS[pm].installCmd.join(' ')}`));
+  logger.info(`  ${PM_COMMANDS[pm].installCmd.join(' ')}`);
   if (result.output) {
-    console.log(chalk.gray(result.output));
+    logger.info(result.output);
   }
   process.exit(result.exitCode);
 }

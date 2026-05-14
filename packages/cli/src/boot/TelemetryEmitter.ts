@@ -1,10 +1,12 @@
 import { type ExecFileException, execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import chalk from 'chalk';
 import { Telemetry, NudgeRenderer } from '@novastorm-ai/licensing';
 import type { NovaConfig, LicenseStatus } from '@novastorm-ai/core';
+import { StructuredLogger } from '@novastorm-ai/core';
 import { resolveTelemetryEnabled, getMachineId } from '../telemetry.js';
 import type { StartOptions } from '../index.js';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 /**
  * Fire-and-forget telemetry emitter for the boot sequence.
@@ -62,7 +64,7 @@ export async function sendBootTelemetry(
           hasLicense: license.valid && license.tier !== 'free',
         });
         if (nudgeMessage) {
-          console.log(chalk.yellow(`\n${nudgeMessage}\n`));
+          logger.warn(`\n${nudgeMessage}\n`);
         }
       }
     })

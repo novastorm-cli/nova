@@ -1,6 +1,8 @@
 import { readFile, readdir, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { IStackDetector } from '../contracts/IIndexer.js';
+import type { ILogger } from '../contracts/ILogger.js';
+import { StructuredLogger } from '../logging/StructuredLogger.js';
 import type { StackInfo, DockerServiceInfo } from '../models/types.js';
 
 interface PackageJson {
@@ -134,6 +136,12 @@ const DEFAULT_PORTS: Record<string, number> = {
 };
 
 export class StackDetector implements IStackDetector {
+  private readonly logger: ILogger;
+
+  constructor(logger?: ILogger) {
+    this.logger = logger ?? new StructuredLogger({ isTTY: false });
+  }
+
   async detectStack(projectPath: string): Promise<StackInfo> {
     const detected: StackInfo[] = [];
 
@@ -383,7 +391,7 @@ export class StackDetector implements IStackDetector {
     try {
       pkg = JSON.parse(content) as PackageJson;
     } catch {
-      console.warn('[Nova] Warning: package.json contains invalid JSON. Detecting framework from directory structure.');
+      this.logger.warn('Warning: package.json contains invalid JSON. Detecting framework from directory structure.');
     }
 
     let frameworkName: string | undefined;

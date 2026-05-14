@@ -1,6 +1,8 @@
-import chalk from 'chalk';
 import { LicenseChecker, TeamDetector } from '@novastorm-ai/licensing';
+import { StructuredLogger } from '@novastorm-ai/core';
 import { ConfigReader } from '../config.js';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 const KEY_PATTERN = /^NOVA-([A-Z2-7]+)-([a-f0-9]{4})$/;
 const VALIDATE_ENDPOINT = 'https://cli-api.novastorm.ai/v1/license/validate';
@@ -18,13 +20,13 @@ export async function licenseCommand(
     await showStatus(cwd, config);
   } else if (subcommand === 'activate') {
     if (!key) {
-      console.error(chalk.red('Usage: nova license activate <key>'));
+      logger.error('Usage: nova license activate <key>');
       process.exit(1);
     }
     await activateKey(cwd, configReader, key);
   } else {
-    console.error(chalk.red(`Unknown subcommand: ${subcommand}`));
-    console.log('Usage: nova license [status|activate <key>]');
+    logger.error(`Unknown subcommand: ${subcommand}`);
+    logger.info('Usage: nova license [status|activate <key>]');
     process.exit(1);
   }
 }
@@ -45,20 +47,20 @@ async function showStatus(
   const envKey = process.env['NOVA_LICENSE_KEY'];
   const activeKey = configKey ?? envKey ?? null;
 
-  console.log(chalk.bold('\nNovastorm License Status\n'));
-  console.log(`  Tier:           ${chalk.cyan(license.tier)}`);
-  console.log(`  Valid:          ${license.valid ? chalk.green('yes') : chalk.red('no')}`);
-  console.log(`  Developers:     ${chalk.cyan(String(teamInfo.devCount))} (${teamInfo.windowDays}-day window)`);
-  console.log(`  Bots filtered:  ${chalk.dim(String(teamInfo.botsFiltered))}`);
-  console.log(`  License key:    ${activeKey ? chalk.green('configured') : chalk.dim('not set')}`);
+  logger.info('\nNovastorm License Status\n');
+  logger.info(`  Tier:           ${license.tier}`);
+  logger.info(`  Valid:          ${license.valid ? 'yes' : 'no'}`);
+  logger.info(`  Developers:     ${String(teamInfo.devCount)} (${teamInfo.windowDays}-day window)`);
+  logger.info(`  Bots filtered:  ${String(teamInfo.botsFiltered)}`);
+  logger.info(`  License key:    ${activeKey ? 'configured' : 'not set'}`);
   if (activeKey) {
     const source = configKey ? 'config (nova.toml)' : 'environment (NOVA_LICENSE_KEY)';
-    console.log(`  Key source:     ${chalk.dim(source)}`);
+    logger.info(`  Key source:     ${source}`);
   }
   if (license.message) {
-    console.log(`\n  ${chalk.yellow(license.message)}`);
+    logger.warn(`\n  ${license.message}`);
   }
-  console.log('');
+  logger.info('');
 }
 
 async function activateKey(
@@ -68,12 +70,12 @@ async function activateKey(
 ): Promise<void> {
   // Validate format locally
   if (!KEY_PATTERN.test(key)) {
-    console.error(chalk.red('Invalid key format. Expected: NOVA-{BASE32}-{CHECKSUM}'));
+    logger.error('Invalid key format. Expected: NOVA-{BASE32}-{CHECKSUM}');
     process.exit(1);
   }
 
   // Try to validate with server
-  console.log(chalk.dim('Validating license key...'));
+  logger.debug('Validating license key...');
   let serverValid = true;
   try {
     const controller = new AbortController();
@@ -94,11 +96,11 @@ async function activateKey(
     }
   } catch {
     // Server unreachable -- accept key based on local format validation
-    console.log(chalk.dim('Server unreachable, accepting key based on local validation.'));
+    logger.debug('Server unreachable, accepting key based on local validation.');
   }
 
   if (!serverValid) {
-    console.error(chalk.red('License key rejected by server.'));
+    logger.error('License key rejected by server.');
     process.exit(1);
   }
 
@@ -109,5 +111,5 @@ async function activateKey(
     license: { key },
   });
 
-  console.log(chalk.green('License key activated and saved to nova.toml.'));
+  logger.info('License key activated and saved to nova.toml.');
 }

@@ -1,5 +1,7 @@
 import type { IBrain } from '../contracts/IBrain.js';
 import { BrainError } from '../contracts/IBrain.js';
+import type { ILogger } from '../contracts/ILogger.js';
+import { StructuredLogger } from '../logging/StructuredLogger.js';
 import type {
   LlmClient,
   Observation,
@@ -31,15 +33,17 @@ export class Brain implements IBrain {
   private readonly llm: LlmClient;
   private readonly promptBuilder: PromptBuilder;
   private readonly laneClassifier: LaneClassifier;
+  private readonly logger: ILogger;
 
   private readonly eventBus?: EventBus;
 
   private readonly modelName?: string;
 
-  constructor(llm: LlmClient, eventBus?: EventBus, modelName?: string) {
+  constructor(llm: LlmClient, eventBus?: EventBus, modelName?: string, logger?: ILogger) {
     this.llm = llm;
     this.eventBus = eventBus;
     this.modelName = modelName;
+    this.logger = logger ?? new StructuredLogger({ isTTY: false });
     this.promptBuilder = new PromptBuilder();
     this.laneClassifier = new LaneClassifier();
   }
@@ -52,7 +56,7 @@ export class Brain implements IBrain {
     const messages = this.promptBuilder.buildAnalysisPrompt(observation, projectMap);
 
     const transcript = observation.transcript ?? 'click';
-    console.log(`[Nova] Brain: analyzing "${transcript}" at ${observation.currentUrl}`);
+    this.logger.info(`Brain: analyzing "${transcript}" at ${observation.currentUrl}`);
     this.status(
       `Thinking about: "${transcript.slice(0, 60)}${transcript.length > 60 ? '...' : ''}"`,
     );
@@ -67,7 +71,7 @@ export class Brain implements IBrain {
             : [];
 
         const attemptLabel = attempt > 0 ? ` (retry ${attempt + 1}/${MAX_ATTEMPTS})` : '';
-        console.log(`[Nova] Brain: sending to LLM${attemptLabel}...`);
+        this.logger.debug(`Brain: sending to LLM${attemptLabel}...`);
         this.status(`Sending to AI${attemptLabel}...`);
 
         const response =
@@ -80,14 +84,14 @@ export class Brain implements IBrain {
 
         const responseText = response.content;
 
-        console.log(`[Nova] Brain: response (${responseText.length} chars)`);
+        this.logger.debug(`Brain: response (${responseText.length} chars)`);
 
         // Show LLM reasoning in overlay if it contains text before JSON
         const jsonStart = responseText.indexOf('[');
         if (jsonStart > 10) {
           const reasoning = responseText.slice(0, jsonStart).trim();
           if (reasoning.length > 5) {
-            console.log(`[Nova] Brain reasoning: ${reasoning.slice(0, 300)}`);
+            this.logger.debug(`Brain reasoning: ${reasoning.slice(0, 300)}`);
             this.status(
               `AI thinks: ${reasoning.slice(0, 120)}${reasoning.length > 120 ? '...' : ''}`,
             );
@@ -107,7 +111,7 @@ export class Brain implements IBrain {
         return this.toTaskItems(raw);
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
-        console.log(`[Nova] Brain: attempt ${attempt + 1} failed: ${errMsg.slice(0, 150)}`);
+        this.logger.warn(`Brain: attempt ${attempt + 1} failed: ${errMsg.slice(0, 150)}`);
         this.status(`AI response parsing failed, retrying...`);
         lastError = error;
       }
@@ -164,7 +168,7 @@ export class Brain implements IBrain {
   private toTaskItems(raw: RawTask[]): TaskItem[] {
     // Check if AI is asking a clarifying question
     if (raw.length === 1 && raw[0].question && !raw[0].description) {
-      console.log(`[Nova] Brain: AI asks clarifying question: ${raw[0].question}`);
+      this.logger.info(`Brain: AI asks clarifying question: ${raw[0].question}`);
       this.status(`question:${raw[0].question}`);
       return []; // No tasks — question sent via status event
     }
@@ -204,7 +208,7 @@ export class Brain implements IBrain {
           !/\b(component|style|css|layout|section)\b/i.test(task.description);
 
         if (hasBinaryFiles || descAsksBinary) {
-          console.log(`[Nova] Skipped task (binary files not supported): ${task.description}`);
+          this.logger.info(`Skipped task (binary files not supported): ${task.description}`);
           return false;
         }
         return true;

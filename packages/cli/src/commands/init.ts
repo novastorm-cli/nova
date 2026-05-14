@@ -2,7 +2,9 @@ import * as path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { ConfigReader } from '../config.js';
-import { DEFAULT_CONFIG, type NovaConfig } from '@novastorm-ai/core';
+import { DEFAULT_CONFIG, StructuredLogger, type NovaConfig } from '@novastorm-ai/core';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 export async function initCommand(): Promise<void> {
   const cwd = process.cwd();
@@ -10,7 +12,7 @@ export async function initCommand(): Promise<void> {
 
   const exists = await configReader.exists(cwd);
   if (exists) {
-    console.log('nova.toml already exists in this directory.');
+    logger.info('nova.toml already exists in this directory.');
     return;
   }
 
@@ -37,5 +39,5 @@ export async function initCommand(): Promise<void> {
   }
 
   await configReader.write(cwd, config);
-  console.log(`Created ${path.join(cwd, 'nova.toml')} with default configuration.`);
+  logger.info(`Created ${path.join(cwd, 'nova.toml')} with default configuration.`);
 }

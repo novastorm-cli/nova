@@ -1,8 +1,10 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import chalk from 'chalk';
 import { ManifestStore, type ManifestService, type ManifestDatabase, type ManifestEntity, type ServiceType, type EntityType } from '@novastorm-ai/core';
 import { NovaDir } from '@novastorm-ai/core';
+import { StructuredLogger } from '@novastorm-ai/core';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 const SERVICE_TYPES: ServiceType[] = ['frontend', 'backend', 'worker', 'gateway'];
 const ENTITY_TYPES: EntityType[] = ['module', 'external-service', 'library', 'shared-package'];
@@ -26,13 +28,13 @@ export async function entityCommand(subcommand?: string, name?: string): Promise
       break;
     case 'remove':
       if (!name) {
-        console.log(chalk.red('Usage: nova entity remove <name>'));
+        logger.error('Usage: nova entity remove <name>');
         return;
       }
       await entityRemove(cwd, store, name);
       break;
     default:
-      console.log('Usage: nova entity <add|list|remove> [name]');
+      logger.info('Usage: nova entity <add|list|remove> [name]');
       break;
   }
 }
@@ -46,44 +48,44 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
 
     if (kind === 'service') {
       const name = (await rl.question('Name? ')).trim();
-      if (!name) { console.log(chalk.red('Name is required.')); return; }
+      if (!name) { logger.error('Name is required.'); return; }
 
       const typeRaw = (await rl.question(`Role? (${SERVICE_TYPES.join(' / ')}) `)).trim().toLowerCase();
       if (!SERVICE_TYPES.includes(typeRaw as ServiceType)) {
-        console.log(chalk.red(`Invalid role. Choose from: ${SERVICE_TYPES.join(', ')}`));
+        logger.error(`Invalid role. Choose from: ${SERVICE_TYPES.join(', ')}`);
         return;
       }
 
       const path = (await rl.question('Path? ')).trim();
-      if (!path) { console.log(chalk.red('Path is required.')); return; }
+      if (!path) { logger.error('Path is required.'); return; }
 
       const framework = (await rl.question('Framework? (optional) ')).trim() || undefined;
       const language = (await rl.question('Language? (optional) ')).trim() || undefined;
 
       const service: ManifestService = { name, type: typeRaw as ServiceType, path, framework, language };
       await store.addService(cwd, service);
-      console.log(chalk.green(`Added service "${name}" to .nova/manifest.toml`));
+      logger.info(`Added service "${name}" to .nova/manifest.toml`);
 
     } else if (kind === 'database') {
       const name = (await rl.question('Name? ')).trim();
-      if (!name) { console.log(chalk.red('Name is required.')); return; }
+      if (!name) { logger.error('Name is required.'); return; }
 
       const engine = (await rl.question('Engine? (postgresql / mysql / sqlite / mongodb / redis) ')).trim();
-      if (!engine) { console.log(chalk.red('Engine is required.')); return; }
+      if (!engine) { logger.error('Engine is required.'); return; }
 
       const schemaPath = (await rl.question('Schema path? (optional) ')).trim() || undefined;
       const connectionEnv = (await rl.question('Connection env var? (optional) ')).trim() || undefined;
 
       await store.addDatabase(cwd, { name, engine, schema_path: schemaPath, connection_env: connectionEnv });
-      console.log(chalk.green(`Added database "${name}" to .nova/manifest.toml`));
+      logger.info(`Added database "${name}" to .nova/manifest.toml`);
 
     } else if (kind === 'entity') {
       const name = (await rl.question('Name? ')).trim();
-      if (!name) { console.log(chalk.red('Name is required.')); return; }
+      if (!name) { logger.error('Name is required.'); return; }
 
       const typeRaw = (await rl.question(`Type? (${ENTITY_TYPES.join(' / ')}) `)).trim().toLowerCase();
       if (!ENTITY_TYPES.includes(typeRaw as EntityType)) {
-        console.log(chalk.red(`Invalid type. Choose from: ${ENTITY_TYPES.join(', ')}`));
+        logger.error(`Invalid type. Choose from: ${ENTITY_TYPES.join(', ')}`);
         return;
       }
 
@@ -93,10 +95,10 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
 
       const entity: ManifestEntity = { name, type: typeRaw as EntityType, description, files };
       await store.addEntity(cwd, entity);
-      console.log(chalk.green(`Added entity "${name}" to .nova/manifest.toml`));
+      logger.info(`Added entity "${name}" to .nova/manifest.toml`);
 
     } else {
-      console.log(chalk.red('Unknown type. Choose: service, database, entity'));
+      logger.error('Unknown type. Choose: service, database, entity');
     }
   } finally {
     rl.close();
@@ -106,62 +108,62 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
 async function entityList(cwd: string, store: ManifestStore): Promise<void> {
   const manifest = await store.load(cwd);
   if (!manifest) {
-    console.log(chalk.yellow('No manifest found. Run "nova entity add" to create one.'));
+    logger.warn('No manifest found. Run "nova entity add" to create one.');
     return;
   }
 
   if (manifest.project.name) {
-    console.log(chalk.bold(`\nProject: ${manifest.project.name}`));
-    if (manifest.project.description) console.log(`  ${manifest.project.description}`);
+    logger.info(`\nProject: ${manifest.project.name}`);
+    if (manifest.project.description) logger.info(`  ${manifest.project.description}`);
   }
 
   if (manifest.services.length > 0) {
-    console.log(chalk.bold('\nServices:'));
+    logger.info('\nServices:');
     for (const s of manifest.services) {
-      const parts = [chalk.cyan(s.name), `[${s.type}]`, s.path];
+      const parts = [s.name, `[${s.type}]`, s.path];
       if (s.framework) parts.push(`(${s.framework})`);
-      console.log(`  ${parts.join(' ')}`);
+      logger.info(`  ${parts.join(' ')}`);
     }
   }
 
   if (manifest.databases.length > 0) {
-    console.log(chalk.bold('\nDatabases:'));
+    logger.info('\nDatabases:');
     for (const d of manifest.databases) {
-      const parts = [chalk.cyan(d.name), `[${d.engine}]`];
+      const parts = [d.name, `[${d.engine}]`];
       if (d.connection_env) parts.push(`env: ${d.connection_env}`);
-      console.log(`  ${parts.join(' ')}`);
+      logger.info(`  ${parts.join(' ')}`);
     }
   }
 
   if (manifest.entities.length > 0) {
-    console.log(chalk.bold('\nEntities:'));
+    logger.info('\nEntities:');
     for (const e of manifest.entities) {
-      const parts = [chalk.cyan(e.name), `[${e.type}]`];
+      const parts = [e.name, `[${e.type}]`];
       if (e.description) parts.push(e.description);
-      console.log(`  ${parts.join(' ')}`);
+      logger.info(`  ${parts.join(' ')}`);
     }
   }
 
   if (manifest.boundaries.writable?.length || manifest.boundaries.readonly?.length || manifest.boundaries.ignored?.length) {
-    console.log(chalk.bold('\nBoundaries:'));
-    if (manifest.boundaries.writable?.length) console.log(`  Writable: ${manifest.boundaries.writable.join(', ')}`);
-    if (manifest.boundaries.readonly?.length) console.log(`  Readonly: ${manifest.boundaries.readonly.join(', ')}`);
-    if (manifest.boundaries.ignored?.length) console.log(`  Ignored:  ${manifest.boundaries.ignored.join(', ')}`);
+    logger.info('\nBoundaries:');
+    if (manifest.boundaries.writable?.length) logger.info(`  Writable: ${manifest.boundaries.writable.join(', ')}`);
+    if (manifest.boundaries.readonly?.length) logger.info(`  Readonly: ${manifest.boundaries.readonly.join(', ')}`);
+    if (manifest.boundaries.ignored?.length) logger.info(`  Ignored:  ${manifest.boundaries.ignored.join(', ')}`);
   }
 
   const total = manifest.services.length + manifest.databases.length + manifest.entities.length;
   if (total === 0) {
-    console.log(chalk.yellow('\nManifest is empty. Run "nova entity add" to register entities.'));
+    logger.warn('\nManifest is empty. Run "nova entity add" to register entities.');
   }
 
-  console.log('');
+  logger.info('');
 }
 
 async function entityRemove(cwd: string, store: ManifestStore, name: string): Promise<void> {
   const removed = await store.removeByName(cwd, name);
   if (removed) {
-    console.log(chalk.green(`Removed "${name}" from .nova/manifest.toml`));
+    logger.info(`Removed "${name}" from .nova/manifest.toml`);
   } else {
-    console.log(chalk.yellow(`"${name}" not found in manifest.`));
+    logger.warn(`"${name}" not found in manifest.`);
   }
 }

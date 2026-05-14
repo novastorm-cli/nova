@@ -8,4 +8,5 @@ export * from './indexer/index.js';
 export * from './brain/index.js';
 export * from './executor/index.js';
 export * from './security/index.js';
+export * from './logging/index.js';
 export * from './passive/index.js';

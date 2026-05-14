@@ -3,9 +3,12 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { select, input } from '@inquirer/prompts';
+import { StructuredLogger } from '@novastorm-ai/core';
 import { isNonInteractive } from './utils.js';
 import type { StartOptions } from '../index.js';
 import type { StackInfo } from '@novastorm-ai/core';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 const SELECT_THEME = {
   icon: { cursor: chalk.whiteBright('❯') },
@@ -54,12 +57,12 @@ export async function ensureDependencies(
 
   const spinner = ora();
   spinner.stop();
-  console.log(chalk.dim(`  Installing dependencies (${installCmd})...`));
+  logger.debug(`  Installing dependencies (${installCmd})...`);
 
   try {
     const { execSync } = await import('node:child_process');
     execSync(installCmd, { cwd, stdio: 'pipe' });
-    console.log(chalk.green('  Dependencies installed.'));
+    logger.info('  Dependencies installed.');
     return;
   } catch (installErr) {
     const stderr = (installErr as { stderr?: Buffer })?.stderr?.toString() ?? '';
@@ -69,17 +72,17 @@ export async function ensureDependencies(
       .split('\n')
       .filter((l) => /error/i.test(l))
       .slice(0, 5);
-    console.log(chalk.red(`\n  Failed to install dependencies.`));
+    logger.error('\n  Failed to install dependencies.');
     if (errorLines.length) {
-      console.log(chalk.dim(errorLines.map((l) => `  ${l.trim()}`).join('\n')));
+      logger.debug(errorLines.map((l) => `  ${l.trim()}`).join('\n'));
     }
-    console.log();
+    logger.info('');
   }
 
   // ── Install failed — handle recovery ────────────────────────────────
   if (isNonInteractive(options)) {
-    console.log(
-      chalk.dim('Non-interactive mode — skipping install recovery. Run "npm install" manually.'),
+    logger.debug(
+      'Non-interactive mode — skipping install recovery. Run "npm install" manually.',
     );
     return;
   }
@@ -98,14 +101,14 @@ export async function ensureDependencies(
   const choices: Array<{ name: string; value: string }> = [];
 
   if (/EJSONPARSE|JSON/.test(errMsg)) {
-    console.log(chalk.yellow('  Cause: package.json contains invalid JSON.\n'));
+    logger.warn('  Cause: package.json contains invalid JSON.\n');
     choices.push({
       name: chalk.dim('Fix package.json automatically (remove syntax errors)'),
       value: 'fix-json',
     });
   }
   if (/ENOENT|not found|Cannot find/.test(errMsg)) {
-    console.log(chalk.yellow('  Cause: missing files or modules.\n'));
+    logger.warn('  Cause: missing files or modules.\n');
   }
 
   if (llmClient) {
@@ -137,7 +140,7 @@ export async function ensureDependencies(
     } else if (action === 'ai-fix') {
       resolved = await handleAiFix(cwd, installCmd, errMsg, llmClient);
     } else if (action === 'skip') {
-      console.log(chalk.dim('  Skipping install.'));
+      logger.debug('  Skipping install.');
       resolved = true;
     } else {
       process.exit(0);
@@ -167,7 +170,7 @@ async function handleFixJson(
       JSON.parse(readFileSync(pkgPath, 'utf-8'));
     } catch {
       if (llmClient) {
-        console.log(chalk.dim('  Regex fix insufficient, asking AI to fix package.json...\n'));
+        logger.debug('  Regex fix insufficient, asking AI to fix package.json...\n');
         const brokenContent = readFileSync(pkgPath, 'utf-8');
         const response = await (
           llmClient as { chat: (msgs: unknown[], opts: unknown) => Promise<{ content: string }> }
@@ -188,17 +191,17 @@ async function handleFixJson(
         if (fenceMatch) fixed = fenceMatch[1].trim();
         JSON.parse(fixed);
         writeFileSync(pkgPath, fixed, 'utf-8');
-        console.log(chalk.green('  AI fixed package.json.'));
+        logger.info('  AI fixed package.json.');
       }
     }
 
-    console.log(chalk.dim('  Retrying install...\n'));
+    logger.debug('  Retrying install...\n');
     const { execSync } = await import('node:child_process');
     execSync(installCmd, { cwd, stdio: 'pipe' });
-    console.log(chalk.green('  Dependencies installed.'));
+    logger.info('  Dependencies installed.');
     return true;
   } catch (fixErr) {
-    console.log(chalk.red(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : fixErr}\n`));
+    logger.error(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : fixErr}\n`);
     return false;
   }
 }
@@ -213,7 +216,7 @@ async function handleAiFix(
     const userDesc = await input({ message: 'Describe what needs to be fixed:' });
     if (!userDesc.trim() || !llmClient) return false;
 
-    console.log(chalk.dim('\n  AI is working on it...\n'));
+    logger.debug('\n  AI is working on it...\n');
     const response = await (
       llmClient as { chat: (msgs: unknown[], opts: unknown) => Promise<{ content: string }> }
     ).chat(
@@ -240,22 +243,22 @@ async function handleAiFix(
       const { dirname } = await import('node:path');
       mkdirSync(dirname(filePath), { recursive: true });
       writeSync(filePath, fileContent, 'utf-8');
-      console.log(chalk.dim(`  Wrote: ${match[1].trim()}`));
+      logger.debug(`  Wrote: ${match[1].trim()}`);
       filesWritten++;
     }
 
     if (filesWritten > 0) {
-      console.log(chalk.green(`\n  AI fixed ${filesWritten} file(s). Retrying install...\n`));
+      logger.info(`\n  AI fixed ${filesWritten} file(s). Retrying install...\n`);
       const { execSync } = await import('node:child_process');
       execSync(installCmd, { cwd, stdio: 'pipe' });
-      console.log(chalk.green('  Dependencies installed.'));
+      logger.info('  Dependencies installed.');
       return true;
     }
 
-    console.log(chalk.red('  AI could not produce a fix.\n'));
+    logger.error('  AI could not produce a fix.\n');
     return false;
   } catch (aiErr) {
-    console.log(chalk.red(`  Failed: ${aiErr instanceof Error ? aiErr.message : aiErr}\n`));
+    logger.error(`  Failed: ${aiErr instanceof Error ? aiErr.message : aiErr}\n`);
     return false;
   }
 }

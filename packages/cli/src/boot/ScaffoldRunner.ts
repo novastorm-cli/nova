@@ -4,11 +4,13 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { input } from '@inquirer/prompts';
 import TOML from '@iarna/toml';
-import { StackDetector } from '@novastorm-ai/core';
+import { StackDetector, StructuredLogger } from '@novastorm-ai/core';
 import type { NovaConfig } from '@novastorm-ai/core';
 import { promptAndScaffold } from '../scaffold.js';
 import { isNonInteractive } from './utils.js';
 import type { StartOptions } from '../index.js';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 export interface ScaffoldResult {
   /** The resolved dev command (possibly after scaffolding + re-detection). */
@@ -78,9 +80,7 @@ export async function runScaffold(
           devPort: devPort ?? (await stackDetector.detectPort(stack, cwd)),
         };
       }
-      console.error(
-        chalk.red('Dev command is required. Add [project] devCommand = "..." to nova.toml'),
-      );
+      logger.error('Dev command is required. Add [project] devCommand = "..." to nova.toml');
       process.exit(1);
     }
 
@@ -94,7 +94,7 @@ export async function runScaffold(
         default: defaultCmd || undefined,
       });
     } catch {
-      console.log('\nCancelled.');
+      logger.info('\nCancelled.');
       process.exit(0);
     }
 
@@ -111,7 +111,7 @@ export async function runScaffold(
         project['devCommand'] = resolved;
         tomlContent['project'] = project;
         writeFileSync(novaTomlPath, TOML.stringify(tomlContent as TOML.JsonMap), 'utf-8');
-        console.log(chalk.dim(`Saved devCommand to nova.toml`));
+        logger.debug('Saved devCommand to nova.toml');
       } catch {
         // Non-critical — continue without saving
       }
@@ -121,8 +121,8 @@ export async function runScaffold(
       };
     }
 
-    console.error(
-      chalk.red('Dev command is required. Add [project] devCommand = "..." to nova.toml'),
+    logger.error(
+      'Dev command is required. Add [project] devCommand = "..." to nova.toml',
     );
     process.exit(1);
   }
@@ -157,10 +157,8 @@ export async function runScaffold(
   const resolvedPort = config.project.port || detectedPort;
 
   if (!resolvedCommand) {
-    console.error(
-      chalk.red(
-        'No dev command found after scaffolding. Set project.devCommand in nova.toml or ensure package.json has a "dev" script.',
-      ),
+    logger.error(
+      'No dev command found after scaffolding. Set project.devCommand in nova.toml or ensure package.json has a "dev" script.',
     );
     process.exit(1);
   }

@@ -8,6 +8,7 @@ import {
   NovaEventBus, NovaDir, ProjectIndexer, Brain, ProviderFactory,
   ExecutorPool, Lane1Executor, Lane2Executor, GitManager, AgentPromptLoader,
   PathGuard, ManifestStore, CommitQueue, EnvDetector, StackDetector,
+  StructuredLogger,
   type ProjectMap, type Observation, type TaskItem,
 } from '@novastorm-ai/core';
 import { DevServerRunner, ProxyServer, WebSocketServer } from '@novastorm-ai/proxy';
@@ -25,6 +26,8 @@ import { openBrowser } from '../boot/BrowserOpener.js';
 import { setupEventRouting, type EventRouterDeps } from '../boot/EventRouter.js';
 import { isNonInteractive } from '../boot/utils.js';
 import type { StartOptions } from '../index.js';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 const PROXY_PORT_OFFSET = 1;
 
@@ -53,11 +56,11 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   const wsServer = new WebSocketServer();
 
   let earlyExit = true;
-  process.on('SIGINT', () => { if (earlyExit) { console.log(chalk.dim('\nShutting down...')); devServer.kill().catch(() => {}); process.exit(0); } });
+  process.on('SIGINT', () => { if (earlyExit) { logger.info('\nShutting down...'); devServer.kill().catch(() => {}); process.exit(0); } });
 
   const licenseChecker = new LicenseChecker();
   const indexer = new ProjectIndexer();
-  const logger = new NovaLogger();
+  const novaLogger = new NovaLogger(logger);
   const taskMap = new Map<string, TaskItem>();
   const pendingTasks: TaskItem[] = [];
   const lastObservation: { current: Observation | null } = { current: null };
@@ -77,9 +80,9 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   // ── 3. LLM provider ──────────────────────────────────────────────
   if (!config.apiKeys.key && config.apiKeys.provider !== 'ollama' && config.apiKeys.provider !== 'claude-cli') {
     if (isNonInteractive(options)) {
-      console.log(chalk.yellow('\nNo API key configured. Running in non-interactive mode — using defaults.\n'));
+      logger.warn('\nNo API key configured. Running in non-interactive mode — using defaults.\n');
     } else {
-      console.log(chalk.yellow('\nNo API key configured. Running setup...\n'));
+      logger.warn('\nNo API key configured. Running setup...\n');
       const { runSetup } = await import('../setup.js');
       await runSetup(cwd, { nonInteractive: false });
       config.apiKeys = (await configReader.read(cwd)).apiKeys;
@@ -88,8 +91,8 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   const providerFactory = new ProviderFactory();
   let llmClient: any;
   try { llmClient = providerFactory.create(config.apiKeys.provider, config.apiKeys.key); } catch {
-    console.log(chalk.yellow('\nAI provider not configured. Nova is running without AI analysis.'));
-    console.log(chalk.dim('Run "nova setup" to configure your API key.\n'));
+    logger.warn('\nAI provider not configured. Nova is running without AI analysis.');
+    logger.debug('Run "nova setup" to configure your API key.\n');
     llmClient = null;
   }
   const brain = llmClient ? new Brain(llmClient, eventBus, config.models.micro) : null;
@@ -142,9 +145,9 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   sp.succeed(`Project analyzed: ${analysis.fileCount} files, ${analysis.methods.length} methods.`);
 
   // ── 9. Ports ─────────────────────────────────────────────────────
-  if (options.port) { devPort = parseInt(options.port, 10); if (isNaN(devPort) || devPort <= 0 || devPort > 65535) { console.error(chalk.red(`Invalid port: ${options.port}`)); process.exit(1); } }
+  if (options.port) { devPort = parseInt(options.port, 10); if (isNaN(devPort) || devPort <= 0 || devPort > 65535) { logger.error(`Invalid port: ${options.port}`); process.exit(1); } }
   let proxyPort: number;
-  if (options.proxyPort) { proxyPort = parseInt(options.proxyPort, 10); if (isNaN(proxyPort) || proxyPort <= 0 || proxyPort > 65535) { console.error(chalk.red(`Invalid proxy port: ${options.proxyPort}`)); process.exit(1); } }
+  if (options.proxyPort) { proxyPort = parseInt(options.proxyPort, 10); if (isNaN(proxyPort) || proxyPort <= 0 || proxyPort > 65535) { logger.error(`Invalid proxy port: ${options.proxyPort}`); process.exit(1); } }
   else { proxyPort = devPort + PROXY_PORT_OFFSET; }
   const pair = await acquirePorts(devPort, proxyPort, options);
   devPort = pair.devPort; proxyPort = pair.proxyPort;
@@ -165,7 +168,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   // ── 12. Proxy & WS ───────────────────────────────────────────────
   sp.start('Starting proxy server...');
   const host = options.host ?? '127.0.0.1';
-  if (host !== '127.0.0.1' && host !== '::1' && host !== 'localhost') console.log(chalk.yellow(`\n  ⚠ Binding proxy to ${host} — accessible from other devices on the network.\n`));
+  if (host !== '127.0.0.1' && host !== '::1' && host !== 'localhost') logger.warn(`\n  ⚠ Binding proxy to ${host} — accessible from other devices on the network.\n`);
   const sessionToken = randomBytes(32).toString('hex');
   await writeFile(path.join(novaDir.getPath(cwd), 'session-token'), sessionToken, { mode: 0o600 });
   proxyServer.setSessionToken(sessionToken);
@@ -194,7 +197,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     execSync('git add -A && git commit -m "Initial commit (before Nova)" --allow-empty', { cwd, stdio: 'ignore', shell: '/bin/sh' });
   }
   const gitManager = new GitManager(cwd);
-  try { console.log(chalk.dim(`Working on branch: ${await gitManager.createBranch(config.behavior.branchPrefix)}`)); } catch {}
+  try { logger.debug(`Working on branch: ${await gitManager.createBranch(config.behavior.branchPrefix)}`); } catch {}
 
   // ── 15. Executor & AutoFixer ─────────────────────────────────────
   let executorPool: any = null;
@@ -226,18 +229,18 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   });
 
   // ── 16. Event routing ────────────────────────────────────────────
-  setupEventRouting({ wsServer, eventBus, brain, llmClient, config, options, gitManager, executorPool, commitQueue, autoFixer, devServer, logger, projectMap, taskMap, pendingTasks, lastObservation });
+  setupEventRouting({ wsServer, eventBus, brain, llmClient, config, options, gitManager, executorPool, commitQueue, autoFixer, devServer, logger: novaLogger, projectMap, taskMap, pendingTasks, lastObservation });
 
-  console.log(chalk.bold.green('\nReady! Click elements or speak to start building.'));
-  console.log(chalk.dim('Type commands below, or use /help for available commands.\n'));
+  logger.info('\nReady! Click elements or speak to start building.');
+  logger.debug('Type commands below, or use /help for available commands.\n');
 
   // ── Startup health check ─────────────────────────────────────────
   setTimeout(async () => {
     const logs = devServer.getLogs();
     const errors = logs.split('\n').filter(l => /error|Error|failed|Module not found|SyntaxError|Cannot find/i.test(l) && !/warning|warn|deprecat/i.test(l)).slice(-10).join('\n').trim();
     if (!errors || !llmClient) return;
-    console.log(chalk.red('\n[Nova] Build errors detected at startup:'));
-    console.log(chalk.dim(errors.slice(0, 500)));
+    logger.error('\n[Nova] Build errors detected at startup:');
+    logger.debug(errors.slice(0, 500));
     const fixTask: TaskItem = { id: crypto.randomUUID(), description: `Fix build errors: ${errors.slice(0, 500)}`, files: [], type: 'multi_file', lane: 3, status: 'pending' };
     pendingTasks.push(fixTask);
     if (isNonInteractive(options) || config.behavior.confirmTasks === false) {
@@ -251,7 +254,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   let shuttingDown = false;
   const shutdown = async () => {
     if (shuttingDown) return; shuttingDown = true;
-    console.log(chalk.dim('\n\nShutting down...'));
+    logger.info('\n\nShutting down...');
     try { await proxyServer.stop(); } catch {}
     try { await devServer.kill(); } catch {}
     process.exit(0);
@@ -302,13 +305,13 @@ async function acquirePorts(devPort: number, proxyPort: number, options: StartOp
   if (isNonInteractive(options)) {
     sp.warn('Port conflict — auto-resolving');
     const pair = await PortManager.findFreePortPair(devPort, proxyPort);
-    console.log(chalk.yellow(`  Auto-selected: dev=${pair.devPort}, proxy=${pair.proxyPort}`));
+    logger.warn(`  Auto-selected: dev=${pair.devPort}, proxy=${pair.proxyPort}`);
     return pair;
   }
 
   sp.fail('Port conflict');
   const busy = []; if (dBusy) busy.push(devPort); if (pBusy) busy.push(proxyPort);
-  console.log(chalk.red(`  In use: ${busy.join(', ')}`));
+  logger.error(`  In use: ${busy.join(', ')}`);
 
   const { select, input } = await import('@inquirer/prompts');
   while (true) {
@@ -322,7 +325,7 @@ async function acquirePorts(devPort: number, proxyPort: number, options: StartOp
     }).catch(() => 'exit');
     if (action === 'exit') process.exit(0);
     if (action === 'kill') {
-      try { for (const p of busy) await PortManager.killPort(p); console.log(chalk.green('Killed.')); return { devPort, proxyPort }; } catch { console.log(chalk.red('Failed to kill.')); }
+      try { for (const p of busy) await PortManager.killPort(p); logger.info('Killed.'); return { devPort, proxyPort }; } catch { logger.error('Failed to kill.'); }
     }
     if (action === 'change') {
       try { const np = await input({ message: 'Dev server port:', default: String(devPort + 10) }); return { devPort: parseInt(np, 10), proxyPort: parseInt(np, 10) + (proxyPort - devPort) }; } catch { process.exit(0); }
@@ -332,8 +335,8 @@ async function acquirePorts(devPort: number, proxyPort: number, options: StartOp
 
 async function recoverDevServer(err: unknown, devCommand: string, cwd: string, devPort: number, options: StartOptions, llmClient: any, devServer: DevServerRunner): Promise<void> {
   const msg = err instanceof Error ? err.message : String(err);
-  console.log(chalk.red(`\n${msg}`));
-  if (isNonInteractive(options)) { console.error(chalk.red('Cannot recover in non-interactive mode.')); process.exit(1); }
+  logger.error(`\n${msg}`);
+  if (isNonInteractive(options)) { logger.error('Cannot recover in non-interactive mode.'); process.exit(1); }
 
   const { select, input } = await import('@inquirer/prompts');
   const choices: Array<{ name: string; value: string }> = [];
@@ -370,6 +373,6 @@ async function recoverDevServer(err: unknown, devCommand: string, cwd: string, d
         await devServer.spawn(devCommand, cwd, devPort);
         return;
       }
-    } catch (e) { console.log(chalk.red(`Failed: ${e instanceof Error ? e.message : e}`)); }
+    } catch (e) { logger.error(`Failed: ${e instanceof Error ? e.message : e}`); }
   }
 }

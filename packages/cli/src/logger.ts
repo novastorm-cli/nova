@@ -1,53 +1,51 @@
-import chalk from 'chalk';
 import type { Observation, TaskItem } from '@novastorm-ai/core';
-import { redactSecrets } from '@novastorm-ai/core';
+import type { ILogger } from '@novastorm-ai/core';
+import { StructuredLogger } from '@novastorm-ai/core';
 
 const PREFIX = '[Nova]';
 
 export class NovaLogger {
+  private readonly logger: ILogger;
+
+  constructor(logger?: ILogger) {
+    this.logger = logger ?? new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
+  }
+
   logObservation(observation: Observation): void {
     const action = observation.transcript ?? 'click';
     const screenshotSize = observation.screenshot?.length ?? 0;
     const url = observation.currentUrl || '(unknown)';
-    console.log(
-      redactSecrets(chalk.yellow(`${PREFIX} \u{1F4E1} Observation: "${action}" at ${url}`)),
-    );
-    console.log(
-      redactSecrets(chalk.dim(`${PREFIX}    Screenshot: ${screenshotSize} bytes, DOM: ${observation.domSnapshot ? 'yes' : 'no'}, Errors: ${observation.consoleErrors?.length ?? 0}`)),
+    this.logger.info(
+      `${PREFIX} 📡 Observation: "${action}" at ${url}`,
+      { screenshotSize, hasDom: !!observation.domSnapshot, errors: observation.consoleErrors?.length ?? 0 },
     );
   }
 
   logAnalyzing(transcript?: string): void {
     const suffix = transcript ? ` ${transcript}` : '';
-    console.log(redactSecrets(chalk.yellow(`${PREFIX} \u{1F9E0} Analyzing...${suffix}`)));
+    this.logger.info(`${PREFIX} 🧠 Analyzing...${suffix}`);
   }
 
   logTasks(tasks: TaskItem[]): void {
-    console.log(redactSecrets(chalk.green(`${PREFIX} \u2705 ${tasks.length} task(s) detected`)));
+    this.logger.info(`${PREFIX} ✓ ${tasks.length} task(s) detected`);
     for (const task of tasks) {
-      console.log(redactSecrets(chalk.dim(`  \u2192 ${task.description} (Lane ${task.lane})`)));
+      this.logger.info(`  → ${task.description} (Lane ${task.lane})`);
     }
   }
 
   logTaskStarted(task: TaskItem): void {
-    console.log(
-      redactSecrets(chalk.cyan(`${PREFIX} \u26A1 Executing: ${task.description} (Lane ${task.lane})`)),
-    );
+    this.logger.info(`${PREFIX} ⚡ Executing: ${task.description} (Lane ${task.lane})`);
   }
 
   logTaskCompleted(task: TaskItem): void {
-    console.log(
-      redactSecrets(chalk.green(`${PREFIX} \u2705 Done: ${task.description} \u2014 ${task.commitHash ?? 'no hash'}`)),
-    );
+    this.logger.info(`${PREFIX} ✓ Done: ${task.description} — ${task.commitHash ?? 'no hash'}`);
   }
 
   logTaskFailed(task: TaskItem): void {
-    console.log(
-      redactSecrets(chalk.red(`${PREFIX} \u274C Failed: ${task.description} \u2014 ${task.error ?? 'unknown error'}`)),
-    );
+    this.logger.error(`${PREFIX} ✗ Failed: ${task.description} — ${task.error ?? 'unknown error'}`);
   }
 
   logFileChanged(filePath: string): void {
-    console.log(redactSecrets(chalk.dim(`${PREFIX} \u{1F4DD} Modified: ${filePath}`)));
+    this.logger.info(`${PREFIX} 📝 Modified: ${filePath}`);
   }
 }

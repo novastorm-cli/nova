@@ -63,9 +63,9 @@ export default tseslint.config(
     },
   },
 
-  // Allow console.log in CLI banner and entry point
+  // Allow console.log in CLI banner, entry point, and chat
   {
-    files: ['packages/cli/src/banner.ts', 'packages/cli/src/index.ts'],
+    files: ['packages/cli/src/banner.ts', 'packages/cli/src/index.ts', 'packages/cli/src/chat.ts'],
     rules: {
       'no-console': 'off',
     },

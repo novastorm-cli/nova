@@ -1,5 +1,7 @@
 import type { LlmClient, Message } from '../models/types.js';
 import type { EventBus } from '../models/events.js';
+import type { ILogger } from '../contracts/ILogger.js';
+import { StructuredLogger } from '../logging/StructuredLogger.js';
 import type { FileBlock } from './fileBlocks.js';
 import { parseFileBlocks } from './fileBlocks.js';
 import { streamWithEvents } from '../llm/streamWithEvents.js';
@@ -32,11 +34,16 @@ RULES:
 - Output ONLY file blocks, no explanations.`;
 
 export class CodeFixer {
+  private readonly logger: ILogger;
+
   constructor(
     private readonly llmClient: LlmClient,
     private readonly eventBus?: EventBus,
     private readonly modelName?: string,
-  ) {}
+    logger?: ILogger,
+  ) {
+    this.logger = logger ?? new StructuredLogger({ isTTY: false });
+  }
 
   async fixErrors(
     files: FileBlock[],
@@ -49,9 +56,9 @@ export class CodeFixer {
       { role: 'user', content: combined },
     ];
 
-    console.log(`[Nova] Fixer: sending ${errors.length} error(s) to LLM for fixing...`);
+    this.logger.info(`Fixer: sending ${errors.length} error(s) to LLM for fixing...`);
     for (const err of errors.slice(0, 5)) {
-      console.log(`[Nova]   Fix: ${err.file}${err.line ? ':' + err.line : ''} — ${err.message.slice(0, 100)}`);
+      this.logger.debug(`  Fix: ${err.file}${err.line ? ':' + err.line : ''} — ${err.message.slice(0, 100)}`);
     }
 
     const response = await streamWithEvents(
@@ -61,12 +68,12 @@ export class CodeFixer {
       this.eventBus,
     );
 
-    console.log(`[Nova] Fixer: LLM responded (${response.length} chars)`);
+    this.logger.debug(`Fixer: LLM responded (${response.length} chars)`);
 
     const fixedBlocks = parseFileBlocks(response);
-    console.log(`[Nova] Fixer: ${fixedBlocks.length} file(s) fixed`);
+    this.logger.info(`Fixer: ${fixedBlocks.length} file(s) fixed`);
     for (const block of fixedBlocks) {
-      console.log(`[Nova]   ~ ${block.path}`);
+      this.logger.debug(`  ~ ${block.path}`);
     }
 
     // Merge: for files returned by LLM, use fixed content. For others, keep original.

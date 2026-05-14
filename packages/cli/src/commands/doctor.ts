@@ -4,8 +4,10 @@ import * as net from 'node:net';
 import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 import { ConfigReader } from '../config.js';
-import { ProviderFactory } from '@novastorm-ai/core';
+import { ProviderFactory, StructuredLogger } from '@novastorm-ai/core';
 import type { NovaConfig } from '@novastorm-ai/core';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -350,10 +352,10 @@ export async function doctorCommand(opts: DoctorOptions = {}): Promise<void> {
   const output = await runDoctor(opts);
 
   if (opts.json) {
-    console.log(formatJsonOutput(output.checks));
+    logger.info(formatJsonOutput(output.checks));
   } else {
     const isTTY = process.stdout.isTTY === true;
-    console.log(formatTextOutput(output.checks, isTTY));
+    logger.info(formatTextOutput(output.checks, isTTY));
   }
 
   // Exit code: non-zero if any FAIL

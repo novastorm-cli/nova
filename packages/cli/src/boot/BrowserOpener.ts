@@ -1,4 +1,5 @@
-import chalk from 'chalk';
+import type { ILogger } from '@novastorm-ai/core';
+import { StructuredLogger } from '@novastorm-ai/core';
 import open from 'open';
 
 /**
@@ -9,22 +10,22 @@ import open from 'open';
  */
 export async function openBrowser(
   url: string,
-  options: { noOpen?: boolean } = {},
+  options: { noOpen?: boolean; logger?: ILogger } = {},
 ): Promise<void> {
+  const logger = options.logger ?? new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
+
   if (options.noOpen) {
-    console.log(
-      chalk.dim(`Proxy ready at ${chalk.green(url)} (browser not opened: --no-open)`),
-    );
+    logger.debug(`Proxy ready at ${url} (browser not opened: --no-open)`);
     return;
   }
 
-  console.log(chalk.dim('Opening browser...'));
+  logger.debug('Opening browser...');
 
   try {
     // `open` honours $BROWSER, falls back to the OS default
     await open(url);
   } catch {
     // Best-effort — don't fail startup if the browser can't open
-    console.log(chalk.dim(`Could not open browser. Visit ${chalk.green(url)} manually.`));
+    logger.debug(`Could not open browser. Visit ${url} manually.`);
   }
 }

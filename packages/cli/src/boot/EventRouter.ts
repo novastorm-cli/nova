@@ -9,12 +9,15 @@ import {
   type TaskItem,
   type NovaConfig,
   EnvDetector,
+  StructuredLogger,
 } from '@novastorm-ai/core';
 import type { WebSocketServer, DevServerRunner } from '@novastorm-ai/proxy';
 import type { ErrorAutoFixer } from '../autofix.js';
 import type { NovaLogger } from '../logger.js';
 import type { StartOptions } from '../index.js';
 import { isNonInteractive } from './utils.js';
+
+const log = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 const MAX_TASK_CONCURRENCY = 3;
 
@@ -77,7 +80,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
     runWithConcurrency(taskFns, MAX_TASK_CONCURRENCY).catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(chalk.red(`Task batch error: ${message}`));
+      log.error(`Task batch error: ${message}`);
     });
   }
 
@@ -90,10 +93,8 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   // ── Handle observations: analyze → create tasks ───────────────────
   eventBus.on('observation', async (event) => {
     if (!brain) {
-      console.log(
-        chalk.yellow(
-          'Observation received but no AI configured. Run "nova setup" to add an API key.',
-        ),
+      log.warn(
+        'Observation received but no AI configured. Run "nova setup" to add an API key.',
       );
       return;
     }
@@ -105,20 +106,20 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
       // Detect revert/undo commands
       if (/\b(revert|верни|откати|undo|отмени последн|верни назад|откатить)\b/i.test(transcript)) {
-        console.log(chalk.cyan('[Nova] Detected revert request — using git revert'));
+        log.info('[Nova] Detected revert request — using git revert');
         wsServer.sendEvent({
           type: 'status',
           data: { message: 'Reverting last commit...' },
         });
         try {
-          const log = await gitManager.getLog();
-          if (log.length > 0) {
-            const lastCommit = log[0];
-            console.log(
-              chalk.cyan(`[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`),
+          const gitLog = await gitManager.getLog();
+          if (gitLog.length > 0) {
+            const lastCommit = gitLog[0];
+            log.info(
+              `[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`,
             );
             await gitManager.rollback(lastCommit.hash);
-            console.log(chalk.green(`[Nova] Reverted successfully!`));
+            log.info('[Nova] Reverted successfully!');
             wsServer.sendEvent({
               type: 'status',
               data: { message: `Reverted: ${lastCommit.message.slice(0, 80)}` },
@@ -127,7 +128,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
               wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
             }, 1500);
           } else {
-            console.log(chalk.yellow('[Nova] No commits to revert'));
+            log.warn('[Nova] No commits to revert');
             wsServer.sendEvent({
               type: 'status',
               data: { message: 'No commits to revert.' },
@@ -135,7 +136,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.log(chalk.red(`[Nova] Revert failed: ${msg}`));
+          log.error(`[Nova] Revert failed: ${msg}`);
           wsServer.sendEvent({
             type: 'status',
             data: { message: `Revert failed: ${msg}` },
@@ -160,7 +161,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       logger.logTasks(tasks);
 
       if (tasks.length === 0) {
-        console.log(chalk.dim('[Nova] No tasks produced — AI may have asked a question'));
+        log.debug('[Nova] No tasks produced — AI may have asked a question');
         return;
       }
 
@@ -178,7 +179,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
         isPreConfirmed;
 
       if (shouldAutoExecute) {
-        console.log(chalk.green(`Executing ${tasks.length} task(s)...`));
+        log.info(`Executing ${tasks.length} task(s)...`);
         wsServer.sendEvent({
           type: 'status',
           data: { message: `Executing ${tasks.length} task(s)...` },
@@ -189,7 +190,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
         deps.pendingTasks.push(...tasks);
         const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
         const pendingMessage = `Press Y to execute, N to discard — ${taskDescriptions}`;
-        console.log(chalk.yellow(`\n${pendingMessage}\n`));
+        log.warn(`\n${pendingMessage}\n`);
         wsServer.sendEvent({
           type: 'pending_tasks',
           data: {
@@ -209,7 +210,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(chalk.red(`Analysis error: ${message}`));
+      log.error(`Analysis error: ${message}`);
       wsServer.sendEvent({
         type: 'status',
         data: { message: `Analysis error: ${message}` },
@@ -220,7 +221,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   // ── Confirmation handlers ─────────────────────────────────────────
   wsServer.onConfirm(() => {
     if (deps.pendingTasks.length === 0) return;
-    console.log(chalk.green(`Confirmed ${deps.pendingTasks.length} task(s). Executing...`));
+    log.info(`Confirmed ${deps.pendingTasks.length} task(s). Executing...`);
     wsServer.sendEvent({
       type: 'status',
       data: { message: `Executing ${deps.pendingTasks.length} task(s)...` },
@@ -232,8 +233,8 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
   wsServer.onConfirmTasks(() => {
     if (deps.pendingTasks.length === 0) return;
-    console.log(
-      chalk.green(`Confirmed ${deps.pendingTasks.length} task(s) via overlay. Executing...`),
+    log.info(
+      `Confirmed ${deps.pendingTasks.length} task(s) via overlay. Executing...`,
     );
     wsServer.sendEvent({
       type: 'status',
@@ -246,14 +247,14 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
   wsServer.onCancel(() => {
     if (deps.pendingTasks.length === 0) return;
-    console.log(chalk.yellow(`Cancelled ${deps.pendingTasks.length} task(s).`));
+    log.warn(`Cancelled ${deps.pendingTasks.length} task(s).`);
     wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } });
     deps.pendingTasks.length = 0;
   });
 
   wsServer.onAppend(async (text: string) => {
     if (!brain || !deps.lastObservation.current) return;
-    console.log(chalk.cyan(`[Nova] Appending to request: "${text}"`));
+    log.info(`[Nova] Appending to request: "${text}"`);
 
     const originalTranscript = deps.lastObservation.current.transcript ?? '';
     const mergedTranscript = `${originalTranscript}. Additionally: ${text}`;
@@ -281,7 +282,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       deps.pendingTasks.push(...tasks);
       const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
       const pendingMessage = `Press Y to execute, N to discard — ${taskDescriptions}`;
-      console.log(chalk.yellow(`\n${pendingMessage}\n`));
+      log.warn(`\n${pendingMessage}\n`);
       wsServer.sendEvent({
         type: 'pending_tasks',
         data: {
@@ -297,7 +298,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       wsServer.sendEvent({ type: 'status', data: { message: 'Awaiting confirmation' } });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(chalk.red(`Analysis error: ${message}`));
+      log.error(`Analysis error: ${message}`);
       wsServer.sendEvent({ type: 'status', data: { message: `Analysis error: ${message}` } });
     }
   });
@@ -334,8 +335,8 @@ export function setupEventRouting(deps: EventRouterDeps): void {
           .slice(-5)
           .join('\n');
         if (errorLines.trim()) {
-          console.log(
-            chalk.yellow(`[Nova] Post-task health check: build errors detected, auto-fixing...`),
+          log.warn(
+            '[Nova] Post-task health check: build errors detected, auto-fixing...',
           );
           wsServer.sendEvent({
             type: 'status',
@@ -358,8 +359,8 @@ export function setupEventRouting(deps: EventRouterDeps): void {
           });
         });
         if (res.statusCode && res.statusCode >= 500) {
-          console.log(
-            chalk.yellow(`[Nova] Post-task health check: HTTP ${res.statusCode}, auto-fixing...`),
+          log.warn(
+            `[Nova] Post-task health check: HTTP ${res.statusCode}, auto-fixing...`,
           );
           wsServer.sendEvent({
             type: 'status',
@@ -402,8 +403,8 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
   // ── Secrets submission ────────────────────────────────────────────
   wsServer.onSecretsSubmit((secrets: Record<string, string>) => {
-    console.log(
-      chalk.cyan(`[Nova] Saving ${Object.keys(secrets).length} secret(s) to .env.local`),
+    log.info(
+      `[Nova] Saving ${Object.keys(secrets).length} secret(s) to .env.local`,
     );
     const envDetector = new EnvDetector();
     envDetector.writeEnvLocal(process.cwd(), secrets);
@@ -416,7 +417,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
   // ── Browser errors → autoFixer ────────────────────────────────────
   wsServer.onBrowserError((error: string) => {
-    console.log(chalk.yellow(`[Nova] Browser error: ${error.slice(0, 150)}`));
+    log.warn(`[Nova] Browser error: ${error.slice(0, 150)}`);
     autoFixer?.handleOutput(error);
   });
 }

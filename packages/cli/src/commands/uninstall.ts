@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process';
-import chalk from 'chalk';
+import { StructuredLogger } from '@novastorm-ai/core';
 import ora from 'ora';
 
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 const PKG_NAME = '@novastorm-ai/cli';
 
 function runCommand(cmd: string, args: string[]): Promise<{ ok: boolean; output: string }> {
@@ -28,11 +29,11 @@ export async function uninstallCommand(): Promise<void> {
 
   if (result.ok) {
     spinner.succeed('Novastorm CLI uninstalled.');
-    console.log(chalk.gray('\n  Thanks for trying Novastorm.'));
-    console.log(chalk.gray(`  Feedback? ${chalk.cyan('https://github.com/novastorm-cli/nova/issues')}`));
-    console.log(chalk.gray(`  Come back anytime: ${chalk.cyan(`npm install -g ${PKG_NAME}`)}\n`));
+    logger.info('\n  Thanks for trying Novastorm.');
+    logger.info(`  Feedback? ${'https://github.com/novastorm-cli/nova/issues'}`);
+    logger.info(`  Come back anytime: ${`npm install -g ${PKG_NAME}`}\n`);
   } else {
     spinner.fail('Uninstall failed. Try manually:');
-    console.log(chalk.cyan(`  npm uninstall -g ${PKG_NAME}`));
+    logger.info(`  npm uninstall -g ${PKG_NAME}`);
   }
 }

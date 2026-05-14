@@ -4,14 +4,16 @@ import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import { select, password, confirm } from '@inquirer/prompts';
 import TOML from '@iarna/toml';
-import chalk from 'chalk';
 import { ConfigReader } from './config.js';
 import {
   DEFAULT_CONFIG,
   ProviderFactory,
+  StructuredLogger,
   type NovaConfig,
 } from '@novastorm-ai/core';
 import { doctorCommand } from './commands/doctor.js';
+
+const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 const NOVA_DIR = '.nova';
 const LOCAL_CONFIG = 'config.toml';
@@ -190,9 +192,7 @@ export async function runSetup(
 
   // ── Non-interactive path ──────────────────────────────────────────
   if (nonInteractive) {
-    console.log(
-      chalk.dim('Non-interactive mode -- using default provider (ollama).'),
-    );
+    logger.debug('Non-interactive mode -- using default provider (ollama).');
     const provider: Provider = 'ollama';
 
     const novaDir = path.join(cwd, NOVA_DIR);
@@ -204,15 +204,13 @@ export async function runSetup(
       tomlStringify(buildLocalConfig(provider)),
       { encoding: 'utf-8', mode: 0o600 },
     );
-    console.log(chalk.dim(`Saved ${provider} config to ${localConfigPath}`));
+    logger.debug(`Saved ${provider} config to ${localConfigPath}`);
 
     const configReader = new ConfigReader();
     const exists = await configReader.exists(cwd);
     if (!exists) {
       await configReader.write(cwd, DEFAULT_CONFIG);
-      console.log(
-        chalk.dim(`Created ${path.join(cwd, 'nova.toml')} with default configuration.`),
-      );
+      logger.debug(`Created ${path.join(cwd, 'nova.toml')} with default configuration.`);
     }
 
     // Install-id + telemetry for non-interactive
@@ -220,18 +218,16 @@ export async function runSetup(
     // In non-interactive, don't prompt — just set telemetry to off
     await ensureTelemetryOff();
 
-    console.log(chalk.dim('\nSetup complete (non-interactive).'));
-    console.log(
-      chalk.dim("Next step: cd into a project and run 'nova'"),
-    );
+    logger.debug('\nSetup complete (non-interactive).');
+    logger.debug("Next step: cd into a project and run 'nova'");
 
-    console.log(chalk.dim('\nRunning diagnostics...'));
+    logger.debug('\nRunning diagnostics...');
     await doctorCommand({ cwd });
     return;
   }
 
   // ── Interactive path ──────────────────────────────────────────────
-  console.log('Welcome to Novastorm setup!\n');
+  logger.info('Welcome to Novastorm setup!\n');
 
   let provider: Provider;
   let apiKey: string | undefined;
@@ -256,7 +252,7 @@ export async function runSetup(
       ],
     });
 
-    console.log(`Selected provider: ${provider}`);
+    logger.info(`Selected provider: ${provider}`);
 
     // ── Step 2: Collect & validate API key (non-local only) ─────────
     if (NON_LOCAL_PROVIDERS.has(provider)) {
@@ -264,7 +260,7 @@ export async function runSetup(
     }
   } catch {
     // User pressed Ctrl+C during prompts
-    console.log('\nSetup cancelled.');
+    logger.info('\nSetup cancelled.');
     return;
   }
 
@@ -278,16 +274,14 @@ export async function runSetup(
     tomlStringify(buildLocalConfig(provider, apiKey)),
     { encoding: 'utf-8', mode: 0o600 },
   );
-  console.log(`\nSaved provider config to ${localConfigPath}`);
+  logger.info(`\nSaved provider config to ${localConfigPath}`);
 
   // Create nova.toml if it doesn't exist
   const configReader = new ConfigReader();
   const exists = await configReader.exists(cwd);
   if (!exists) {
     await configReader.write(cwd, DEFAULT_CONFIG);
-    console.log(
-      `Created ${path.join(cwd, 'nova.toml')} with default configuration.`,
-    );
+    logger.info(`Created ${path.join(cwd, 'nova.toml')} with default configuration.`);
   }
 
   // ── Step 4: Install ID + Telemetry ────────────────────────────────
@@ -295,13 +289,11 @@ export async function runSetup(
   await promptTelemetry();
 
   // ── Step 5: Done ──────────────────────────────────────────────────
-  console.log(chalk.green('\nSetup complete!'));
-  console.log(
-    chalk.dim("\nNext step: cd into a project and run 'nova'"),
-  );
+  logger.info('\nSetup complete!');
+  logger.debug("\nNext step: cd into a project and run 'nova'");
 
   // Auto-run doctor for immediate feedback
-  console.log(chalk.dim('\nRunning diagnostics...'));
+  logger.debug('\nRunning diagnostics...');
   await doctorCommand({ cwd });
 }
 
@@ -322,29 +314,25 @@ async function collectAndValidateKey(provider: Provider): Promise<string | undef
 
     // Empty key — reject
     if (!key || key.trim().length === 0) {
-      console.log(
-        chalk.yellow(
-          `An API key is required for ${provider}. Please enter a valid key or cancel (Ctrl+C).`,
-        ),
+      logger.warn(
+        `An API key is required for ${provider}. Please enter a valid key or cancel (Ctrl+C).`,
       );
       continue;
     }
 
     // Validate
-    console.log(chalk.dim('Validating API key...'));
+    logger.debug('Validating API key...');
     const valid = await validateApiKey(provider, key.trim());
 
     if (valid) {
-      console.log(chalk.green('  Provider verified'));
+      logger.info('  Provider verified');
       return key.trim();
     }
 
     // Invalid — show remedy and offer retry/skip
-    console.log(chalk.red(`  Invalid API key for ${provider}.`));
+    logger.error(`  Invalid API key for ${provider}.`);
     if (remedyUrl) {
-      console.log(
-        chalk.dim(`  Get a valid key at: ${remedyUrl}`),
-      );
+      logger.debug(`  Get a valid key at: ${remedyUrl}`);
     }
 
     const retry = await confirm({
@@ -353,10 +341,8 @@ async function collectAndValidateKey(provider: Provider): Promise<string | undef
     });
 
     if (!retry) {
-      console.log(
-        chalk.yellow(
-          `  Skipping key validation for ${provider}. You can set the key later in .nova/config.toml`,
-        ),
+      logger.warn(
+        `  Skipping key validation for ${provider}. You can set the key later in .nova/config.toml`,
       );
       return undefined;
     }
