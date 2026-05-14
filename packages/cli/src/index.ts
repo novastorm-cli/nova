@@ -2,23 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
-import { startCommand } from './commands/start.js';
-import { initCommand } from './commands/init.js';
-import { statusCommand } from './commands/status.js';
-import { licenseCommand } from './commands/license.js';
 import { DEPRECATION } from './strings.js';
-import { entityCommand } from './commands/entity.js';
-import { bibleCommand } from './commands/bible.js';
-import { updateCommand, checkForUpdates } from './commands/update.js';
-import { uninstallCommand } from './commands/uninstall.js';
-import { doctorCommand } from './commands/doctor.js';
-import { runSetup } from './setup.js';
-
-export { ConfigReader } from './config.js';
-export { NovaLogger } from './logger.js';
-export { runSetup } from './setup.js';
-export { promptAndScaffold } from './scaffold.js';
-export { ErrorAutoFixer } from './autofix.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8')) as {
@@ -65,6 +49,28 @@ export function createCli(): Command {
         process.env['NOVA_TELEMETRY'] = 'false';
       }
 
+      // ── Banner (lazy — only loaded for the start command) ──────────
+      const novaQuiet = process.env['NOVA_QUIET'] === '1';
+      const stdoutIsTTY = process.stdout.isTTY === true;
+      const suppressBanner = novaQuiet || !stdoutIsTTY;
+
+      if (!suppressBanner) {
+        const { BANNER } = await import('./banner.js');
+        console.log(BANNER);
+        const isLocal = !import.meta.url.includes('node_modules');
+        if (isLocal) {
+          console.log('\x1b[43m\x1b[30m  LOCAL BUILD  \x1b[0m');
+        }
+        console.log(`\x1b[90m  v${pkg.version}\x1b[0m\n`);
+        // Non-blocking update check (fire-and-forget)
+        if (!isLocal) {
+          import('./commands/update.js')
+            .then(({ checkForUpdates }) => checkForUpdates(pkg.version))
+            .catch(() => {});
+        }
+      }
+
+      const { startCommand } = await import('./commands/start.js');
       await startCommand({
         noOpen: opts.open === false,
         yes: opts.yes === true,
@@ -79,6 +85,7 @@ export function createCli(): Command {
     .command('init')
     .description('Initialize nova.toml with default configuration')
     .action(async () => {
+      const { initCommand } = await import('./commands/init.js');
       await initCommand();
     });
 
@@ -148,6 +155,7 @@ export function createCli(): Command {
         console.log(`Saved ${opts.provider} config to .nova/config.toml`);
         return;
       }
+      const { runSetup } = await import('./setup.js');
       await runSetup(undefined, { nonInteractive: rootOpts.yes === true });
     });
 
@@ -155,6 +163,7 @@ export function createCli(): Command {
     .command('status')
     .description('Show project status: stack, index, pending tasks')
     .action(async () => {
+      const { statusCommand } = await import('./commands/status.js');
       await statusCommand();
     });
 
@@ -162,6 +171,7 @@ export function createCli(): Command {
     .command('license [subcommand] [key]')
     .description('Manage license: nova license [status|activate <key>]')
     .action(async (subcommand?: string, key?: string) => {
+      const { licenseCommand } = await import('./commands/license.js');
       await licenseCommand(subcommand, key);
     });
 
@@ -169,6 +179,7 @@ export function createCli(): Command {
     .command('entity [subcommand] [name]')
     .description('Manage manifest entities: nova entity <add|list|remove> [name]')
     .action(async (subcommand?: string, name?: string) => {
+      const { entityCommand } = await import('./commands/entity.js');
       await entityCommand(subcommand, name);
     });
 
@@ -176,6 +187,7 @@ export function createCli(): Command {
     .command('bible [subcommand]')
     .description('Read the Ambient Development manifesto: nova bible [--read]')
     .action(async (subcommand?: string) => {
+      const { bibleCommand } = await import('./commands/bible.js');
       await bibleCommand(subcommand);
     });
 
@@ -183,6 +195,7 @@ export function createCli(): Command {
     .command('update')
     .description('Update Novastorm CLI to the latest version')
     .action(async () => {
+      const { updateCommand } = await import('./commands/update.js');
       await updateCommand();
     });
 
@@ -190,6 +203,7 @@ export function createCli(): Command {
     .command('uninstall')
     .description('Uninstall Novastorm CLI from your system')
     .action(async () => {
+      const { uninstallCommand } = await import('./commands/uninstall.js');
       await uninstallCommand();
     });
 
@@ -198,24 +212,12 @@ export function createCli(): Command {
     .description('Run system diagnostics to check your Nova setup')
     .option('--json', 'Output results as JSON')
     .action(async (opts: { json?: boolean }) => {
+      const { doctorCommand } = await import('./commands/doctor.js');
       await doctorCommand({ json: opts.json === true });
     });
 
   return program;
 }
-
-const BANNER = `\x1b[96m
-███╗   ██╗ ██████╗ ██╗   ██╗ █████╗ ███████╗████████╗ ██████╗ ██████╗ ███╗   ███╗
-████╗  ██║██╔═══██╗██║   ██║██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗████╗ ████║
-██╔██╗ ██║██║   ██║██║   ██║███████║███████╗   ██║   ██║   ██║██████╔╝██╔████╔██║
-██║╚██╗██║██║   ██║╚██╗ ██╔╝██╔══██║╚════██║   ██║   ██║   ██║██╔══██╗██║╚██╔╝██║
-██║ ╚████║╚██████╔╝ ╚████╔╝ ██║  ██║███████║   ██║   ╚██████╔╝██║  ██║██║ ╚═╝ ██║
-╚═╝  ╚═══╝ ╚═════╝   ╚═══╝  ╚═╝  ╚═╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝
-╔═══════════════════════════════════════════════════════════════════════════════════╗
-║           A M B I E N T   D E V E L O P M E N T   T O O L                      ║
-╚═══════════════════════════════════════════════════════════════════════════════════╝
-\x1b[0m\x1b[90m  https://cli.novastorm.ai\x1b[0m
-`;
 
 export async function run(argv: string[] = process.argv): Promise<void> {
   // Handle NOVA_NON_INTERACTIVE env var — inject --yes into argv before commander sees it
@@ -235,59 +237,15 @@ export async function run(argv: string[] = process.argv): Promise<void> {
     review: DEPRECATION.removedCommands.review,
   } as const;
 
-  const removedSubcommand = args.find(
-    (a) => !a.startsWith('-') && a in removedCommands,
-  ) as keyof typeof removedCommands | undefined;
+  const removedSubcommand = args.find((a) => !a.startsWith('-') && a in removedCommands) as
+    | keyof typeof removedCommands
+    | undefined;
 
   if (removedSubcommand) {
     console.error(removedCommands[removedSubcommand]);
     process.exit(2);
   }
 
-  // Determine whether to suppress the banner.
-  // Banner is shown ONLY when ALL of these are true:
-  //   1. NOVA_QUIET is not set (or is not '1')
-  //   2. stdout is a TTY
-  //   3. The subcommand IS "start" (or no explicit subcommand = default start)
-  //   4. Not --version, --help, -V, -h
-  const novaQuiet = process.env['NOVA_QUIET'] === '1';
-  const stdoutIsTTY = process.stdout.isTTY === true;
-
-  // Determine the subcommand: first non-flag arg that is a known command
-  const knownCommands = [
-    'start',
-    'init',
-    'setup',
-    'status',
-    'license',
-    'entity',
-    'bible',
-    'update',
-    'uninstall',
-    'doctor',
-  ];
-  const subcommand = args.find((a) => !a.startsWith('-') && knownCommands.includes(a));
-  const isStartOrDefault = !subcommand || subcommand === 'start';
-  const isFlagOnly =
-    args.includes('--version') ||
-    args.includes('-V') ||
-    args.includes('--help') ||
-    args.includes('-h');
-
-  const suppressBanner = novaQuiet || !stdoutIsTTY || !isStartOrDefault || isFlagOnly;
-
-  if (!suppressBanner) {
-    console.log(BANNER);
-    const isLocal = !import.meta.url.includes('node_modules');
-    if (isLocal) {
-      console.log('\x1b[43m\x1b[30m  LOCAL BUILD  \x1b[0m');
-    }
-    console.log(`\x1b[90m  v${pkg.version}\x1b[0m\n`);
-    // Non-blocking update check (fire-and-forget)
-    if (!isLocal) {
-      checkForUpdates(pkg.version).catch(() => {});
-    }
-  }
   const program = createCli();
   await program.parseAsync(argv);
 }

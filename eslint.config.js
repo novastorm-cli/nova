@@ -77,6 +77,7 @@ export default tseslint.config(
       'packages/overlay/src/ui/strings.ts',
       'packages/cli/src/strings.ts',
       'packages/cli/src/index.ts',
+      'packages/cli/src/banner.ts',
     ],
     rules: {
       'nova/no-non-ascii-literals': 'off',
