@@ -1,4 +1,4 @@
-import type { LlmClient } from '../models/types.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
 import type { IProviderFactory } from '../contracts/ILlmClient.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 import { AnthropicProvider } from './AnthropicProvider.js';

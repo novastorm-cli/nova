@@ -1,18 +1,8 @@
-import type { LlmClient, LlmOptions, Message } from '../models/types.js';
+import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 
 /**
- * Factory that creates an LlmClient for the given provider.
+ * Canonical interface for LLM providers.
  *
- * Supported providers: 'anthropic', 'openrouter', 'openai', 'ollama'
- *
- * @throws {ProviderError} if provider is unknown
- * @throws {ProviderError} if apiKey is missing for non-ollama providers
- */
-export interface IProviderFactory {
-  create(provider: string, apiKey?: string): LlmClient;
-}
-
-/**
  * Each provider implements LlmClient:
  *
  * chat():
@@ -34,6 +24,27 @@ export interface IProviderFactory {
  * - Throws ProviderError on same conditions as chat()
  * - Consumer can break out of the loop to cancel the stream
  */
+export interface LlmClient {
+  chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse>;
+  chatWithVision(
+    messages: Message[],
+    images: Buffer[],
+    options?: LlmOptions,
+  ): Promise<ChatResponse>;
+  stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk>;
+}
+
+/**
+ * Factory that creates an LlmClient for the given provider.
+ *
+ * Supported providers: 'anthropic', 'openrouter', 'openai', 'ollama'
+ *
+ * @throws {ProviderError} if provider is unknown
+ * @throws {ProviderError} if apiKey is missing for non-ollama providers
+ */
+export interface IProviderFactory {
+  create(provider: string, apiKey?: string): LlmClient;
+}
 
 export class ProviderError extends Error {
   constructor(

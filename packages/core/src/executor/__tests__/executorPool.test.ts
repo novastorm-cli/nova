@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { TaskItem, ProjectMap, StackInfo, ExecutionResult } from '../../models/types.js';
 import type { ILane1Executor, ILane2Executor } from '../../contracts/IExecutor.js';
-import type { NovaEvent, EventBus } from '../../models/events.js';
+import type { NovaEvent } from '../../models/events.js';
+import type { EventBus } from '../../contracts/IEventBus.js';
 
 const { ExecutorPool } = await import('../ExecutorPool.js');
 const { RetryPolicy } = await import('../RetryPolicy.js');

@@ -1,5 +1,6 @@
-import type { LlmClient, Message } from '../models/types.js';
-import type { EventBus } from '../models/events.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
+import type { Message } from '../models/types.js';
+import type { EventBus } from '../contracts/IEventBus.js';
 import type { ILogger } from '../contracts/ILogger.js';
 import { StructuredLogger } from '../logging/StructuredLogger.js';
 import type { FileBlock } from './fileBlocks.js';

@@ -3,7 +3,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { PassiveEngine } from '../PassiveEngine.js';
-import type { EventBus, NovaEvent, NovaEventType } from '../../models/events.js';
+import type { EventBus } from '../../contracts/IEventBus.js';
+import type { NovaEvent, NovaEventType } from '../../models/events.js';
 
 function createMockEventBus(): EventBus & {
   handlers: Map<string, Set<(event: NovaEvent) => void>>;

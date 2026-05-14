@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { LlmClient, Observation, ProjectMap, Message, TaskItem } from '../../models/types.js';
+import type { LlmClient } from '../../contracts/ILlmClient.js';
+import type { Observation, ProjectMap, Message, TaskItem } from '../../models/types.js';
 import { BrainError } from '../../contracts/IBrain.js';
 
 // ── Mock LlmClient ────────────────────────────────────────────

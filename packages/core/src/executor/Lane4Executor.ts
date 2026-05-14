@@ -1,9 +1,10 @@
-import type { TaskItem, ProjectMap, ExecutionResult, LlmClient } from '../models/types.js';
+import type { TaskItem, ProjectMap, ExecutionResult } from '../models/types.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
 import type { IGitManager } from '../contracts/IGitManager.js';
 import type { IPathGuard } from '../contracts/IPathGuard.js';
 import type { IAgentPromptLoader } from '../contracts/IStorage.js';
 import type { ILogger } from '../contracts/ILogger.js';
-import type { EventBus } from '../models/events.js';
+import type { EventBus } from '../contracts/IEventBus.js';
 import { Lane3Executor } from './Lane3Executor.js';
 import { BackgroundQueue } from './BackgroundQueue.js';
 

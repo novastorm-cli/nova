@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { EventBus, NovaEvent } from '../models/events.js';
+import type { EventBus } from '../contracts/IEventBus.js';
+import type { NovaEvent } from '../models/events.js';
 import type { IHistoryStore } from '../contracts/IStorage.js';
 import type { HistoryEntry, TaskItem } from '../models/types.js';
 

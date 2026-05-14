@@ -1,5 +1,6 @@
-import type { LlmClient, LlmOptions, Message } from '../models/types.js';
-import type { EventBus } from '../models/events.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
+import type { LlmOptions, Message } from '../models/types.js';
+import type { EventBus } from '../contracts/IEventBus.js';
 
 /**
  * Calls llmClient.stream() and emits llm_chunk events as text arrives.

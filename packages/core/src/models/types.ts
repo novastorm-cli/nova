@@ -168,16 +168,6 @@ export interface LlmOptions {
   responseFormat?: 'text' | 'json';
 }
 
-export interface LlmClient {
-  chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse>;
-  chatWithVision(
-    messages: Message[],
-    images: Buffer[],
-    options?: LlmOptions,
-  ): Promise<ChatResponse>;
-  stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk>;
-}
-
 /** Normalized response from a provider chat call. */
 export interface ChatResponse {
   content: string;

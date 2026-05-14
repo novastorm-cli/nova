@@ -8,8 +8,8 @@ import type {
   StackInfo,
   MiniContext,
   ExecutionResult,
-  LlmClient,
 } from '../../models/types.js';
+import type { LlmClient } from '../../contracts/ILlmClient.js';
 import type { IGitManager } from '../../contracts/IGitManager.js';
 import type { ILane2Executor } from '../../contracts/IExecutor.js';
 

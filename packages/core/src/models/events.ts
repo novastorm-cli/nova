@@ -46,15 +46,3 @@ export type NovaEvent =
   | { type: 'fsm_transition'; task_id: string; prev: string; next: string; ts: number };
 
 export type NovaEventType = NovaEvent['type'];
-
-export interface EventBus {
-  emit(event: NovaEvent): void;
-  on<T extends NovaEventType>(
-    type: T,
-    handler: (event: Extract<NovaEvent, { type: T }>) => void,
-  ): void;
-  off<T extends NovaEventType>(
-    type: T,
-    handler: (event: Extract<NovaEvent, { type: T }>) => void,
-  ): void;
-}

@@ -4,13 +4,15 @@ import type { ILogger } from '../contracts/ILogger.js';
 import { StructuredLogger } from '../logging/StructuredLogger.js';
 import type {
   LlmClient,
+} from '../contracts/ILlmClient.js';
+import type {
   Observation,
   ProjectMap,
   TaskItem,
   Lane,
   TaskType,
 } from '../models/types.js';
-import type { EventBus } from '../models/events.js';
+import type { EventBus } from '../contracts/IEventBus.js';
 import { LaneClassifier } from './LaneClassifier.js';
 import { PromptBuilder } from './PromptBuilder.js';
 

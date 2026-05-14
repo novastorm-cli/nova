@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
+import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 
 const TIMEOUT_MS = 300_000; // 5 minutes

@@ -1,4 +1,4 @@
-import type { EventBus } from '../models/events.js';
+import type { EventBus } from '../contracts/IEventBus.js';
 import { BehaviorTracker } from './BehaviorTracker.js';
 import { PatternDetector } from './PatternDetector.js';
 import { SuggestionGenerator } from './SuggestionGenerator.js';

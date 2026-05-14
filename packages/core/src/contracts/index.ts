@@ -1,5 +1,6 @@
 export * from './IConfigReader.js';
 export * from './ILlmClient.js';
+export * from './IEventBus.js';
 export * from './IGitManager.js';
 export * from './IStorage.js';
 export * from './IIndexer.js';

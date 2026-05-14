@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { EventBus, NovaEvent } from '../../models/events.js';
+import type { EventBus } from '../../contracts/IEventBus.js';
+import type { NovaEvent } from '../../models/events.js';
 import { ExecutorFSM, ExecutorState } from '../ExecutorFSM.js';
 
 function createMockEventBus(): { bus: EventBus; events: NovaEvent[] } {

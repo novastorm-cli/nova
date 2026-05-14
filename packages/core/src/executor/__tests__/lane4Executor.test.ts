@@ -7,10 +7,10 @@ import type {
   ProjectMap,
   StackInfo,
   ExecutionResult,
-  LlmClient,
 } from '../../models/types.js';
+import type { LlmClient } from '../../contracts/ILlmClient.js';
 import type { IGitManager } from '../../contracts/IGitManager.js';
-import type { EventBus } from '../../models/events.js';
+import type { EventBus } from '../../contracts/IEventBus.js';
 
 const { Lane4Executor } = await import('../Lane4Executor.js');
 const { BackgroundQueue } = await import('../BackgroundQueue.js');

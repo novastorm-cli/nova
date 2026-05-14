@@ -1,4 +1,5 @@
-import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
+import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { executeWithRetry, streamWithRetry } from './retry.js';
 
 /**

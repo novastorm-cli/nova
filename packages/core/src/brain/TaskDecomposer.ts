@@ -1,6 +1,7 @@
 import type { ITaskDecomposer } from '../contracts/IBrain.js';
 import { BrainError } from '../contracts/IBrain.js';
-import type { LlmClient, ProjectMap, TaskItem, Lane, TaskType } from '../models/types.js';
+import type { LlmClient } from '../contracts/ILlmClient.js';
+import type { ProjectMap, TaskItem, Lane, TaskType } from '../models/types.js';
 import { LaneClassifier } from './LaneClassifier.js';
 import { PromptBuilder } from './PromptBuilder.js';
 

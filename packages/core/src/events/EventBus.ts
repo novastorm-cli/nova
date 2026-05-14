@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
-import type { EventBus, NovaEvent, NovaEventType } from '../models/events.js';
+import type { EventBus } from '../contracts/IEventBus.js';
+import type { NovaEvent, NovaEventType } from '../models/events.js';
 
 export class NovaEventBus implements EventBus {
   private emitter = new EventEmitter();

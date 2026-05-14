@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { CodeFixer, type FixableError, type ProjectContext } from '../CodeFixer.js';
 import type { FileBlock } from '../fileBlocks.js';
-import type { LlmClient, Message, LlmOptions } from '../../models/types.js';
+import type { LlmClient } from '../../contracts/ILlmClient.js';
+import type { Message, LlmOptions } from '../../models/types.js';
 
 /**
  * Creates a mock LlmClient that captures the prompt messages and returns a predefined response.

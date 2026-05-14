@@ -1,4 +1,4 @@
-import type { EventBus } from '../models/events.js';
+import type { EventBus } from '../contracts/IEventBus.js';
 import type { ILogger } from '../contracts/ILogger.js';
 
 /**
