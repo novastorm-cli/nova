@@ -1,5 +1,6 @@
 import type { IGitManager } from '../contracts/IGitManager.js';
 import { GitError } from '../contracts/IGitManager.js';
+import type { EventBus } from '../contracts/IEventBus.js';
 import type { ILogger } from '../contracts/ILogger.js';
 import { StructuredLogger } from '../logging/StructuredLogger.js';
 
@@ -22,13 +23,18 @@ export interface CommitQueueOptions {
 export class CommitQueue {
   private queue: Promise<string> = Promise.resolve('');
   private readonly logger: ILogger;
+  private readonly eventBus?: EventBus;
+  /** Tracks the taskId of the most recently enqueued commit for error attribution. */
+  private lastTaskId?: string;
 
   constructor(
     private readonly gitManager: IGitManager,
     private readonly options: CommitQueueOptions = {},
     logger?: ILogger,
+    eventBus?: EventBus,
   ) {
     this.logger = logger ?? new StructuredLogger({ isTTY: false });
+    this.eventBus = eventBus;
   }
 
   /**
@@ -37,14 +43,25 @@ export class CommitQueue {
    *
    * @param message - commit message
    * @param files - relative file paths to stage (passed to gitManager.commit)
+   * @param taskId - optional task identifier for error event attribution
    * @returns the commit hash from gitManager.commit
    * @throws {GitError} if the current branch is protected and allowProtectedBranchCommits is not true
    */
-  enqueue(message: string, files: string[]): Promise<string> {
+  enqueue(message: string, files: string[], taskId?: string): Promise<string> {
+    const prevTaskId = this.lastTaskId;
+    this.lastTaskId = taskId;
+
     this.queue = this.queue.then(
       () => this.guardedCommit(message, files),
       (err) => {
-        this.logger.warn(`Previous commit failed: ${err instanceof Error ? err.message : err}`);
+        const reason = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Previous commit failed: ${reason}`);
+        if (this.eventBus && prevTaskId) {
+          this.eventBus.emit({
+            type: 'task_failed',
+            data: { taskId: prevTaskId, error: reason },
+          });
+        }
         return this.guardedCommit(message, files);
       },
     );
