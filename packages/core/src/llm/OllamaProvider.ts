@@ -1,18 +1,11 @@
-import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
+import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
+import { BaseProvider } from './BaseProvider.js';
 
 const DEFAULT_MODEL = 'llama3';
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TEMPERATURE = 0;
-const RETRY_DELAY_MS = 1000;
 const OLLAMA_BASE_URL = 'http://localhost:11434';
-
-function findLastIndex<T>(arr: T[], predicate: (item: T) => boolean): number {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i])) return i;
-  }
-  return -1;
-}
 
 interface OllamaMessage {
   role: string;
@@ -45,57 +38,69 @@ interface OllamaStreamChunk {
   done: boolean;
 }
 
-function handleHttpError(status: number, body: string): never {
-  throw new ProviderError(`Ollama API error (${status}): ${body}`, status, 'ollama');
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export class OllamaProvider implements LlmClient {
+export class OllamaProvider extends BaseProvider {
+  protected readonly providerName = 'ollama';
   private readonly baseUrl: string;
 
   constructor(baseUrl = OLLAMA_BASE_URL) {
+    super();
     this.baseUrl = baseUrl;
   }
 
-  async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
-    const request = this.buildRequest(messages, options, false);
+  // ── formatRequest ──────────────────────────────────────────
 
-    const content = await this.executeWithRetry(async () => {
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      });
-
-      if (!response.ok) {
-        handleHttpError(response.status, await response.text());
-      }
-
-      const data = (await response.json()) as OllamaChatResponse;
-      return data.message.content;
-    });
-
-    return { content };
+  protected formatRequest(messages: Message[], options?: LlmOptions): OllamaChatRequest {
+    const jsonMode = options?.responseFormat === 'json';
+    return {
+      model: options?.model ?? DEFAULT_MODEL,
+      messages: this.toOllamaMessages(messages, jsonMode),
+      stream: false,
+      options: {
+        num_predict: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+        temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
+      },
+      ...(jsonMode ? { format: 'json' } : {}),
+    };
   }
 
-  async chatWithVision(
+  // ── formatStreamRequest ────────────────────────────────────
+
+  protected formatStreamRequest(messages: Message[], options?: LlmOptions): OllamaChatRequest {
+    const jsonMode = options?.responseFormat === 'json';
+    return {
+      model: options?.model ?? DEFAULT_MODEL,
+      messages: this.toOllamaMessages(messages, jsonMode),
+      stream: true,
+      options: {
+        num_predict: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+        temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
+      },
+      ...(jsonMode ? { format: 'json' } : {}),
+    };
+  }
+
+  // ── formatVisionRequest ────────────────────────────────────
+
+  protected formatVisionRequest(
     messages: Message[],
     images: Buffer[],
     options?: LlmOptions,
-  ): Promise<ChatResponse> {
-    const ollamaMessages = this.toOllamaMessages(messages, options?.responseFormat === 'json');
+  ): OllamaChatRequest {
+    const jsonMode = options?.responseFormat === 'json';
+    const ollamaMessages = this.toOllamaMessages(messages, jsonMode);
 
-    const lastUserIdx = findLastIndex(ollamaMessages, (m) => m.role === 'user');
+    const lastUserIdx = this.findLastUserIndex(messages);
     if (lastUserIdx === -1) {
-      throw new ProviderError('No user message found for vision request', undefined, 'ollama');
+      throw new ProviderError(
+        'No user message found for vision request',
+        undefined,
+        this.providerName,
+      );
     }
 
     ollamaMessages[lastUserIdx].images = images.map((img) => img.toString('base64'));
 
-    const request: OllamaChatRequest = {
+    return {
       model: options?.model ?? DEFAULT_MODEL,
       messages: ollamaMessages,
       stream: false,
@@ -103,118 +108,13 @@ export class OllamaProvider implements LlmClient {
         num_predict: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
         temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
       },
-      ...(options?.responseFormat === 'json' ? { format: 'json' } : {}),
-    };
-
-    const content = await this.executeWithRetry(async () => {
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-      });
-
-      if (!response.ok) {
-        handleHttpError(response.status, await response.text());
-      }
-
-      const data = (await response.json()) as OllamaChatResponse;
-      return data.message.content;
-    });
-
-    return { content };
-  }
-
-  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk> {
-    const request = this.buildRequest(messages, options, true);
-
-    yield* this.executeStreamWithRetry(request);
-  }
-
-  private buildRequest(
-    messages: Message[],
-    options: LlmOptions | undefined,
-    stream: boolean,
-  ): OllamaChatRequest {
-    return {
-      model: options?.model ?? DEFAULT_MODEL,
-      messages: this.toOllamaMessages(messages, options?.responseFormat === 'json'),
-      stream,
-      options: {
-        num_predict: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-        temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
-      },
-      ...(options?.responseFormat === 'json' ? { format: 'json' } : {}),
+      ...(jsonMode ? { format: 'json' } : {}),
     };
   }
 
-  private toOllamaMessages(messages: Message[], jsonMode: boolean): OllamaMessage[] {
-    return messages.map((m) => ({
-      role: m.role,
-      content:
-        jsonMode && m.role === 'user' ? `${m.content}\n\nRespond with valid JSON only.` : m.content,
-    }));
-  }
+  // ── doChat / doStream ──────────────────────────────────────
 
-  private async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (err) {
-      if (err instanceof ProviderError) {
-        if (err.statusCode === 401) throw err;
-        if (err.statusCode === 429) {
-          await delay(RETRY_DELAY_MS);
-          try {
-            return await fn();
-          } catch (retryErr) {
-            if (retryErr instanceof ProviderError) throw retryErr;
-            throw new ProviderError(
-              retryErr instanceof Error ? retryErr.message : String(retryErr),
-              undefined,
-              'ollama',
-            );
-          }
-        }
-        throw err;
-      }
-      throw new ProviderError(
-        err instanceof Error ? err.message : String(err),
-        undefined,
-        'ollama',
-      );
-    }
-  }
-
-  private async *executeStreamWithRetry(request: OllamaChatRequest): AsyncIterable<StreamChunk> {
-    try {
-      yield* this.doStream(request);
-    } catch (err) {
-      if (err instanceof ProviderError) {
-        if (err.statusCode === 401) throw err;
-        if (err.statusCode === 429) {
-          await delay(RETRY_DELAY_MS);
-          try {
-            yield* this.doStream(request);
-          } catch (retryErr) {
-            if (retryErr instanceof ProviderError) throw retryErr;
-            throw new ProviderError(
-              retryErr instanceof Error ? retryErr.message : String(retryErr),
-              undefined,
-              'ollama',
-            );
-          }
-          return;
-        }
-        throw err;
-      }
-      throw new ProviderError(
-        err instanceof Error ? err.message : String(err),
-        undefined,
-        'ollama',
-      );
-    }
-  }
-
-  private async *doStream(request: OllamaChatRequest): AsyncIterable<StreamChunk> {
+  protected async doChat(request: unknown): Promise<OllamaChatResponse> {
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -222,11 +122,35 @@ export class OllamaProvider implements LlmClient {
     });
 
     if (!response.ok) {
-      handleHttpError(response.status, await response.text());
+      const body = await response.text();
+      throw new ProviderError(
+        `Ollama API error (${response.status}): ${body}`,
+        response.status,
+        this.providerName,
+      );
+    }
+
+    return (await response.json()) as OllamaChatResponse;
+  }
+
+  protected async *doStream(request: unknown): AsyncIterable<OllamaStreamChunk> {
+    const response = await fetch(`${this.baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new ProviderError(
+        `Ollama API error (${response.status}): ${body}`,
+        response.status,
+        this.providerName,
+      );
     }
 
     if (!response.body) {
-      throw new ProviderError('No response body for streaming', undefined, 'ollama');
+      throw new ProviderError('No response body for streaming', undefined, this.providerName);
     }
 
     const reader = response.body.getReader();
@@ -245,20 +169,61 @@ export class OllamaProvider implements LlmClient {
         for (const line of lines) {
           if (!line.trim()) continue;
           const chunk = JSON.parse(line) as OllamaStreamChunk;
-          if (chunk.message.content) {
-            yield { content: chunk.message.content };
-          }
+          yield chunk;
         }
       }
 
       if (buffer.trim()) {
         const chunk = JSON.parse(buffer) as OllamaStreamChunk;
-        if (chunk.message.content) {
-          yield { content: chunk.message.content };
-        }
+        yield chunk;
       }
     } finally {
       reader.releaseLock();
     }
+  }
+
+  // ── parseResponse / parseStreamChunk ───────────────────────
+
+  protected parseResponse(raw: unknown): ChatResponse {
+    const data = raw as OllamaChatResponse;
+    return { content: data.message.content };
+  }
+
+  protected parseStreamChunk(raw: unknown): StreamChunk | null {
+    const chunk = raw as OllamaStreamChunk;
+    if (chunk.message.content) {
+      return { content: chunk.message.content };
+    }
+    return null;
+  }
+
+  // ── Error classification ───────────────────────────────────
+
+  protected isRetryable(err: unknown): boolean {
+    return err instanceof ProviderError && err.statusCode === 429;
+  }
+
+  protected isAbort(err: unknown): boolean {
+    if (!(err instanceof ProviderError)) return false;
+    return err.statusCode === 401;
+  }
+
+  protected toProviderError(err: unknown): never {
+    if (err instanceof ProviderError) throw err;
+
+    throw new ProviderError(
+      err instanceof Error ? err.message : String(err),
+      undefined,
+      this.providerName,
+    );
+  }
+
+  // ── Helpers ────────────────────────────────────────────────
+
+  private toOllamaMessages(messages: Message[], jsonMode: boolean): OllamaMessage[] {
+    return messages.map((m) => ({
+      role: m.role,
+      content: this.toJsonMode(m.content, jsonMode && m.role === 'user'),
+    }));
   }
 }

@@ -1,3 +1,4 @@
+export { BaseProvider } from './BaseProvider.js';
 export { AnthropicProvider } from './AnthropicProvider.js';
 export { OpenAIProvider } from './OpenAIProvider.js';
 export { OpenRouterProvider } from './OpenRouterProvider.js';
@@ -6,3 +7,4 @@ export { ClaudeCliProvider } from './ClaudeCliProvider.js';
 export { DeepSeekProvider } from './DeepSeekProvider.js';
 export { ProviderFactory } from './ProviderFactory.js';
 export { streamWithEvents } from './streamWithEvents.js';
+export { executeWithRetry, streamWithRetry } from './retry.js';

@@ -1,98 +1,102 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
+import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
+import { BaseProvider } from './BaseProvider.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TEMPERATURE = 0;
-const RETRY_DELAY_MS = 1000;
-
-function findLastIndex<T>(arr: T[], predicate: (item: T) => boolean): number {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i])) return i;
-  }
-  return -1;
-}
 
 function toAnthropicRole(role: Message['role']): 'user' | 'assistant' {
   return role === 'assistant' ? 'assistant' : 'user';
 }
 
-function handleError(err: unknown): never {
-  if (err instanceof ProviderError) throw err;
-
-  if (err instanceof Anthropic.APIError) {
-    throw new ProviderError(err.message, err.status, 'anthropic');
-  }
-
-  throw new ProviderError(err instanceof Error ? err.message : String(err), undefined, 'anthropic');
-}
-
-function shouldRetry(err: unknown): boolean {
-  return err instanceof Anthropic.APIError && err.status === 429;
-}
-
-function shouldThrowImmediately(err: unknown): boolean {
-  if (!(err instanceof Anthropic.APIError)) return false;
-  return err.status === 401;
-}
-
-export class AnthropicProvider implements LlmClient {
+export class AnthropicProvider extends BaseProvider {
+  protected readonly providerName = 'anthropic';
   private readonly client: Anthropic;
 
   constructor(apiKey: string) {
+    super();
     this.client = new Anthropic({ apiKey });
   }
 
-  async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
+  // ── formatRequest ──────────────────────────────────────────
+
+  protected formatRequest(
+    messages: Message[],
+    options?: LlmOptions,
+  ): Anthropic.MessageCreateParamsNonStreaming {
+    const jsonMode = options?.responseFormat === 'json';
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystem = messages.filter((m) => m.role !== 'system');
 
-    const request: Anthropic.MessageCreateParamsNonStreaming = {
+    return {
       model: options?.model ?? DEFAULT_MODEL,
       max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
       temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: nonSystem.map((m) => ({
         role: toAnthropicRole(m.role),
-        content:
-          options?.responseFormat === 'json'
-            ? `${m.content}\n\nRespond with valid JSON only.`
-            : m.content,
+        content: this.toJsonMode(m.content, jsonMode && m.role === 'user'),
       })),
     };
-
-    return this.executeWithRetry(() => this.doChat(request));
   }
 
-  async chatWithVision(
+  // ── formatStreamRequest ────────────────────────────────────
+
+  protected formatStreamRequest(
     messages: Message[],
-    images: Buffer[],
     options?: LlmOptions,
-  ): Promise<ChatResponse> {
+  ): Anthropic.MessageCreateParamsStreaming {
+    const jsonMode = options?.responseFormat === 'json';
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystem = messages.filter((m) => m.role !== 'system');
 
-    const lastUserIdx = findLastIndex(nonSystem, (m) => m.role === 'user');
+    return {
+      model: options?.model ?? DEFAULT_MODEL,
+      max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+      temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
+      stream: true,
+      ...(systemMsg ? { system: systemMsg.content } : {}),
+      messages: nonSystem.map((m) => ({
+        role: toAnthropicRole(m.role),
+        content: this.toJsonMode(m.content, jsonMode && m.role === 'user'),
+      })),
+    };
+  }
+
+  // ── formatVisionRequest ────────────────────────────────────
+
+  protected formatVisionRequest(
+    messages: Message[],
+    images: Buffer[],
+    options?: LlmOptions,
+  ): Anthropic.MessageCreateParamsNonStreaming {
+    const jsonMode = options?.responseFormat === 'json';
+    const systemMsg = messages.find((m) => m.role === 'system');
+    const nonSystem = messages.filter((m) => m.role !== 'system');
+
+    const lastUserIdx = this.findLastUserIndex(nonSystem);
     if (lastUserIdx === -1) {
-      throw new ProviderError('No user message found for vision request', undefined, 'anthropic');
+      throw new ProviderError(
+        'No user message found for vision request',
+        undefined,
+        this.providerName,
+      );
     }
+
+    const imageBlocks: Anthropic.ImageBlockParam[] = images.map((img) => ({
+      type: 'image' as const,
+      source: {
+        type: 'base64' as const,
+        media_type: 'image/png' as const,
+        data: img.toString('base64'),
+      },
+    }));
 
     const anthropicMessages: Anthropic.MessageParam[] = nonSystem.map((m, i) => {
       if (i === lastUserIdx) {
-        const imageBlocks: Anthropic.ImageBlockParam[] = images.map((img) => ({
-          type: 'image' as const,
-          source: {
-            type: 'base64' as const,
-            media_type: 'image/png' as const,
-            data: img.toString('base64'),
-          },
-        }));
-        const textContent =
-          options?.responseFormat === 'json'
-            ? `${m.content}\n\nRespond with valid JSON only.`
-            : m.content;
-
+        const textContent = this.toJsonMode(m.content, jsonMode);
         return {
           role: toAnthropicRole(m.role),
           content: [...imageBlocks, { type: 'text' as const, text: textContent }],
@@ -104,94 +108,66 @@ export class AnthropicProvider implements LlmClient {
       };
     });
 
-    const request: Anthropic.MessageCreateParamsNonStreaming = {
+    return {
       model: options?.model ?? DEFAULT_MODEL,
       max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
       temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
       ...(systemMsg ? { system: systemMsg.content } : {}),
       messages: anthropicMessages,
     };
-
-    return this.executeWithRetry(() => this.doChat(request));
   }
 
-  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk> {
-    const systemMsg = messages.find((m) => m.role === 'system');
-    const nonSystem = messages.filter((m) => m.role !== 'system');
+  // ── doChat / doStream ──────────────────────────────────────
 
-    const request: Anthropic.MessageCreateParamsStreaming = {
-      model: options?.model ?? DEFAULT_MODEL,
-      max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-      temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
-      stream: true,
-      ...(systemMsg ? { system: systemMsg.content } : {}),
-      messages: nonSystem.map((m) => ({
-        role: toAnthropicRole(m.role),
-        content:
-          options?.responseFormat === 'json'
-            ? `${m.content}\n\nRespond with valid JSON only.`
-            : m.content,
-      })),
-    };
-
-    yield* this.executeStreamWithRetry(request);
+  protected async doChat(request: unknown): Promise<Anthropic.Message> {
+    return this.client.messages.create(request as Anthropic.MessageCreateParamsNonStreaming);
   }
 
-  private async doChat(request: Anthropic.MessageCreateParamsNonStreaming): Promise<ChatResponse> {
-    const response = await this.client.messages.create(request);
+  protected async *doStream(request: unknown): AsyncIterable<Anthropic.RawMessageStreamEvent> {
+    const stream = this.client.messages.stream(request as Anthropic.MessageCreateParamsStreaming);
+    for await (const event of stream) {
+      yield event;
+    }
+  }
+
+  // ── parseResponse / parseStreamChunk ───────────────────────
+
+  protected parseResponse(raw: unknown): ChatResponse {
+    const response = raw as Anthropic.Message;
     const textBlock = response.content.find((b) => b.type === 'text');
     return { content: textBlock ? textBlock.text : '' };
   }
 
-  private async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (err) {
-      if (shouldThrowImmediately(err)) handleError(err);
-      if (shouldRetry(err)) {
-        await this.delay(RETRY_DELAY_MS);
-        try {
-          return await fn();
-        } catch (retryErr) {
-          handleError(retryErr);
-        }
-      }
-      handleError(err);
+  protected parseStreamChunk(raw: unknown): StreamChunk | null {
+    const event = raw as Anthropic.RawMessageStreamEvent;
+    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+      return { content: event.delta.text };
     }
+    return null;
   }
 
-  private async *executeStreamWithRetry(
-    request: Anthropic.MessageCreateParamsStreaming,
-  ): AsyncIterable<StreamChunk> {
-    try {
-      yield* this.doStream(request);
-    } catch (err) {
-      if (shouldThrowImmediately(err)) handleError(err);
-      if (shouldRetry(err)) {
-        await this.delay(RETRY_DELAY_MS);
-        try {
-          yield* this.doStream(request);
-        } catch (retryErr) {
-          handleError(retryErr);
-        }
-        return;
-      }
-      handleError(err);
-    }
+  // ── Error classification ───────────────────────────────────
+
+  protected isRetryable(err: unknown): boolean {
+    return err instanceof Anthropic.APIError && err.status === 429;
   }
 
-  private async *doStream(
-    request: Anthropic.MessageCreateParamsStreaming,
-  ): AsyncIterable<StreamChunk> {
-    const stream = this.client.messages.stream(request);
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        yield { content: event.delta.text };
-      }
-    }
+  protected isAbort(err: unknown): boolean {
+    if (!(err instanceof Anthropic.APIError)) return false;
+    return err.status === 401;
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  protected toProviderError(err: unknown): never {
+    if (err instanceof ProviderError) throw err;
+
+    if (err instanceof Anthropic.APIError) {
+      throw new ProviderError(err.message, Number(err.status), this.providerName);
+    }
+
+    throw new ProviderError(
+      err instanceof Error ? err.message : String(err),
+      undefined,
+      this.providerName,
+    );
   }
 }

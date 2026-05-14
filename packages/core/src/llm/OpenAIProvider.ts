@@ -1,61 +1,15 @@
 import OpenAI from 'openai';
-import type { ChatResponse, LlmClient, LlmOptions, Message, StreamChunk } from '../models/types.js';
+import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
+import { BaseProvider } from './BaseProvider.js';
 
 const DEFAULT_MODEL = 'gpt-4o';
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TEMPERATURE = 0;
-const RETRY_DELAY_MS = 1000;
 
-function toOpenAIMessages(
-  messages: Message[],
-  jsonMode: boolean,
-): OpenAI.ChatCompletionMessageParam[] {
-  return messages.map((m) => {
-    const content =
-      jsonMode && m.role === 'user' ? `${m.content}\n\nRespond with valid JSON only.` : m.content;
-    return { role: m.role, content };
-  });
-}
-
-function findLastIndex<T>(arr: T[], predicate: (item: T) => boolean): number {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i])) return i;
-  }
-  return -1;
-}
-
-const APIError = OpenAI.APIError;
-
-function isApiError(err: unknown): err is InstanceType<typeof APIError> {
-  return err instanceof APIError;
-}
-
-function handleError(err: unknown, provider: string): never {
-  if (err instanceof ProviderError) throw err;
-
-  if (isApiError(err)) {
-    throw new ProviderError(err.message, err.status, provider);
-  }
-
-  throw new ProviderError(err instanceof Error ? err.message : String(err), undefined, provider);
-}
-
-function shouldRetry(err: unknown): boolean {
-  return isApiError(err) && err.status === 429;
-}
-
-function shouldThrowImmediately(err: unknown): boolean {
-  return isApiError(err) && err.status === 401;
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export class OpenAIProvider implements LlmClient {
-  protected readonly client: OpenAI;
+export class OpenAIProvider extends BaseProvider {
   protected readonly providerName: string;
+  protected readonly client: OpenAI;
   protected readonly defaultModel: string;
 
   constructor(
@@ -64,6 +18,7 @@ export class OpenAIProvider implements LlmClient {
     providerName = 'openai',
     defaultModel = DEFAULT_MODEL,
   ) {
+    super();
     this.client = new OpenAI({
       apiKey,
       ...(baseURL ? { baseURL } : {}),
@@ -72,31 +27,48 @@ export class OpenAIProvider implements LlmClient {
     this.defaultModel = defaultModel;
   }
 
-  async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
+  // ── formatRequest ──────────────────────────────────────────
+
+  protected formatRequest(
+    messages: Message[],
+    options?: LlmOptions,
+  ): OpenAI.ChatCompletionCreateParamsNonStreaming {
     const jsonMode = options?.responseFormat === 'json';
-    const request: OpenAI.ChatCompletionCreateParamsNonStreaming = {
+    return {
       model: options?.model ?? this.defaultModel,
       max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
       temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
-      messages: toOpenAIMessages(messages, jsonMode),
-      ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
+      messages: this.buildMessages(messages, jsonMode),
+      ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
     };
-
-    const content = await this.executeWithRetry(async () => {
-      const response = await this.client.chat.completions.create(request);
-      return response.choices[0]?.message?.content ?? '';
-    });
-
-    return { content };
   }
 
-  async chatWithVision(
+  // ── formatStreamRequest ────────────────────────────────────
+
+  protected formatStreamRequest(
+    messages: Message[],
+    options?: LlmOptions,
+  ): OpenAI.ChatCompletionCreateParamsStreaming {
+    const jsonMode = options?.responseFormat === 'json';
+    return {
+      model: options?.model ?? this.defaultModel,
+      max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+      temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
+      messages: this.buildMessages(messages, jsonMode),
+      stream: true,
+      ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
+    };
+  }
+
+  // ── formatVisionRequest ────────────────────────────────────
+
+  protected formatVisionRequest(
     messages: Message[],
     images: Buffer[],
     options?: LlmOptions,
-  ): Promise<ChatResponse> {
+  ): OpenAI.ChatCompletionCreateParamsNonStreaming {
     const jsonMode = options?.responseFormat === 'json';
-    const lastUserIdx = findLastIndex(messages, (m) => m.role === 'user');
+    const lastUserIdx = this.findLastUserIndex(messages);
     if (lastUserIdx === -1) {
       throw new ProviderError(
         'No user message found for vision request',
@@ -105,102 +77,103 @@ export class OpenAIProvider implements LlmClient {
       );
     }
 
+    const imageParts: OpenAI.ChatCompletionContentPartImage[] = images.map((img) => ({
+      type: 'image_url' as const,
+      image_url: {
+        url: `data:image/png;base64,${img.toString('base64')}`,
+      },
+    }));
+
     const openaiMessages: OpenAI.ChatCompletionMessageParam[] = messages.map((m, i) => {
       if (i === lastUserIdx) {
-        const imageParts: OpenAI.ChatCompletionContentPartImage[] = images.map((img) => ({
-          type: 'image_url' as const,
-          image_url: {
-            url: `data:image/png;base64,${img.toString('base64')}`,
-          },
-        }));
-        const textContent = jsonMode ? `${m.content}\n\nRespond with valid JSON only.` : m.content;
-
+        const textContent = this.toJsonMode(m.content, jsonMode);
         return {
           role: m.role as 'user',
           content: [{ type: 'text' as const, text: textContent }, ...imageParts],
         };
       }
-      const content =
-        jsonMode && m.role === 'user' ? `${m.content}\n\nRespond with valid JSON only.` : m.content;
+      const content = this.toJsonMode(m.content, jsonMode && m.role === 'user');
       return { role: m.role, content };
     });
 
-    const request: OpenAI.ChatCompletionCreateParamsNonStreaming = {
+    return {
       model: options?.model ?? this.defaultModel,
       max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
       temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
       messages: openaiMessages,
-      ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
+      ...(jsonMode ? { response_format: { type: 'json_object' as const } } : {}),
     };
-
-    const content = await this.executeWithRetry(async () => {
-      const response = await this.client.chat.completions.create(request);
-      return response.choices[0]?.message?.content ?? '';
-    });
-
-    return { content };
   }
 
-  async *stream(messages: Message[], options?: LlmOptions): AsyncIterable<StreamChunk> {
-    const jsonMode = options?.responseFormat === 'json';
-    const request: OpenAI.ChatCompletionCreateParamsStreaming = {
-      model: options?.model ?? this.defaultModel,
-      max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-      temperature: options?.temperature ?? DEFAULT_TEMPERATURE,
-      messages: toOpenAIMessages(messages, jsonMode),
-      stream: true,
-      ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
-    };
+  // ── doChat / doStream ──────────────────────────────────────
 
-    yield* this.executeStreamWithRetry(request);
-  }
-
-  protected async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (err) {
-      if (shouldThrowImmediately(err)) handleError(err, this.providerName);
-      if (shouldRetry(err)) {
-        await delay(RETRY_DELAY_MS);
-        try {
-          return await fn();
-        } catch (retryErr) {
-          handleError(retryErr, this.providerName);
-        }
-      }
-      handleError(err, this.providerName);
-    }
-  }
-
-  protected async *executeStreamWithRetry(
-    request: OpenAI.ChatCompletionCreateParamsStreaming,
-  ): AsyncIterable<StreamChunk> {
-    try {
-      yield* this.doStream(request);
-    } catch (err) {
-      if (shouldThrowImmediately(err)) handleError(err, this.providerName);
-      if (shouldRetry(err)) {
-        await delay(RETRY_DELAY_MS);
-        try {
-          yield* this.doStream(request);
-        } catch (retryErr) {
-          handleError(retryErr, this.providerName);
-        }
-        return;
-      }
-      handleError(err, this.providerName);
-    }
+  protected async doChat(request: unknown): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    return this.client.chat.completions.create(
+      request as OpenAI.ChatCompletionCreateParamsNonStreaming,
+    );
   }
 
   protected async *doStream(
-    request: OpenAI.ChatCompletionCreateParamsStreaming,
-  ): AsyncIterable<StreamChunk> {
-    const stream = await this.client.chat.completions.create(request);
+    request: unknown,
+  ): AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk> {
+    const stream = await this.client.chat.completions.create(
+      request as OpenAI.ChatCompletionCreateParamsStreaming,
+    );
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content;
-      if (delta) {
-        yield { content: delta };
-      }
+      yield chunk;
     }
+  }
+
+  // ── parseResponse / parseStreamChunk ───────────────────────
+
+  protected parseResponse(raw: unknown): ChatResponse {
+    const response = raw as OpenAI.Chat.Completions.ChatCompletion;
+    return { content: response.choices[0]?.message?.content ?? '' };
+  }
+
+  protected parseStreamChunk(raw: unknown): StreamChunk | null {
+    const chunk = raw as OpenAI.Chat.Completions.ChatCompletionChunk;
+    const delta = chunk.choices[0]?.delta?.content;
+    if (delta) {
+      return { content: delta };
+    }
+    return null;
+  }
+
+  // ── Error classification ───────────────────────────────────
+
+  protected isRetryable(err: unknown): boolean {
+    return err instanceof OpenAI.APIError && err.status === 429;
+  }
+
+  protected isAbort(err: unknown): boolean {
+    if (!(err instanceof OpenAI.APIError)) return false;
+    return err.status === 401;
+  }
+
+  protected toProviderError(err: unknown): never {
+    if (err instanceof ProviderError) throw err;
+
+    if (err instanceof OpenAI.APIError) {
+      throw new ProviderError(err.message, Number(err.status), this.providerName);
+    }
+
+    throw new ProviderError(
+      err instanceof Error ? err.message : String(err),
+      undefined,
+      this.providerName,
+    );
+  }
+
+  // ── buildMessages helper ───────────────────────────────────
+
+  protected buildMessages(
+    messages: Message[],
+    jsonMode: boolean,
+  ): OpenAI.ChatCompletionMessageParam[] {
+    return messages.map((m) => {
+      const content = this.toJsonMode(m.content, jsonMode && m.role === 'user');
+      return { role: m.role, content };
+    });
   }
 }
