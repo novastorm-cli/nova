@@ -215,6 +215,11 @@ export function setupEventRouting(deps: EventRouterDeps): void {
         type: 'status',
         data: { message: `Analysis error: ${message}` },
       });
+      // Emit task_failed so the overlay's ActivityLog surfaces an error entry (VAL-CROSS-013)
+      eventBus.emit({
+        type: 'task_failed',
+        data: { taskId: 'analysis', error: message },
+      });
     }
   });
 
@@ -300,6 +305,11 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       const message = err instanceof Error ? err.message : String(err);
       log.error(`Analysis error: ${message}`);
       wsServer.sendEvent({ type: 'status', data: { message: `Analysis error: ${message}` } });
+      // Emit task_failed so the overlay's ActivityLog surfaces an error entry (VAL-CROSS-013)
+      eventBus.emit({
+        type: 'task_failed',
+        data: { taskId: 'analysis', error: message },
+      });
     }
   });
 

@@ -341,6 +341,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       new Lane1Executor(cwd, pathGuard),
       new Lane2Executor(cwd, llmClient, gitManager, pathGuard, commitQueue),
       eventBus,
+      undefined, // logger
       llmClient,
       gitManager,
       cwd,
@@ -349,7 +350,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       config.models.strong,
       agentPromptLoader,
       pathGuard,
-      undefined,
+      undefined, // lane4
       commitQueue,
     );
   }
