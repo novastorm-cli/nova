@@ -373,6 +373,13 @@ function boot(): void {
         diffModal.hide();
         // Add reverted entry to activity log
         activityLog.addEntry(`${strings.diffReverted}${path}`, 'success');
+        // If awaiting confirmation, also cancel pending tasks
+        if (awaitingConfirmation) {
+          awaitingConfirmation = false;
+          wsClient.sendRaw({ type: 'cancel' });
+          statusToast.show(strings.cancelled, 'info', 2000);
+          fsm.send({ type: 'cancelled' });
+        }
       },
     });
   });
@@ -1486,6 +1493,13 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           wsClient.sendRaw({ type: 'revert_file', path });
           diffModal.hide();
           activityLog.addEntry(`${strings.diffReverted}${path}`, 'success');
+          // If awaiting confirmation, also cancel pending tasks
+          if (awaitingConfirmation) {
+            awaitingConfirmation = false;
+            wsClient.sendRaw({ type: 'cancel' });
+            statusToast.show(strings.cancelled, 'info', 2000);
+            fsm.send({ type: 'cancelled' });
+          }
         },
       });
     },

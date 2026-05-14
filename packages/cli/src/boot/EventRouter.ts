@@ -257,6 +257,17 @@ export function setupEventRouting(deps: EventRouterDeps): void {
     deps.pendingTasks.length = 0;
   });
 
+  // ── DiffModal revert handler — reverts a specific file change ──────
+  wsServer.onRevertFile((filePath: string) => {
+    log.info(`[Nova] Revert file requested: ${filePath}`);
+    // If there are pending tasks, cancel them (rejecting the changes)
+    if (deps.pendingTasks.length > 0) {
+      log.warn(`Cancelled ${deps.pendingTasks.length} task(s) via file revert.`);
+      wsServer.sendEvent({ type: 'status', data: { message: `Rejected changes to ${filePath}.` } });
+      deps.pendingTasks.length = 0;
+    }
+  });
+
   wsServer.onAppend(async (text: string) => {
     if (!brain || !deps.lastObservation.current) return;
     log.info(`[Nova] Appending to request: "${text}"`);

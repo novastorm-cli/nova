@@ -62,6 +62,9 @@ export interface IWebSocketServer {
   /** Register handler for secrets submission from overlay. */
   onSecretsSubmit(handler: (secrets: Record<string, string>) => void): void;
 
+  /** Register handler for revert_file messages from overlay (DiffModal Revert button). */
+  onRevertFile(handler: (filePath: string) => void): void;
+
   /** Send event to all connected overlay clients. */
   sendEvent(event: NovaEvent): void;
 

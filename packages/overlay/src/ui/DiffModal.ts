@@ -142,7 +142,7 @@ export class DiffModal {
 
     // Install focus trap on the host (which contains the modal in shadow DOM)
     if (this.host) {
-      this.focusTrap = installFocusTrap(this.host);
+      this.focusTrap = installFocusTrap(this.host, () => this.hide());
     }
   }
 

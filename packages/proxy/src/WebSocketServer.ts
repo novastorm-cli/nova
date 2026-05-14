@@ -13,6 +13,7 @@ export class WebSocketServer implements IWebSocketServer {
   private appendHandlers: Array<(text: string) => void> = [];
   private browserErrorHandlers: Array<(error: string) => void> = [];
   private secretsSubmitHandlers: Array<(secrets: Record<string, string>) => void> = [];
+  private revertFileHandlers: Array<(filePath: string) => void> = [];
   private sessionToken: string | null = null;
   private proxyPort: number | null = null;
 
@@ -157,6 +158,13 @@ export class WebSocketServer implements IWebSocketServer {
             }
             return;
           }
+          if (parsed.type === 'revert_file') {
+            const filePath = (parsed as { path?: string }).path ?? '';
+            for (const handler of this.revertFileHandlers) {
+              handler(filePath);
+            }
+            return;
+          }
 
           // Overlay sends { type: 'observation', data: BrowserObservation }
           const obsData = parsed.data ?? parsed;
@@ -215,6 +223,10 @@ export class WebSocketServer implements IWebSocketServer {
 
   onSecretsSubmit(handler: (secrets: Record<string, string>) => void): void {
     this.secretsSubmitHandlers.push(handler);
+  }
+
+  onRevertFile(handler: (filePath: string) => void): void {
+    this.revertFileHandlers.push(handler);
   }
 
   private lastTs = 0;

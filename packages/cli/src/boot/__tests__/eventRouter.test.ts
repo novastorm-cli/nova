@@ -15,6 +15,7 @@ describe('EventRouter', () => {
       onAppend: vi.fn(),
       onSecretsSubmit: vi.fn(),
       onBrowserError: vi.fn(),
+      onRevertFile: vi.fn(),
       sendEvent: vi.fn(),
     };
 
@@ -70,5 +71,6 @@ describe('EventRouter', () => {
     expect(mockWsServer.onAppend).toHaveBeenCalled();
     expect(mockWsServer.onSecretsSubmit).toHaveBeenCalled();
     expect(mockWsServer.onBrowserError).toHaveBeenCalled();
+    expect(mockWsServer.onRevertFile).toHaveBeenCalled();
   });
 });

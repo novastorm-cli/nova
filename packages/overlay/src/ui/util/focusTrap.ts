@@ -122,9 +122,12 @@ export interface FocusTrap {
  * Saves the currently focused element, finds all visible focusable descendants,
  * focuses the first one, and intercepts Tab / Shift+Tab / Escape.
  *
+ * @param root - The modal host element to trap focus within.
+ * @param onEscape - Optional callback invoked when Escape is pressed BEFORE releasing
+ *   the trap. Use this to close/hide the modal that owns the trap.
  * @returns An object with a `release()` method that removes the trap and restores focus.
  */
-export function installFocusTrap(root: HTMLElement): FocusTrap {
+export function installFocusTrap(root: HTMLElement, onEscape?: () => void): FocusTrap {
   const previouslyFocused = document.activeElement as HTMLElement | null;
 
   const focusable = getFocusableDescendants(root);
@@ -138,6 +141,9 @@ export function installFocusTrap(root: HTMLElement): FocusTrap {
 
   function handleKeyDown(e: KeyboardEvent): void {
     if (e.key === 'Escape') {
+      if (onEscape) {
+        onEscape();
+      }
       release();
       return;
     }
