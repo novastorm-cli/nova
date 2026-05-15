@@ -2,7 +2,7 @@ import type { IBrain } from '../contracts/IBrain.js';
 import { BrainError } from '../contracts/IBrain.js';
 import type { ILogger } from '../contracts/ILogger.js';
 import { StructuredLogger } from '../logging/StructuredLogger.js';
-import type { LlmClient } from '../contracts/ILlmClient.js';
+import { type LlmClient, ProviderError } from '../contracts/ILlmClient.js';
 import type { Observation, ProjectMap, TaskItem, Lane, TaskType } from '../models/types.js';
 import type { EventBus } from '../contracts/IEventBus.js';
 import { LaneClassifier } from './LaneClassifier.js';
@@ -57,25 +57,23 @@ export class Brain implements IBrain {
     );
 
     let lastError: unknown;
+    // Providers that don't support vision (e.g. DeepSeek) will throw NO_VISION_SUPPORT.
+    // Track this so we can fall back to text-only chat on retry.
+    let useVision = !!(observation.screenshot && observation.screenshot.length > 0);
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       try {
-        const images =
-          observation.screenshot && observation.screenshot.length > 0
-            ? [observation.screenshot]
-            : [];
-
         const attemptLabel = attempt > 0 ? ` (retry ${attempt + 1}/${MAX_ATTEMPTS})` : '';
         this.logger.debug(`Brain: sending to LLM${attemptLabel}...`);
         this.status(`Sending to AI${attemptLabel}...`);
 
-        const response =
-          images.length > 0
-            ? await this.llm.chatWithVision(messages, images, {
-                responseFormat: 'json',
-                model: this.modelName,
-              })
-            : await this.llm.chat(messages, { responseFormat: 'json', model: this.modelName });
+         
+        const response = useVision
+          ? await this.llm.chatWithVision(messages, [observation.screenshot], {
+              responseFormat: 'json',
+              model: this.modelName,
+            })
+          : await this.llm.chat(messages, { responseFormat: 'json', model: this.modelName });
 
         const responseText = response.content;
 
@@ -107,6 +105,17 @@ export class Brain implements IBrain {
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
         this.logger.warn(`Brain: attempt ${attempt + 1} failed: ${errMsg.slice(0, 150)}`);
+
+        // Fall back to text-only chat when provider doesn't support vision
+        if (error instanceof ProviderError && error.code === 'NO_VISION_SUPPORT' && useVision) {
+          this.logger.info(
+            'Brain: vision not supported by provider, falling back to text-only chat',
+          );
+          this.status('Vision not supported, retrying text-only...');
+          useVision = false;
+          continue; // retry immediately with text-only chat
+        }
+
         this.status(`AI response parsing failed, retrying...`);
         lastError = error;
       }

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { LlmClient } from '../../contracts/ILlmClient.js';
+import { ProviderError } from '../../contracts/ILlmClient.js';
 import type { Observation, ProjectMap, Message, TaskItem } from '../../models/types.js';
 import { BrainError } from '../../contracts/IBrain.js';
 
@@ -96,8 +97,8 @@ describe('Brain', () => {
     expect(messages.length).toBeGreaterThan(0);
     expect(Array.isArray(images)).toBe(true);
     expect(images).toHaveLength(1);
-    expect(Buffer.isBuffer(images[0]!)).toBe(true);
-    expect(images[0]!).toBe(observation.screenshot);
+    expect(Buffer.isBuffer(images[0])).toBe(true);
+    expect(images[0]).toBe(observation.screenshot);
   });
 
   // ── analyze() parses JSON response into TaskItem[] ─────────
@@ -148,5 +149,54 @@ describe('Brain', () => {
     // Should have been called at least twice (initial + retry)
     const callCount = (llm.chatWithVision as ReturnType<typeof vi.fn>).mock.calls.length;
     expect(callCount).toBeGreaterThanOrEqual(2);
+  });
+
+  // ── analyze() falls back to text-only chat on NO_VISION_SUPPORT ─
+
+  it('analyze() falls back to text-only chat when vision is not supported', async () => {
+    // First call: chatWithVision throws NO_VISION_SUPPORT
+    // Second call: text-only chat succeeds
+    const llm = {
+      chat: vi.fn(async () => ({ content: VALID_TASKS_JSON })),
+      chatWithVision: vi.fn(async () => {
+        throw new ProviderError(
+          'DeepSeek does not support vision.',
+          undefined,
+          'deepseek',
+          'NO_VISION_SUPPORT',
+        );
+      }),
+      stream: vi.fn(),
+    };
+    const brain = new Brain(llm);
+
+    const tasks = await brain.analyze(observation, projectMap);
+
+    // Should have called chatWithVision once (failed with NO_VISION_SUPPORT)
+    expect(llm.chatWithVision).toHaveBeenCalledOnce();
+
+    // Should have fallen back to text-only chat (which succeeded)
+    expect(llm.chat).toHaveBeenCalledOnce();
+
+    // Should have parsed tasks successfully
+    expect(tasks).toHaveLength(2);
+  });
+
+  // ── analyze() without screenshot uses text-only chat directly ─
+
+  it('analyze() without screenshot uses text-only chat directly', async () => {
+    // Create an observation without screenshot (delete the property)
+    const obsNoScreenshot = { ...createObservation() };
+    delete (obsNoScreenshot as Record<string, unknown>).screenshot;
+    const llm = createMockLlmClient([VALID_TASKS_JSON]);
+    const brain = new Brain(llm);
+
+    await brain.analyze(obsNoScreenshot, projectMap);
+
+    // Should NOT call chatWithVision (no screenshot)
+    expect(llm.chatWithVision).not.toHaveBeenCalled();
+
+    // Should call text-only chat
+    expect(llm.chat).toHaveBeenCalledOnce();
   });
 });
