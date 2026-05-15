@@ -2,6 +2,8 @@
 
 This guide helps you upgrade from Novastorm v0.2.x to v1.0.0. Follow each section in order.
 
+See also: [CHANGELOG.md](./CHANGELOG.md) for the complete list of changes.
+
 ## Quick Checklist
 
 - [ ] Update the install command to `@novastorm-ai/cli`
@@ -29,6 +31,8 @@ npm install -g @novastorm-ai/cli
 
 ### 2. Removed Commands
 
+> **Verification**: VAL-CLI-036, VAL-CLI-037
+
 The following stub commands have been removed in v1.0.0:
 
 | Removed command | Replacement |
@@ -41,6 +45,8 @@ The following stub commands have been removed in v1.0.0:
 Running any of these commands will print a deprecation hint and exit with code 2.
 
 ### 3. Model Tier Rename: `models.fast` → `models.standard`
+
+> **Verification**: VAL-CLI-038, VAL-CLI-039, VAL-CLI-040
 
 The `fast` model tier has been renamed to `standard`.
 
@@ -63,6 +69,8 @@ to `models.standard` on first read and prints a one-time warning. This alias wil
 
 ### 4. Default Host Binding: `0.0.0.0` → `127.0.0.1`
 
+> **Verification**: VAL-SEC-001, VAL-SEC-002, VAL-SEC-003
+
 By default, Nova's proxy now binds to `127.0.0.1` (localhost) only. It is no longer
 accessible from other devices on your network.
 
@@ -72,6 +80,8 @@ nova --host 0.0.0.0
 ```
 
 ### 5. Telemetry: Now Requires Explicit Opt-In
+
+> **Verification**: VAL-CLI-008, VAL-SEC-031
 
 Telemetry is no longer enabled by default. On first run, Nova prompts:
 
@@ -88,6 +98,8 @@ Or with the `--no-telemetry` flag or `NOVA_TELEMETRY=false` env var.
 
 ### 6. Task Confirmation: Default Changed
 
+> **Verification**: VAL-CLI-031, VAL-CLI-032, VAL-CLI-033, VAL-CLI-034
+
 Tasks now require explicit confirmation before executing. The old auto-execute
 behavior can be restored:
 
@@ -103,6 +115,8 @@ nova --yes
 ```
 
 ### 7. Config Schema: `[providers]` → `[apiKeys]`
+
+> **Verification**: VAL-CROSS-020
 
 The legacy `[providers]` config block has been migrated to `[apiKeys]`.
 
@@ -124,6 +138,8 @@ Old `[providers]` blocks are auto-migrated on first read with a one-time INFO lo
 
 ### `nova doctor`
 
+> **Verification**: VAL-CLI-011 through VAL-CLI-019
+
 Diagnose your setup:
 
 ```bash
@@ -135,6 +151,8 @@ Checks: provider connectivity, port availability, Node version, Git availability
 (if configured), package version currency.
 
 ### New CLI Flags
+
+> **Verification**: VAL-CLI-001 through VAL-CLI-010
 
 | Flag | Description |
 |------|-------------|
@@ -156,6 +174,8 @@ Checks: provider connectivity, port availability, Node version, Git availability
 
 ### DeepSeek Provider
 
+> **Verification**: VAL-CLI-027, VAL-CLI-028, VAL-CLI-029, VAL-CLI-030
+
 [DeepSeek](https://platform.deepseek.com/api_keys) is now a first-class provider:
 
 ```bash
@@ -167,6 +187,8 @@ Run `nova doctor` after configuring to verify the connection.
 ---
 
 ## Security Improvements
+
+> **Verification**: VAL-SEC-001 through VAL-SEC-038
 
 - **Proxy binds to 127.0.0.1 by default** — no LAN exposure unless you opt in with `--host`.
 - **Per-session WebSocket token** — generated on each startup, written to `.nova/session-token`.
@@ -215,6 +237,8 @@ enabled = false
 ---
 
 ## Deprecation Timeline
+
+> **Verification**: VAL-CLI-038, VAL-CLI-040
 
 | Feature | Status | Removal |
 |---------|--------|---------|
