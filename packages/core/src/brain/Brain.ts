@@ -101,7 +101,7 @@ export class Brain implements IBrain {
           );
         }
 
-        return this.toTaskItems(raw);
+        return this.toTaskItems(raw, observation.domSnapshot);
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);
         this.logger.warn(`Brain: attempt ${attempt + 1} failed: ${errMsg.slice(0, 150)}`);
@@ -130,7 +130,7 @@ export class Brain implements IBrain {
     return parseJsonArray(response) as RawTask[];
   }
 
-  private toTaskItems(raw: RawTask[]): TaskItem[] {
+  private toTaskItems(raw: RawTask[], domSnapshot?: string): TaskItem[] {
     // Check if AI is asking a clarifying question
     if (raw.length === 1 && raw[0]!.question && !raw[0]!.description) {
       this.logger.info(`Brain: AI asks clarifying question: ${raw[0]!.question}`);
@@ -139,7 +139,7 @@ export class Brain implements IBrain {
     }
 
     const BINARY_PATTERN =
-      /\b(image|photo|picture|icon|svg|png|jpg|jpeg|gif|webp|favicon|font|woff|video|mp4|audio|mp3)\b/i;
+      /\b(image|photo|picture|icon|svg|png|jpg|jpeg|gif|webp|favicon|woff|video|mp4|audio|mp3)\b/i;
 
     return raw
       .map((item) => {
@@ -159,6 +159,7 @@ export class Brain implements IBrain {
           type,
           lane,
           status: 'pending' as const,
+          domSnapshot,
         };
       })
       .filter((task): task is NonNullable<typeof task> => task !== null)

@@ -234,7 +234,7 @@ export class Lane1Executor implements ILane1Executor {
         }
 
         for (const filePath of targetFiles) {
-          const result = await this.applyCssToFile(filePath, cssChange, cssClass);
+          const result = await this.applyCssToFile(filePath, cssChange, cssClass, domSnapshot);
           if (result) {
             return { success: true, taskId: task.id, diff: result };
           }
@@ -291,10 +291,8 @@ export class Lane1Executor implements ILane1Executor {
     }
   }
 
-  private findDomSnapshot(_task: TaskItem): string | null {
-    // The DOM snapshot would typically be attached to the task or observation.
-    // For Lane1, this is a placeholder for future integration.
-    return null;
+  private findDomSnapshot(task: TaskItem): string | null {
+    return task.domSnapshot ?? null;
   }
 
   private findStyleFiles(projectMap: ProjectMap): string[] {
@@ -359,6 +357,7 @@ export class Lane1Executor implements ILane1Executor {
     filePath: string,
     change: { property: string; from: string | null; to: string },
     cssClass: string | null,
+    domSnapshot?: string | null,
   ): Promise<string | null> {
     let content: string;
     try {
@@ -368,6 +367,71 @@ export class Lane1Executor implements ILane1Executor {
     }
 
     const before = content;
+
+    // ── Element-scoped CSS change via DOM snapshot ──────────────────
+    // When the task has a DOM snapshot (Quick Edit / Multi-Edit target),
+    // extract the element's text content and use it to locate the exact
+    // JSX element in the source file. This prevents accidentally changing
+    // a different element that happens to share the same CSS property name.
+    if (domSnapshot) {
+      const textMatch = />([^<]{2,})</.exec(domSnapshot);
+      if (textMatch) {
+        const elementText = textMatch[1]!.trim();
+        const textIdx = content.indexOf(elementText);
+        if (textIdx !== -1) {
+          const prefix = content.slice(0, textIdx);
+          const lastOpenTag = prefix.lastIndexOf('<');
+          if (lastOpenTag !== -1) {
+            const afterTag = content.slice(lastOpenTag, textIdx);
+            const styleMatch = /\bstyle=\{(.*?)\}/.exec(afterTag);
+            if (styleMatch) {
+              // Modify existing style attribute
+              const oldStyle = styleMatch[1]!;
+              const propRegex = new RegExp(
+                `${this.escapeRegex(change.property)}\\s*:\\s*[^,'"}]+`,
+                'i',
+              );
+              let newStyle: string;
+              if (propRegex.test(oldStyle)) {
+                newStyle = oldStyle.replace(
+                  propRegex,
+                  `${change.property}: '${change.to}'`,
+                );
+              } else {
+                newStyle = `${oldStyle}, ${change.property}: '${change.to}'`;
+              }
+              const beforeStyle = afterTag.slice(0, styleMatch.index);
+              const afterStyle = afterTag.slice(
+                styleMatch.index + styleMatch[0].length,
+              );
+              const newOpening = beforeStyle + `style={${newStyle}}` + afterStyle;
+              content =
+                prefix.slice(0, lastOpenTag) + newOpening + content.slice(textIdx);
+            } else {
+              // Add a new style attribute — insert it right after the tag name
+              const tagNameMatch = /^<(\w+)/.exec(afterTag);
+              if (tagNameMatch) {
+                const insertAt = lastOpenTag + tagNameMatch[0].length;
+                const newStyle = ` style={{ ${change.property}: '${change.to}' }}`;
+                content =
+                  content.slice(0, insertAt) + newStyle + content.slice(insertAt);
+              }
+            }
+
+            if (content !== before) {
+              const diff = this.diffApplier.generate(before, content, filePath);
+              await this.pathGuard?.check(filePath);
+              await writeFile(filePath, content, 'utf-8');
+              return diff;
+            }
+          }
+        }
+      }
+      // DOM-scoped change didn't work — skip the global search to
+      // avoid accidentally matching a different element. Let Lane 3
+      // handle it via LLM fallback.
+      return null;
+    }
 
     // If we have a CSS class, narrow scope to that class's block
     if (cssClass) {

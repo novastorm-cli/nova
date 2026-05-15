@@ -139,6 +139,9 @@ export interface TaskItem {
   /** When true, the task was explicitly initiated by user action (Quick Edit, Multi-Edit)
    * and can skip the confirmation gate. */
   preConfirmed?: boolean | undefined;
+  /** DOM snapshot of the selected element (Quick Edit / Multi-Edit target).
+   * Used by Lane1Executor to scope CSS/text changes to the correct element. */
+  domSnapshot?: string | undefined;
 }
 
 export interface ExecutionResult {
