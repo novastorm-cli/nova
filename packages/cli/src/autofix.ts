@@ -229,7 +229,31 @@ Error: ${errorOutput.slice(0, 300)}`;
       data: { message: 'Compilation error detected. Auto-fixing...' },
     });
 
-    const targetFile = this.extractFilePath(errorOutput);
+    let targetFile = this.extractFilePath(errorOutput);
+
+    // Fallback: if extractFilePath returned null, scan the project map
+    // for files mentioned in the error text (e.g., Turbopack puts
+    // "⨯ ./app/page.tsx:2:1" on a line that may arrive in a different
+    // output chunk).
+    if (!targetFile) {
+      const knownFiles = Array.from(this.projectMap.fileContexts.keys());
+      for (const f of knownFiles) {
+        if (errorOutput.includes(f)) {
+          targetFile = f;
+          break;
+        }
+      }
+      // Also try matching file paths without leading ./
+      if (!targetFile) {
+        for (const f of knownFiles) {
+          const basename = f.split('/').slice(-1)[0]!;
+          if (basename && errorOutput.includes(basename) && f.endsWith('.tsx')) {
+            targetFile = f;
+            break;
+          }
+        }
+      }
+    }
 
     if (targetFile && this.projectMap.fileContexts.has(targetFile)) {
       // Simple single-file error — use fast Lane 2
@@ -345,15 +369,26 @@ Error: ${errorOutput.slice(0, 300)}`;
   }
 
   private extractFilePath(errorOutput: string): string | null {
-    // Common patterns: "./src/app/page.tsx", "src/app/page.tsx", "/app/page.tsx"
+    // Common patterns for file paths in error output.
+    // Turbopack format: "⨯ ./app/page.tsx:2:1" on its own line, or
+    // "  ./app/page.tsx:2:1" with leading whitespace.
     const patterns = [
-      /\.\/([^\s:]+\.[tj]sx?)/,                      // ./path/to/file.tsx
-      /(?:in|at|from)\s+([^\s:]+\.[tj]sx?)/i,        // in path/to/file.tsx
-      /([^\s:]+\.[tj]sx?)[\s:]/,                      // path/to/file.tsx:line
+      // Turbopack standalone path with optional leading whitespace + ⨯
+      /^\s*[⨯✗✘]\s+(\.\/)?([^\s:]+\.[tj]sx?)\s*:\d+/m,
+      // "./path/to/file.tsx" anywhere in the text
+      /\.\/([^\s:]+\.[tj]sx?)/,
+      // "in/at/from path/to/file.tsx"
+      /(?:in|at|from)\s+([^\s:]+\.[tj]sx?)/i,
+      // "path/to/file.tsx:line" or "path/to/file.tsx " (trailing space/colon)
+      /([^\s:]+\.[tj]sx?)[\s:]/,
     ];
     for (const p of patterns) {
       const match = errorOutput.match(p);
-      if (match) return match[1]!;
+      if (match) {
+        // Turbopack pattern has two capture groups; use the one that's not undefined
+        const filePath = match[2] ?? match[1]!;
+        return filePath;
+      }
     }
     return null;
   }

@@ -416,34 +416,42 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     if (!errors || !llmClient) return;
     logger.error('\n[Nova] Build errors detected at startup:');
     logger.debug(errors.slice(0, 500));
-    const fixTask: TaskItem = {
-      id: crypto.randomUUID(),
-      description: `Fix build errors: ${errors.slice(0, 500)}`,
-      files: [],
-      type: 'multi_file',
-      lane: 3,
-      status: 'pending',
-    };
-    pendingTasks.push(fixTask);
-    if (isNonInteractive(options) || config.behavior.confirmTasks === false) {
-      eventBus.emit({
-        type: 'observation',
-        data: {
-          screenshot: Buffer.alloc(0),
-          transcript: fixTask.description,
-          currentUrl: `file://${cwd}`,
-          timestamp: Date.now(),
-          autoExecute: true,
-        } as any,
-      });
+    // Route to autofixer (bypasses Brain → no clarifying questions, direct fix).
+    // When autoFixer is available (providers configured), use it so the
+    // fix goes through Lane3Executor with the strict "no questions" prompt.
+    if (autoFixer) {
+      autoFixer.forceFixNow(errors);
     } else {
-      wsServer.sendEvent({
-        type: 'pending_tasks',
-        data: {
-          tasks: [{ id: fixTask.id, description: 'Fix startup build errors', lane: 3 }],
-          message: `Press Y to execute — ${fixTask.description.slice(0, 200)}`,
-        },
-      });
+      // Fallback: route through Brain (may produce clarifying questions).
+      const fixTask: TaskItem = {
+        id: crypto.randomUUID(),
+        description: `Fix build errors: ${errors.slice(0, 500)}`,
+        files: [],
+        type: 'multi_file',
+        lane: 3,
+        status: 'pending',
+      };
+      pendingTasks.push(fixTask);
+      if (isNonInteractive(options) || config.behavior.confirmTasks === false) {
+        eventBus.emit({
+          type: 'observation',
+          data: {
+            screenshot: Buffer.alloc(0),
+            transcript: fixTask.description,
+            currentUrl: `file://${cwd}`,
+            timestamp: Date.now(),
+            autoExecute: true,
+          } as any,
+        });
+      } else {
+        wsServer.sendEvent({
+          type: 'pending_tasks',
+          data: {
+            tasks: [{ id: fixTask.id, description: 'Fix startup build errors', lane: 3 }],
+            message: `Press Y to execute — ${fixTask.description.slice(0, 200)}`,
+          },
+        });
+      }
     }
   }, 4000);
 
@@ -556,12 +564,14 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       await shutdown();
     } else {
       process.stdin.resume();
+      // Wait up to 120 s for autofix / LLM calls to complete.
+      // The autofixer can take > 30 s for Lane3 multi-file LLM calls.
       await Promise.race([
         new Promise<void>((r) => {
           process.stdin.on('close', r);
           process.stdin.on('end', r);
         }),
-        new Promise((r) => setTimeout(r, 30_000)),
+        new Promise((r) => setTimeout(r, 120_000)),
       ]);
       await shutdown();
     }
