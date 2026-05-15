@@ -71,6 +71,30 @@ export default tseslint.config(
     },
   },
 
+  // ConsoleCapture.ts: entire purpose is intercepting console.error/warn from host page
+  {
+    files: ['packages/overlay/src/capture/ConsoleCapture.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // BrowserLogger.ts: ILogger implementation for browser, console is the only transport
+  {
+    files: ['packages/overlay/src/logging/BrowserLogger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
+  // Test files for ConsoleCapture must call console.error/warn to exercise interceptors
+  {
+    files: ['packages/overlay/src/capture/__tests__/**'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
   // Allow non-ASCII in designated strings files and CLI banner
   {
     files: [

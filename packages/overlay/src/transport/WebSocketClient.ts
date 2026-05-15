@@ -1,4 +1,5 @@
-import type { NovaEvent } from '@novastorm-ai/core';
+import type { ILogger, NovaEvent } from '@novastorm-ai/core';
+import { BrowserLogger } from '../logging/BrowserLogger.js';
 
 /**
  * Browser Observation payload sent over WebSocket.
@@ -52,6 +53,11 @@ export class WebSocketClient {
   private eventCallbacks: EventCallback[] = [];
   private retryCount = 0;
   private closed = false;
+  private logger: ILogger;
+
+  constructor(logger?: ILogger) {
+    this.logger = logger ?? new BrowserLogger({ component: 'WebSocketClient' });
+  }
 
   /**
    * Set the session token to include in WS connect URL as ?token= parameter.
@@ -69,7 +75,7 @@ export class WebSocketClient {
 
   send(observation: BrowserObservation): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('[Nova] WebSocket not connected, dropping observation');
+      this.logger.warn('WebSocket not connected, dropping observation');
       return;
     }
 
@@ -82,7 +88,7 @@ export class WebSocketClient {
 
   sendRaw(message: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('[Nova] WebSocket not connected, dropping message');
+      this.logger.warn('WebSocket not connected, dropping message');
       return;
     }
     this.ws.send(JSON.stringify(message));
@@ -110,7 +116,7 @@ export class WebSocketClient {
       }
       this.ws = new WebSocket(url);
     } catch (err) {
-      console.error('[Nova] Failed to create WebSocket:', err);
+      this.logger.error('Failed to create WebSocket', { error: String(err) });
       this.scheduleReconnect();
       return;
     }
@@ -126,7 +132,7 @@ export class WebSocketClient {
           cb(parsed);
         }
       } catch (err) {
-        console.error('[Nova] Failed to parse WebSocket message:', err);
+        this.logger.error('Failed to parse WebSocket message', { error: String(err) });
       }
     };
 
@@ -144,7 +150,7 @@ export class WebSocketClient {
     if (this.closed) return;
 
     if (this.retryCount >= MAX_RETRIES) {
-      console.error(`[Nova] WebSocket reconnect failed after ${MAX_RETRIES} attempts`);
+      this.logger.error(`WebSocket reconnect failed after ${MAX_RETRIES} attempts`);
       return;
     }
 

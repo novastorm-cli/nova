@@ -955,7 +955,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       executingToastId = statusToast.show(strings.aiThinking, 'info', 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error('[Nova] Failed to send observation:', message);
+      overlayLogger.error('Failed to send observation', { error: message });
       statusToast.show(`${strings.sendFailed}${message}`, 'error');
       fsm.send({ type: 'error_occurred' });
     } finally {
