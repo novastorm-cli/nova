@@ -7,6 +7,7 @@ import {
   ConfigError,
   type NovaConfig,
   DEFAULT_CONFIG,
+  PROVIDER_MODEL_DEFAULTS,
 } from '@novastorm-ai/core';
 import { DEPRECATION, MIGRATION } from './strings.js';
 
@@ -142,7 +143,7 @@ function diffFromDefaults(config: Partial<NovaConfig>): Record<string, unknown> 
   for (const section of Object.keys(input)) {
     const sectionValues = input[section];
     if (!sectionValues || typeof sectionValues !== 'object') continue;
-    const defaultSection = defaults[section] as Record<string, unknown> | undefined;
+    const defaultSection = defaults[section];
     const diff: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(sectionValues)) {
@@ -357,6 +358,30 @@ export class ConfigReader implements IConfigReader {
     if (envApiKey !== undefined) {
       const apiKeys = merged['apiKeys'] as Record<string, unknown>;
       apiKeys['key'] = envApiKey;
+    }
+
+    // ── Provider model defaults substitution ─────────────────────
+    // When the provider is known to have provider-specific model defaults
+    // AND the user never explicitly overrode models.* (they still match
+    // DEFAULT_CONFIG.models exactly), swap in the provider's models so
+    // that e.g. DeepSeek doesn't receive Anthropic model names.
+    const resolvedProvider = (merged['apiKeys'] as Record<string, unknown>)['provider'];
+    if (
+      typeof resolvedProvider === 'string' &&
+      resolvedProvider in PROVIDER_MODEL_DEFAULTS
+    ) {
+      const mergedModels = merged['models'] as Record<string, unknown>;
+      const defaultModels = DEFAULT_CONFIG.models;
+      if (
+        mergedModels['micro'] === defaultModels.micro &&
+        mergedModels['standard'] === defaultModels.standard &&
+        mergedModels['strong'] === defaultModels.strong
+      ) {
+        const substitute = PROVIDER_MODEL_DEFAULTS[resolvedProvider]!;
+        mergedModels['micro'] = substitute.micro;
+        mergedModels['standard'] = substitute.standard;
+        mergedModels['strong'] = substitute.strong;
+      }
     }
 
     // ── Unrecognized section / typo detection ─────────────────────

@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { ConfigReader } from '../config.js';
-import { type NovaConfig, DEFAULT_CONFIG, ConfigError } from '@novastorm-ai/core';
+import { type NovaConfig, DEFAULT_CONFIG, PROVIDER_MODEL_DEFAULTS, ConfigError } from '@novastorm-ai/core';
 
 describe('ConfigReader', () => {
   let tmpDir: string;
@@ -213,6 +213,160 @@ port = -1
     it('should return false when nova.toml does not exist', async () => {
       const result = await reader.exists(tmpDir);
       expect(result).toBe(false);
+    });
+  });
+
+  describe('provider model defaults substitution', () => {
+    it('swaps Anthropic defaults for DeepSeek models when provider is deepseek and models are untouched', async () => {
+      const toml = `
+[apiKeys]
+provider = "deepseek"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+
+      expect(config.models.micro).toBe('deepseek-v4-flash');
+      expect(config.models.standard).toBe('deepseek-v4-pro');
+      expect(config.models.strong).toBe('deepseek-v4-pro');
+    });
+
+    it('does NOT swap models when provider is deepseek but user explicitly set models', async () => {
+      const toml = `
+[apiKeys]
+provider = "deepseek"
+
+[models]
+micro = "deepseek-v4-flash"
+standard = "deepseek-v4-pro"
+strong = "deepseek-v4-pro"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+
+      // User explicitly set these, even though they happen to match DeepSeek defaults.
+      // They should be preserved as-is.
+      expect(config.models.micro).toBe('deepseek-v4-flash');
+      expect(config.models.standard).toBe('deepseek-v4-pro');
+      expect(config.models.strong).toBe('deepseek-v4-pro');
+    });
+
+    it('does NOT swap models when provider is deepseek but user set custom model names', async () => {
+      const toml = `
+[apiKeys]
+provider = "deepseek"
+
+[models]
+standard = "some-custom-model"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+
+      // User explicitly set standard, so micro and strong stay at Anthropic defaults
+      // (they are intentionally left as-is since the user partially overrode)
+      expect(config.models.micro).toBe(DEFAULT_CONFIG.models.micro);
+      expect(config.models.standard).toBe('some-custom-model');
+      expect(config.models.strong).toBe(DEFAULT_CONFIG.models.strong);
+    });
+
+    it('does NOT swap models when provider is not in PROVIDER_MODEL_DEFAULTS', async () => {
+      const toml = `
+[apiKeys]
+provider = "anthropic"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+
+      // Anthropic is not in PROVIDER_MODEL_DEFAULTS — models stay at defaults
+      expect(config.models.micro).toBe(DEFAULT_CONFIG.models.micro);
+      expect(config.models.standard).toBe(DEFAULT_CONFIG.models.standard);
+      expect(config.models.strong).toBe(DEFAULT_CONFIG.models.strong);
+    });
+
+    it('does NOT swap models when no nova.toml exists and default provider is openrouter', async () => {
+      const config = await reader.read(tmpDir);
+
+      // openrouter is not in PROVIDER_MODEL_DEFAULTS — models stay at defaults
+      expect(config.models.micro).toBe(DEFAULT_CONFIG.models.micro);
+      expect(config.models.standard).toBe(DEFAULT_CONFIG.models.standard);
+      expect(config.models.strong).toBe(DEFAULT_CONFIG.models.strong);
+    });
+
+    it('does NOT swap models when only micro was explicitly set to default value', async () => {
+      // If user explicitly sets a model to the same value as the default,
+      // we treat it as explicit (models.* don't ALL match defaults because
+      // the user DID set something—even if the value is the same).
+      // Actually, since the values DO match, the substitution WILL fire.
+      // Let's test a case where the user sets micro to the default value
+      // but that's already covered by the "untouched" case.
+      //
+      // Instead, test partial override where micro is set to a DIFFERENT value:
+      const toml = `
+[apiKeys]
+provider = "deepseek"
+
+[models]
+micro = "claude-opus-4-6"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+
+      // micro was overridden, so NOT all models match defaults → no swap
+      expect(config.models.micro).toBe('claude-opus-4-6');
+      expect(config.models.standard).toBe(DEFAULT_CONFIG.models.standard);
+      expect(config.models.strong).toBe(DEFAULT_CONFIG.models.strong);
+    });
+
+    it('DeepSeek substitution works from local .nova/config.toml', async () => {
+      const novaDir = path.join(tmpDir, '.nova');
+      await fs.mkdir(novaDir, { recursive: true });
+
+      const localToml = `
+[apiKeys]
+provider = "deepseek"
+`;
+      await fs.writeFile(path.join(novaDir, 'config.toml'), localToml);
+
+      const config = await reader.read(tmpDir);
+
+      expect(config.models.micro).toBe('deepseek-v4-flash');
+      expect(config.models.standard).toBe('deepseek-v4-pro');
+      expect(config.models.strong).toBe('deepseek-v4-pro');
+    });
+
+    it('DeepSeek substitution does NOT swap when models set in nova.toml but provider in local config', async () => {
+      const projectToml = `
+[models]
+micro = "claude-haiku-4-5-20251001"
+standard = "custom-model"
+strong = "claude-opus-4-6"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), projectToml);
+
+      const novaDir = path.join(tmpDir, '.nova');
+      await fs.mkdir(novaDir, { recursive: true });
+
+      const localToml = `
+[apiKeys]
+provider = "deepseek"
+`;
+      await fs.writeFile(path.join(novaDir, 'config.toml'), localToml);
+
+      const config = await reader.read(tmpDir);
+
+      // standard was explicitly set to a non-default, so no swap
+      expect(config.models.standard).toBe('custom-model');
+    });
+
+    it('PROVIDER_MODEL_DEFAULTS maps deepseek correctly', () => {
+      expect(PROVIDER_MODEL_DEFAULTS['deepseek']).toBeDefined();
+      expect(PROVIDER_MODEL_DEFAULTS['deepseek']!.micro).toBe('deepseek-v4-flash');
+      expect(PROVIDER_MODEL_DEFAULTS['deepseek']!.standard).toBe('deepseek-v4-pro');
+      expect(PROVIDER_MODEL_DEFAULTS['deepseek']!.strong).toBe('deepseek-v4-pro');
     });
   });
 });

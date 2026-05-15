@@ -47,3 +47,20 @@ export const DEFAULT_CONFIG: NovaConfig = {
   voice: { enabled: true, engine: 'web' },
   telemetry: { enabled: true },
 };
+
+/**
+ * Provider-specific model defaults.
+ * When the user configures a provider but does not explicitly override models.*,
+ * these values replace the Anthropic-centric DEFAULT_CONFIG.models so that the
+ * chosen provider receives models it actually supports.
+ */
+export const PROVIDER_MODEL_DEFAULTS: Record<
+  string,
+  { micro: string; standard: string; strong: string }
+> = {
+  deepseek: {
+    micro: 'deepseek-v4-flash',
+    standard: 'deepseek-v4-pro',
+    strong: 'deepseek-v4-pro',
+  },
+};
