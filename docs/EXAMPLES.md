@@ -1,4 +1,4 @@
-# Nova Architect — Examples & Recipes
+# Novastorm — Examples & Recipes
 
 ## Getting Started
 
@@ -6,11 +6,11 @@
 
 ```bash
 # Install
-npm install -g nova-architect
+npm install -g @novastorm-ai/cli
 
 # Setup AI provider
 nova setup
-# → Choose: openrouter (cheapest) or claude-cli (free with subscription)
+# → Choose a provider (DeepSeek, OpenRouter, Anthropic, OpenAI, Ollama, Claude CLI)
 # → Enter API key
 
 # Start in your project

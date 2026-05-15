@@ -1,4 +1,4 @@
-# Nova Architect — Voice Guide
+# Novastorm — Voice Guide
 
 ## Getting Started with Voice
 
@@ -63,7 +63,7 @@ Combine voice with cursor pointing for precise element targeting.
 
 ### Enable
 
-- Press **Option+G** or select from star menu
+- Press **Option+G** or select from pill menu
 - Indicator shows "Gesture Mode ON"
 
 ### How It Works
