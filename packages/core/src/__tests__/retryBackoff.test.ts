@@ -215,11 +215,11 @@ describe('Retry backoff', () => {
       // Verify delays (jitter mocked to 0 means exact values)
       expect(delays.length).toBe(3);
       // Retry 1: 1000ms
-      expect(delays[0]).toBe(1000);
+      expect(delays[0]!).toBe(1000);
       // Retry 2: 2000ms
-      expect(delays[1]).toBe(2000);
+      expect(delays[1]!).toBe(2000);
       // Retry 3: 4000ms
-      expect(delays[2]).toBe(4000);
+      expect(delays[2]!).toBe(4000);
 
       // Verify total attempts: 4 (1 initial + 3 retries)
       expect(provider.getCallCount()).toBe(4);
@@ -279,17 +279,17 @@ describe('Retry backoff', () => {
       expect(retryEvents.length).toBe(3);
 
       // Retry 1: 1000ms
-      expect(retryEvents[0].attempt).toBe(1);
-      expect(retryEvents[0].waitMs).toBe(1000);
-      expect(retryEvents[0].reason).toContain('429');
+      expect(retryEvents[0]!.attempt).toBe(1);
+      expect(retryEvents[0]!.waitMs).toBe(1000);
+      expect(retryEvents[0]!.reason).toContain('429');
 
       // Retry 2: 2000ms
-      expect(retryEvents[1].attempt).toBe(2);
-      expect(retryEvents[1].waitMs).toBe(2000);
+      expect(retryEvents[1]!.attempt).toBe(2);
+      expect(retryEvents[1]!.waitMs).toBe(2000);
 
       // Retry 3: 4000ms
-      expect(retryEvents[2].attempt).toBe(3);
-      expect(retryEvents[2].waitMs).toBe(4000);
+      expect(retryEvents[2]!.attempt).toBe(3);
+      expect(retryEvents[2]!.waitMs).toBe(4000);
     });
   });
 
@@ -324,9 +324,9 @@ describe('Retry backoff', () => {
 
       // Verify fallback event emitted
       expect(fallbackEvents.length).toBe(1);
-      expect(fallbackEvents[0].fromModel).toBe('primary-model');
-      expect(fallbackEvents[0].toModel).toBe('micro-model');
-      expect(fallbackEvents[0].reason).toContain('429');
+      expect(fallbackEvents[0]!.fromModel).toBe('primary-model');
+      expect(fallbackEvents[0]!.toModel).toBe('micro-model');
+      expect(fallbackEvents[0]!.reason).toContain('429');
     });
 
     it('does not attempt fallback when fallbackModel is not configured', async () => {

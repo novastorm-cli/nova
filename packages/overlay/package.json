@@ -20,10 +20,11 @@
   },
   "dependencies": {
     "@novastorm-ai/core": "workspace:*",
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "tsup": "^8.4.0"
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0"
   }
 }

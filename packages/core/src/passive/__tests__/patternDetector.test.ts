@@ -31,8 +31,8 @@ describe('PatternDetector', () => {
       const patterns = detector.detect(tracker);
       const frequent = patterns.filter((p) => p.type === 'frequent_page');
       expect(frequent).toHaveLength(1);
-      expect(frequent[0].occurrences).toBe(6);
-      expect(frequent[0].metadata['url']).toBe('/dashboard');
+      expect(frequent[0]!.occurrences).toBe(6);
+      expect(frequent[0]!.metadata['url']).toBe('/dashboard');
     });
 
     it('should not detect pages visited < 5 times', () => {
@@ -74,7 +74,7 @@ describe('PatternDetector', () => {
       const patterns = detector.detect(tracker);
       const repeated = patterns.filter((p) => p.type === 'repeated_action');
       expect(repeated).toHaveLength(1);
-      expect(repeated[0].occurrences).toBe(4);
+      expect(repeated[0]!.occurrences).toBe(4);
     });
 
     it('should not detect actions repeated < 3 times', () => {
@@ -103,7 +103,7 @@ describe('PatternDetector', () => {
       const patterns = detector.detect(tracker);
       const slow = patterns.filter((p) => p.type === 'slow_api');
       expect(slow).toHaveLength(1);
-      expect(slow[0].metadata['endpoint']).toBe('/api/users');
+      expect(slow[0]!.metadata['endpoint']).toBe('/api/users');
     });
 
     it('should not detect fast API calls', () => {
@@ -141,7 +141,7 @@ describe('PatternDetector', () => {
       const patterns = detector.detect(tracker);
       const recurring = patterns.filter((p) => p.type === 'recurring_error');
       expect(recurring).toHaveLength(1);
-      expect(recurring[0].occurrences).toBe(4);
+      expect(recurring[0]!.occurrences).toBe(4);
     });
 
     it('should not detect errors occurring < 3 times', () => {

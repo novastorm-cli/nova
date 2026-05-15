@@ -66,7 +66,7 @@ function getCanOpen(): boolean {
 /** Extract the first line number from a unified diff hunk header. */
 function getFirstLineNumber(diffContent: string): number {
   const match = diffContent.match(/@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-  return match ? parseInt(match[1], 10) : 1;
+  return match ? parseInt(match[1]!, 10) : 1;
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -1308,8 +1308,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             /=== (?:FILE|DIFF): (.+?) ===\n([\s\S]*?)(?:=== END (?:FILE|DIFF) ===)/g;
           let blockMatch;
           while ((blockMatch = blockRegex.exec(codeBuffer)) !== null) {
-            const filePath = blockMatch[1].trim();
-            const content = blockMatch[2].trim();
+            const filePath = blockMatch[1]!.trim();
+            const content = blockMatch[2]!.trim();
             activityLog.addDiffEntry(filePath, content, 'code', ts);
             // Clear reasoning entry if it was showing partial block text
             if (lastReasoningEntry) {

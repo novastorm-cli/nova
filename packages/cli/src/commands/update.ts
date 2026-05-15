@@ -166,7 +166,7 @@ interface InstallResult {
 
 function runPmInstall(pm: PackageManager): Promise<InstallResult> {
   const { installCmd } = PM_COMMANDS[pm];
-  const cmd = installCmd[0];
+  const cmd = installCmd[0]!;
   const args = installCmd.slice(1);
 
   return new Promise((resolve) => {

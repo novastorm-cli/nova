@@ -17,7 +17,7 @@ import { sendBootTelemetry } from '../TelemetryEmitter.js';
 
 describe('TelemetryEmitter', () => {
   const defaultConfig = { telemetry: { enabled: true }, license: {}, apiKeys: { provider: 'deepseek', key: '' } };
-  const defaultLicense = { valid: true, devCount: 2, tier: 'free' as const, message: undefined };
+  const defaultLicense = { valid: true, devCount: 2, tier: 'free' as const };
 
   beforeEach(() => {
     vi.clearAllMocks();

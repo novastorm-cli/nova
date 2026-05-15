@@ -67,7 +67,7 @@ describe('AnthropicProvider', () => {
       expect(result).toEqual({ content: 'Hello back!' });
       expect(mockCreate).toHaveBeenCalledOnce();
 
-      const args = mockCreate.mock.calls[0][0];
+      const args = mockCreate.mock.calls[0]![0];
       expect(args.messages).toBeDefined();
       expect(args.max_tokens).toBe(4096);
       expect(args.temperature).toBe(0);
@@ -83,7 +83,7 @@ describe('AnthropicProvider', () => {
 
       await provider.chat(userMessages, { model: 'claude-3-haiku-20240307' });
 
-      const args = mockCreate.mock.calls[0][0];
+      const args = mockCreate.mock.calls[0]![0];
       expect(args.model).toBe('claude-3-haiku-20240307');
     });
 
@@ -94,7 +94,7 @@ describe('AnthropicProvider', () => {
 
       await provider.chat(userMessages, { responseFormat: 'json' });
 
-      const args = mockCreate.mock.calls[0][0];
+      const args = mockCreate.mock.calls[0]![0];
       const allContent = JSON.stringify(args.messages);
       expect(allContent.toLowerCase()).toContain('json');
     });
@@ -113,7 +113,7 @@ describe('AnthropicProvider', () => {
       const result = await provider.chatWithVision(userMessages, [imageBuffer]);
 
       expect(result).toEqual({ content: 'I see an image' });
-      const args = mockCreate.mock.calls[0][0];
+      const args = mockCreate.mock.calls[0]![0];
       const bodyStr = JSON.stringify(args);
 
       expect(bodyStr).toContain(imageBuffer.toString('base64'));

@@ -18,7 +18,7 @@ export class EnvDetector {
       const regex = /process\.env\.([A-Z][A-Z0-9_]+)/g;
       let match: RegExpExecArray | null;
       while ((match = regex.exec(content)) !== null) {
-        const varName = match[1];
+        const varName = match[1]!;
         if (!EXCLUDED_VARS.has(varName) && !varName.startsWith('NEXT_PUBLIC_')) {
           referenced.add(varName);
         }

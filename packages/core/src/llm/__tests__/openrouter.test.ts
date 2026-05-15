@@ -64,7 +64,7 @@ describe('OpenRouterProvider', () => {
       expect(result).toEqual({ content: 'Hello back!' });
       expect(mockCompletionsCreate).toHaveBeenCalledOnce();
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       expect(args.messages).toBeDefined();
       expect(args.model).toBeDefined();
     });
@@ -76,7 +76,7 @@ describe('OpenRouterProvider', () => {
 
       await provider.chat(userMessages, { model: 'anthropic/claude-3-opus' });
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       expect(args.model).toBe('anthropic/claude-3-opus');
     });
 
@@ -87,7 +87,7 @@ describe('OpenRouterProvider', () => {
 
       await provider.chat(userMessages, { responseFormat: 'json' });
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       const allContent = JSON.stringify(args);
       expect(allContent.toLowerCase()).toContain('json');
     });
@@ -106,7 +106,7 @@ describe('OpenRouterProvider', () => {
       const result = await provider.chatWithVision(userMessages, [imageBuffer]);
 
       expect(result).toEqual({ content: 'I see an image' });
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       const bodyStr = JSON.stringify(args);
 
       expect(bodyStr).toContain(imageBuffer.toString('base64'));

@@ -12,7 +12,7 @@ function createMockTracker(trail: CursorPoint[] = []): ICursorTracker {
     getTrail: vi.fn().mockReturnValue(trail),
     getPointAtTime: vi.fn((ts: number) => {
       if (trail.length === 0) return null;
-      let closest = trail[0];
+      let closest = trail[0]!;
       for (const p of trail) {
         if (Math.abs(p.timestamp - ts) < Math.abs(closest.timestamp - ts)) {
           closest = p;

@@ -72,18 +72,18 @@ export class TemporalCorrelator {
     const gestures: Gesture[] = [];
 
     for (let i = 0; i < this.transcripts.length; i++) {
-      const entry = this.transcripts[i];
+      const entry = this.transcripts[i]!;
       const words = entry.text.split(/\s+/);
 
       // Estimate duration from gap to next transcript
       const nextTs =
         i + 1 < this.transcripts.length
-          ? this.transcripts[i + 1].timestamp
+          ? this.transcripts[i + 1]!.timestamp
           : entry.timestamp + DEFAULT_DURATION_MS;
       const duration = Math.max(nextTs - entry.timestamp, DEFAULT_DURATION_MS);
 
       for (let wIdx = 0; wIdx < words.length; wIdx++) {
-        const word = words[wIdx].toLowerCase().replace(/[.,!?;:]/g, '');
+        const word = words[wIdx]!.toLowerCase().replace(/[.,!?;:]/g, '');
         if (!DEICTIC_WORDS.has(word)) continue;
 
         // Interpolate word timestamp within transcript

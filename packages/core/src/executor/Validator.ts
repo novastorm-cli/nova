@@ -83,9 +83,9 @@ export class Validator implements IValidator {
     let match: RegExpExecArray | null;
     while ((match = linePattern.exec(output)) !== null) {
       errors.push({
-        file: match[1],
-        line: parseInt(match[2], 10),
-        message: match[3],
+        file: match[1]!,
+        line: parseInt(match[2]!, 10),
+        message: match[3]!,
       });
     }
 
@@ -199,14 +199,14 @@ export class Validator implements IValidator {
 
   private getStdout(error: unknown): string {
     if (error && typeof error === 'object' && 'stdout' in error) {
-      return String((error as { stdout: unknown }).stdout);
+      return String((error).stdout);
     }
     return error instanceof Error ? error.message : String(error);
   }
 
   private getStderr(error: unknown): string {
     if (error && typeof error === 'object' && 'stderr' in error) {
-      return String((error as { stderr: unknown }).stderr);
+      return String((error).stderr);
     }
     return this.getStdout(error);
   }

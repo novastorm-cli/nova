@@ -314,7 +314,7 @@ export class Lane3Executor {
               /=== FILE: .+? ===\n([\s\S]*?)=== END FILE ===/,
             );
             if (fileMatch) {
-              fb.content = fileMatch[1].trimEnd();
+              fb.content = fileMatch[1]!.trimEnd();
               const absPath = join(this.projectPath, fb.path);
               await writeFile(absPath, fb.content, 'utf-8');
               this.logger?.info(`Syntax fix applied for ${fb.path}`, { taskId: task.id });
@@ -327,7 +327,7 @@ export class Lane3Executor {
 
       const skipValidation =
         this.forceSkipValidation ||
-        (fileBlocks.length === 1 && fileBlocks[0].content.length < 3000);
+        (fileBlocks.length === 1 && fileBlocks[0]!.content.length < 3000);
       const tscSkip = this.shouldSkipTsc(fileBlocks);
       const validator = new CodeValidator(this.projectPath);
       const fixer = new CodeFixer(this.llmClient, this.eventBus, this.modelName);
@@ -495,7 +495,7 @@ export class Lane3Executor {
 
     // Single small TS file: skip tsc, keep import validation
     const tsBlocks = blocks.filter((b) => tsExts.has(getExt(b.path)));
-    if (tsBlocks.length === 1 && tsBlocks[0].content.length < 5000) {
+    if (tsBlocks.length === 1 && tsBlocks[0]!.content.length < 5000) {
       return { skipTsc: true, skipImportCheck: false, reason: 'single small TS file' };
     }
 

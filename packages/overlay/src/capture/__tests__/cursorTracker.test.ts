@@ -101,7 +101,7 @@ describe('CursorTracker', () => {
       return;
     }
 
-    const firstPoint = trail[0];
+    const firstPoint = trail[0]!;
     const result = tracker.getPointAtTime(firstPoint.timestamp);
     expect(result).not.toBeNull();
     expect(result!.timestamp).toBe(firstPoint.timestamp);
@@ -126,7 +126,7 @@ describe('CursorTracker', () => {
 
     const trail = tracker.getTrail();
     if (trail.length > 0) {
-      const element = tracker.getElementAtTime(trail[0].timestamp);
+      const element = tracker.getElementAtTime(trail[0]!.timestamp);
       expect(element).toBeNull();
     }
 

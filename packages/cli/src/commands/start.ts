@@ -73,7 +73,7 @@ function findOverlayScript(): string {
       if (require('fs').existsSync(p)) return p;
     } catch {}
   }
-  return candidates[0];
+  return candidates[0]!;
 }
 const OVERLAY_SCRIPT_PATH = findOverlayScript();
 
@@ -173,8 +173,8 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   sp.succeed('.nova/ directory ready.');
   sp.start('Indexing project...');
   const projectMap = await indexer.index(cwd, {
-    frontend: config.project.frontend,
-    backends: config.project.backends,
+    ...(config.project.frontend !== undefined ? { frontend: config.project.frontend } : {}),
+    ...(config.project.backends !== undefined ? { backends: config.project.backends } : {}),
   });
   sp.succeed('Project indexed.');
 
@@ -201,8 +201,8 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     }
     const embSvc = createEmbeddingService({
       provider: embProvider,
-      apiKey: embKey,
-      baseUrl: embUrl,
+      ...(embKey !== undefined ? { apiKey: embKey } : {}),
+      ...(embUrl !== undefined ? { baseUrl: embUrl } : {}),
     });
     const vs = new VectorStore();
     ragIndexer = new RagIndexer(embSvc, vs);
@@ -297,7 +297,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   );
 
   // ── 13. Browser ──────────────────────────────────────────────────
-  await openBrowser(`http://localhost:${proxyPort}`, { noOpen: options.noOpen });
+  await openBrowser(`http://localhost:${proxyPort}`, { ...(options.noOpen !== undefined ? { noOpen: options.noOpen } : {}) });
 
   // ── 14. Git ──────────────────────────────────────────────────────
   try {
@@ -325,7 +325,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   let executorPool: any = null;
   const commitQueue = new CommitQueue(
     gitManager,
-    { allowProtectedBranchCommits: config.git?.allowProtectedBranchCommits },
+    { ...(config.git?.allowProtectedBranchCommits !== undefined ? { allowProtectedBranchCommits: config.git.allowProtectedBranchCommits } : {}) },
     undefined,
     eventBus,
   );
@@ -384,12 +384,10 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     wsServer,
     eventBus,
     brain,
-    llmClient,
     config,
     options,
     gitManager,
     executorPool,
-    commitQueue,
     autoFixer,
     devServer,
     logger: novaLogger,
@@ -686,7 +684,7 @@ async function recoverDevServer(
       if (action === 'fix-json-retry') {
         const { readFileSync, writeFileSync } = await import('node:fs');
         const p = path.join(cwd, 'package.json');
-        let c = readFileSync(p, 'utf-8').replace(/,(\s*[}\]])/g, '$1');
+        const c = readFileSync(p, 'utf-8').replace(/,(\s*[}\]])/g, '$1');
         writeFileSync(p, c);
         if (llmClient) {
           try {
@@ -727,8 +725,8 @@ async function recoverDevServer(
         let m: RegExpExecArray | null;
         const re = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
         while ((m = re.exec(resp.content)) !== null) {
-          mkdirSync(path.dirname(path.join(cwd, m[1].trim())), { recursive: true });
-          wf(path.join(cwd, m[1].trim()), m[2]);
+          mkdirSync(path.dirname(path.join(cwd, m[1]!.trim())), { recursive: true });
+          wf(path.join(cwd, m[1]!.trim()), m[2]!);
         }
         await devServer.spawn(devCommand, cwd, devPort);
         return;

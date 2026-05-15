@@ -43,7 +43,7 @@ function computeRms(analyser: AnalyserNode, dataArray: Uint8Array): number {
   let sumSquares = 0;
   for (let i = 0; i < dataArray.length; i++) {
     // Convert unsigned byte 0–255 to signed float -1.0 to 1.0
-    const normalized = (dataArray[i] - 128) / 128;
+    const normalized = (dataArray[i]! - 128) / 128;
     sumSquares += normalized * normalized;
   }
   return Math.sqrt(sumSquares / dataArray.length);
@@ -224,7 +224,7 @@ export class VoiceCapture implements IVoiceCapture {
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
+        const result = event.results[i]!;
         const text = result[0]?.transcript ?? '';
         const isFinal = result.isFinal;
         this.emitTranscript({ text, isFinal, timestamp: Date.now() });

@@ -13,7 +13,7 @@ export interface CommitQueueOptions {
    * When false or unset (default), commits to these branches are refused
    * with a clear error.
    */
-  allowProtectedBranchCommits?: boolean;
+  allowProtectedBranchCommits?: boolean | undefined;
 }
 
 /**
@@ -23,9 +23,9 @@ export interface CommitQueueOptions {
 export class CommitQueue {
   private queue: Promise<string> = Promise.resolve('');
   private readonly logger: ILogger;
-  private readonly eventBus?: EventBus;
+  private readonly eventBus?: EventBus | undefined;
   /** Tracks the taskId of the most recently enqueued commit for error attribution. */
-  private lastTaskId?: string;
+  private lastTaskId?: string | undefined;
 
   constructor(
     private readonly gitManager: IGitManager,

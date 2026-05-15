@@ -76,7 +76,7 @@ function buildLocalConfig(
     apiKeys: { provider },
   };
   if (apiKey) {
-    cfg['apiKeys']['key'] = apiKey;
+    cfg['apiKeys']!['key'] = apiKey;
   }
   return cfg;
 }

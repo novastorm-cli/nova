@@ -91,13 +91,13 @@ describe('Brain', () => {
 
     expect(llm.chatWithVision).toHaveBeenCalledOnce();
 
-    const [messages, images] = (llm.chatWithVision as ReturnType<typeof vi.fn>).mock.calls[0];
+    const [messages, images] = (llm.chatWithVision as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(Array.isArray(messages)).toBe(true);
     expect(messages.length).toBeGreaterThan(0);
     expect(Array.isArray(images)).toBe(true);
     expect(images).toHaveLength(1);
-    expect(Buffer.isBuffer(images[0])).toBe(true);
-    expect(images[0]).toBe(observation.screenshot);
+    expect(Buffer.isBuffer(images[0]!)).toBe(true);
+    expect(images[0]!).toBe(observation.screenshot);
   });
 
   // ── analyze() parses JSON response into TaskItem[] ─────────
@@ -110,13 +110,13 @@ describe('Brain', () => {
 
     expect(Array.isArray(tasks)).toBe(true);
     expect(tasks).toHaveLength(2);
-    expect(tasks[0]).toMatchObject({
+    expect(tasks[0]!).toMatchObject({
       description: expect.any(String),
       files: expect.any(Array),
       type: expect.any(String),
       status: expect.any(String),
     });
-    expect(tasks[1].description).toBe('Add search input to dashboard');
+    expect(tasks[1]!.description).toBe('Add search input to dashboard');
   });
 
   // ── analyze() assigns lane to each task ────────────────────

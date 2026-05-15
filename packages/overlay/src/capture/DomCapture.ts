@@ -15,7 +15,8 @@ const PARENT_LEVELS = 2;
 export class DomCapture implements IDomCapture {
   captureElement(element: HTMLElement): string {
     const ancestors = this.getAncestors(element, PARENT_LEVELS);
-    const rootElement = ancestors.length > 0 ? ancestors[ancestors.length - 1] : element;
+    const rootElement: HTMLElement =
+      ancestors.length > 0 ? (ancestors[ancestors.length - 1] ?? element) : element;
 
     const clone = rootElement.cloneNode(true) as HTMLElement;
     this.cleanNode(clone, rootElement, element);
@@ -57,7 +58,7 @@ export class DomCapture implements IDomCapture {
     const originalChildren = Array.from(originalNode.children) as HTMLElement[];
 
     for (let i = 0; i < cloneChildren.length && i < originalChildren.length; i++) {
-      this.cleanNode(cloneChildren[i], originalChildren[i], targetElement);
+      this.cleanNode(cloneChildren[i]!, originalChildren[i]!, targetElement);
     }
   }
 

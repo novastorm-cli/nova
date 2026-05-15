@@ -104,10 +104,13 @@ export class GitManager implements IGitManager {
       const lines = entry.trim().split('\n');
       if (lines.length === 0) continue;
 
-      const fields = lines[0].split(fieldSep);
+      const fields = lines[0]!.split(fieldSep);
       if (fields.length < 4) continue;
 
-      const [hash, message, author, dateStr] = fields;
+      const hash = fields[0]!;
+      const message = fields[1]!;
+      const author = fields[2]!;
+      const dateStr = fields[3]!;
       const files = lines.slice(1).map((l) => l.trim()).filter(Boolean);
 
       commits.push({

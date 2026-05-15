@@ -471,7 +471,7 @@ export class MultiElementSelector {
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let transcript = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+        transcript += event.results[i]![0]!.transcript;
       }
       input.value = transcript;
     };

@@ -92,7 +92,7 @@ describe('LaneClassifier', () => {
       const start = Date.now();
 
       for (let i = 0; i < 1000; i++) {
-        const [desc, files] = inputs[i % inputs.length];
+        const [desc, files] = inputs[i % inputs.length]!;
         classifier.classify(desc, files);
       }
 

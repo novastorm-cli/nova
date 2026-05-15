@@ -188,7 +188,7 @@ async function handleFixJson(
 
         let fixed = response.content.trim();
         const fenceMatch = fixed.match(/```(?:json)?\n([\s\S]*?)```/);
-        if (fenceMatch) fixed = fenceMatch[1].trim();
+        if (fenceMatch) fixed = fenceMatch[1]!.trim();
         JSON.parse(fixed);
         writeFileSync(pkgPath, fixed, 'utf-8');
         logger.info('  AI fixed package.json.');
@@ -237,13 +237,13 @@ async function handleAiFix(
     let match: RegExpExecArray | null;
     let filesWritten = 0;
     while ((match = fileBlockRegex.exec(response.content)) !== null) {
-      const filePath = join(cwd, match[1].trim());
-      const fileContent = match[2];
+      const filePath = join(cwd, match[1]!.trim());
+      const fileContent = match[2]!;
       const { mkdirSync, writeFileSync: writeSync } = await import('node:fs');
       const { dirname } = await import('node:path');
       mkdirSync(dirname(filePath), { recursive: true });
       writeSync(filePath, fileContent, 'utf-8');
-      logger.debug(`  Wrote: ${match[1].trim()}`);
+      logger.debug(`  Wrote: ${match[1]!.trim()}`);
       filesWritten++;
     }
 

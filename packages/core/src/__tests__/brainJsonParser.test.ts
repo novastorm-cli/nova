@@ -41,7 +41,7 @@ describe('Brain.parseJsonArray', () => {
       '[{"type": "multi_file", "changes": [{"file": "a.ts", "lines": [1,2,3]}, {"file": "b.ts", "lines": [4,5]}]}]',
     );
     expect(result).toHaveLength(1);
-    expect(result[0]).toHaveProperty('changes');
+    expect(result[0]!).toHaveProperty('changes');
     const item = result[0] as Record<string, unknown>;
     expect(item.changes as unknown[]).toHaveLength(2);
   });

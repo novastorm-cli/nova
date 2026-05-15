@@ -98,7 +98,7 @@ export class OllamaProvider extends BaseProvider {
       );
     }
 
-    ollamaMessages[lastUserIdx].images = images.map((img) => img.toString('base64'));
+    ollamaMessages[lastUserIdx]!.images = images.map((img) => img.toString('base64'));
 
     return {
       model: options?.model ?? DEFAULT_MODEL,

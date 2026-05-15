@@ -30,9 +30,9 @@ export class Brain implements IBrain {
   private readonly laneClassifier: LaneClassifier;
   private readonly logger: ILogger;
 
-  private readonly eventBus?: EventBus;
+  private readonly eventBus?: EventBus | undefined;
 
-  private readonly modelName?: string;
+  private readonly modelName?: string | undefined;
 
   constructor(llm: LlmClient, eventBus?: EventBus, modelName?: string, logger?: ILogger) {
     this.llm = llm;
@@ -123,9 +123,9 @@ export class Brain implements IBrain {
 
   private toTaskItems(raw: RawTask[]): TaskItem[] {
     // Check if AI is asking a clarifying question
-    if (raw.length === 1 && raw[0].question && !raw[0].description) {
-      this.logger.info(`Brain: AI asks clarifying question: ${raw[0].question}`);
-      this.status(`question:${raw[0].question}`);
+    if (raw.length === 1 && raw[0]!.question && !raw[0]!.description) {
+      this.logger.info(`Brain: AI asks clarifying question: ${raw[0]!.question}`);
+      this.status(`question:${raw[0]!.question}`);
       return []; // No tasks — question sent via status event
     }
 

@@ -250,7 +250,7 @@ describe('ClaudeCliProvider', () => {
 
       expect(chunks.join('')).toBe('ok');
       // spawn was called with 'claude' command (not sh)
-      expect(mockSpawn.mock.calls[0][0]).toBe('claude');
+      expect(mockSpawn.mock.calls[0]![0]!).toBe('claude');
     });
   });
 

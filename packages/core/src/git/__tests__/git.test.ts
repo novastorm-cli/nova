@@ -123,8 +123,8 @@ describe('GitManager', () => {
       const log = await manager.getLog();
 
       expect(log.length).toBeGreaterThanOrEqual(3); // initial + A + B
-      expect(log[0].message).toContain('commit B');
-      expect(log[1].message).toContain('commit A');
+      expect(log[0]!.message).toContain('commit B');
+      expect(log[1]!.message).toContain('commit A');
 
       for (const entry of log) {
         expect(entry).toHaveProperty('hash');

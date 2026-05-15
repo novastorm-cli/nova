@@ -55,7 +55,7 @@ export class CursorTracker implements ICursorTracker {
 
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      if (this.buffer[mid].timestamp < ts) {
+      if (this.buffer[mid]!.timestamp < ts) {
         lo = mid + 1;
       } else {
         hi = mid;
@@ -64,12 +64,12 @@ export class CursorTracker implements ICursorTracker {
 
     // Check lo and lo-1 for closest match
     if (lo > 0) {
-      const diffLo = Math.abs(this.buffer[lo].timestamp - ts);
-      const diffPrev = Math.abs(this.buffer[lo - 1].timestamp - ts);
-      if (diffPrev < diffLo) return this.buffer[lo - 1];
+      const diffLo = Math.abs(this.buffer[lo]!.timestamp - ts);
+      const diffPrev = Math.abs(this.buffer[lo - 1]!.timestamp - ts);
+      if (diffPrev < diffLo) return this.buffer[lo - 1] ?? null;
     }
 
-    return this.buffer[lo];
+    return this.buffer[lo] ?? null;
   }
 
   getElementAtTime(ts: number): Element | null {

@@ -93,9 +93,9 @@ export class DiffApplier implements IDiffApplier {
       const headerMatch = HUNK_HEADER.exec(line);
       if (headerMatch) {
         currentHunk = {
-          oldStart: parseInt(headerMatch[1], 10),
+          oldStart: parseInt(headerMatch[1]!, 10),
           oldCount: parseInt(headerMatch[2] ?? '1', 10),
-          newStart: parseInt(headerMatch[3], 10),
+          newStart: parseInt(headerMatch[3]!, 10),
           newCount: parseInt(headerMatch[4] ?? '1', 10),
           lines: [],
         };
@@ -182,8 +182,8 @@ export class DiffApplier implements IDiffApplier {
       toRemove.filter((r) => r <= idx).length;
 
     for (let i = 0; i < toInsert.length; i++) {
-      const adjustedIdx = toInsert[i].index - removesBefore(toInsert[i].index) + i;
-      result.splice(adjustedIdx, 0, toInsert[i].content);
+      const adjustedIdx = toInsert[i]!.index - removesBefore(toInsert[i]!.index) + i;
+      result.splice(adjustedIdx, 0, toInsert[i]!.content);
     }
 
     return result;
@@ -203,18 +203,18 @@ export class DiffApplier implements IDiffApplier {
         li < lcs.length &&
         bi < beforeLines.length &&
         ai < afterLines.length &&
-        beforeLines[bi] === lcs[li] &&
-        afterLines[ai] === lcs[li]
+        beforeLines[bi] === lcs[li]! &&
+        afterLines[ai] === lcs[li]!
       ) {
-        hunkLines.push({ type: 'context', content: beforeLines[bi] });
+        hunkLines.push({ type: 'context', content: beforeLines[bi]! });
         bi++;
         ai++;
         li++;
-      } else if (bi < beforeLines.length && (li >= lcs.length || beforeLines[bi] !== lcs[li])) {
-        hunkLines.push({ type: 'remove', content: beforeLines[bi] });
+      } else if (bi < beforeLines.length && (li >= lcs.length || beforeLines[bi]! !== lcs[li]!)) {
+        hunkLines.push({ type: 'remove', content: beforeLines[bi]! });
         bi++;
-      } else if (ai < afterLines.length && (li >= lcs.length || afterLines[ai] !== lcs[li])) {
-        hunkLines.push({ type: 'add', content: afterLines[ai] });
+      } else if (ai < afterLines.length && (li >= lcs.length || afterLines[ai]! !== lcs[li]!)) {
+        hunkLines.push({ type: 'add', content: afterLines[ai]! });
         ai++;
       }
     }
@@ -228,7 +228,7 @@ export class DiffApplier implements IDiffApplier {
 
     while (start < hunkLines.length) {
       // Find next non-context line
-      while (start < hunkLines.length && hunkLines[start].type === 'context') {
+      while (start < hunkLines.length && hunkLines[start]!.type === 'context') {
         start++;
       }
       if (start >= hunkLines.length) break;
@@ -238,14 +238,14 @@ export class DiffApplier implements IDiffApplier {
 
       // Find end of this change group (allow merging if gaps are small)
       while (end < hunkLines.length) {
-        if (hunkLines[end].type !== 'context') {
+        if (hunkLines[end]!.type !== 'context') {
           end++;
           continue;
         }
         // Count consecutive context lines
         let contextRun = 0;
         let peek = end;
-        while (peek < hunkLines.length && hunkLines[peek].type === 'context') {
+        while (peek < hunkLines.length && hunkLines[peek]!.type === 'context') {
           contextRun++;
           peek++;
         }
@@ -262,8 +262,8 @@ export class DiffApplier implements IDiffApplier {
       let oldLine = 1;
       let newLine = 1;
       for (let i = 0; i < hunkStart; i++) {
-        if (hunkLines[i].type === 'context' || hunkLines[i].type === 'remove') oldLine++;
-        if (hunkLines[i].type === 'context' || hunkLines[i].type === 'add') newLine++;
+        if (hunkLines[i]!.type === 'context' || hunkLines[i]!.type === 'remove') oldLine++;
+        if (hunkLines[i]!.type === 'context' || hunkLines[i]!.type === 'add') newLine++;
       }
 
       const oldCount = slice.filter((l) => l.type === 'context' || l.type === 'remove').length;
@@ -293,9 +293,9 @@ export class DiffApplier implements IDiffApplier {
     for (let i = 1; i <= m; i++) {
       for (let j = 1; j <= n; j++) {
         if (a[i - 1] === b[j - 1]) {
-          dp[i][j] = dp[i - 1][j - 1] + 1;
+          dp[i]![j] = dp[i - 1]![j - 1]! + 1;
         } else {
-          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+          dp[i]![j] = Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!);
         }
       }
     }
@@ -305,11 +305,11 @@ export class DiffApplier implements IDiffApplier {
     let i = m;
     let j = n;
     while (i > 0 && j > 0) {
-      if (a[i - 1] === b[j - 1]) {
-        result.unshift(a[i - 1]);
+      if (a[i - 1]! === b[j - 1]!) {
+        result.unshift(a[i - 1]!);
         i--;
         j--;
-      } else if (dp[i - 1][j] > dp[i][j - 1]) {
+      } else if (dp[i - 1]![j]! > dp[i]![j - 1]!) {
         i--;
       } else {
         j--;

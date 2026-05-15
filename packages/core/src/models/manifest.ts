@@ -3,35 +3,35 @@ export type EntityType = 'module' | 'external-service' | 'library' | 'shared-pac
 
 export interface ManifestProject {
   name: string;
-  description?: string;
+  description?: string | undefined;
 }
 
 export interface ManifestService {
   name: string;
   type: ServiceType;
   path: string;
-  framework?: string;
-  language?: string;
+  framework?: string | undefined;
+  language?: string | undefined;
 }
 
 export interface ManifestDatabase {
   name: string;
   engine: string;
-  schema_path?: string;
-  connection_env?: string;
+  schema_path?: string | undefined;
+  connection_env?: string | undefined;
 }
 
 export interface ManifestEntity {
   name: string;
   type: EntityType;
-  description?: string;
-  files?: string[];
+  description?: string | undefined;
+  files?: string[] | undefined;
 }
 
 export interface ManifestBoundaries {
-  writable?: string[];
-  readonly?: string[];
-  ignored?: string[];
+  writable?: string[] | undefined;
+  readonly?: string[] | undefined;
+  ignored?: string[] | undefined;
 }
 
 export interface Manifest {

@@ -192,8 +192,8 @@ describe('CommitQueue', () => {
         .filter((e): e is Extract<NovaEvent, { type: 'task_failed' }> => e.type === 'task_failed');
 
       expect(taskFailedCalls.length).toBeGreaterThanOrEqual(1);
-      expect(taskFailedCalls[0].data.taskId).toBe(taskId);
-      expect(taskFailedCalls[0].data.error).toContain('protected branch');
+      expect(taskFailedCalls[0]!.data.taskId).toBe(taskId);
+      expect(taskFailedCalls[0]!.data.error).toContain('protected branch');
     });
 
     it('emits task_failed with the GitError message as the reason', async () => {
@@ -217,8 +217,8 @@ describe('CommitQueue', () => {
         .filter((e): e is Extract<NovaEvent, { type: 'task_failed' }> => e.type === 'task_failed');
 
       expect(taskFailedCalls.length).toBeGreaterThanOrEqual(1);
-      expect(taskFailedCalls[0].data.error).toContain('Refusing to commit');
-      expect(taskFailedCalls[0].data.error).toContain('main');
+      expect(taskFailedCalls[0]!.data.error).toContain('Refusing to commit');
+      expect(taskFailedCalls[0]!.data.error).toContain('main');
     });
 
     it('does not crash when eventBus is not provided (backward compat)', async () => {
@@ -285,8 +285,8 @@ describe('CommitQueue', () => {
 
       // Should have 2 task_failed events (one for each failed commit)
       expect(taskFailedCalls.length).toBe(2);
-      expect(taskFailedCalls[0].data.taskId).toBe('task-1');
-      expect(taskFailedCalls[1].data.taskId).toBe('task-2');
+      expect(taskFailedCalls[0]!.data.taskId).toBe('task-1');
+      expect(taskFailedCalls[1]!.data.taskId).toBe('task-2');
     });
   });
 });

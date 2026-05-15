@@ -353,7 +353,7 @@ Error: ${errorOutput.slice(0, 300)}`;
     ];
     for (const p of patterns) {
       const match = errorOutput.match(p);
-      if (match) return match[1];
+      if (match) return match[1]!;
     }
     return null;
   }

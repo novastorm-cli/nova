@@ -32,8 +32,8 @@ describe('VectorStore', () => {
 
     const results = store.search([1, 0, 0], 2);
     expect(results).toHaveLength(2);
-    expect(results[0].record.id).toBe('a');
-    expect(results[1].record.id).toBe('c');
+    expect(results[0]!.record.id).toBe('a');
+    expect(results[1]!.record.id).toBe('c');
   });
 
   it('upsert updates existing record by id', () => {
@@ -43,7 +43,7 @@ describe('VectorStore', () => {
 
     expect(store.getRecordCount()).toBe(1);
     const results = store.search([0.1, 0.2, 0.3], 1);
-    expect(results[0].record.chunkText).toBe('new');
+    expect(results[0]!.record.chunkText).toBe('new');
   });
 
   it('remove deletes all records for a file', () => {
@@ -70,7 +70,7 @@ describe('VectorStore', () => {
     expect(store2.getRecordCount()).toBe(2);
 
     const results = store2.search([1, 0, 0], 1);
-    expect(results[0].record.id).toBe('a');
+    expect(results[0]!.record.id).toBe('a');
   });
 
   it('search returns empty array when no records', () => {

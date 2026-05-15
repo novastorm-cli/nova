@@ -63,7 +63,7 @@ export class WebSocketServer implements IWebSocketServer {
     try {
       // Use a simple regex to extract ?token=... from the URL
       const match = url.match(/[?&]token=([^&]*)/);
-      return match ? decodeURIComponent(match[1]) : null;
+      return match ? decodeURIComponent(match[1]!) : null;
     } catch {
       return null;
     }

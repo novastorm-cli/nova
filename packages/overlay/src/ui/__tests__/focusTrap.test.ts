@@ -111,7 +111,7 @@ describe('installFocusTrap', () => {
 
       // First button should receive focus
       expect(tracker.events.length).toBeGreaterThanOrEqual(1);
-      expect(tracker.events[0].target).toBe(buttons[0]);
+      expect(tracker.events[0]!.target).toBe(buttons[0]);
 
       tracker.cleanup();
       trap.release();
@@ -121,8 +121,8 @@ describe('installFocusTrap', () => {
       const { root, buttons } = createModal(3);
 
       // Focus button 2 (simulate opener)
-      buttons[2].focus();
-      const tracker = trackFocus(buttons[2]);
+      buttons[2]!.focus();
+      const tracker = trackFocus(buttons[2]!);
       tracker.events.length = 0; // clear initial focus event
 
       const trap = installFocusTrap(root);
@@ -134,7 +134,7 @@ describe('installFocusTrap', () => {
 
       // Opener should be re-focused
       expect(tracker.events.length).toBeGreaterThanOrEqual(1);
-      expect(tracker.events[0].target).toBe(buttons[2]);
+      expect(tracker.events[0]!.target).toBe(buttons[2]);
 
       tracker.cleanup();
     });
@@ -152,21 +152,21 @@ describe('installFocusTrap', () => {
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }),
       );
-      expect(tracker.events[0].target).toBe(buttons[1]);
+      expect(tracker.events[0]!.target).toBe(buttons[1]);
       tracker.events.length = 0;
 
       // Tab: 1 → 2
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }),
       );
-      expect(tracker.events[0].target).toBe(buttons[2]);
+      expect(tracker.events[0]!.target).toBe(buttons[2]);
       tracker.events.length = 0;
 
       // Tab: 2 → 0 (wrap)
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }),
       );
-      expect(tracker.events[0].target).toBe(buttons[0]);
+      expect(tracker.events[0]!.target).toBe(buttons[0]);
 
       tracker.cleanup();
     });
@@ -187,7 +187,7 @@ describe('installFocusTrap', () => {
           cancelable: true,
         }),
       );
-      expect(tracker.events[0].target).toBe(buttons[2]);
+      expect(tracker.events[0]!.target).toBe(buttons[2]);
 
       tracker.cleanup();
     });
@@ -203,21 +203,21 @@ describe('installFocusTrap', () => {
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }),
       );
-      expect(tracker.events[0].target).toBe(buttons[1]);
+      expect(tracker.events[0]!.target).toBe(buttons[1]);
       tracker.events.length = 0;
 
       // 1 → 2
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }),
       );
-      expect(tracker.events[0].target).toBe(buttons[2]);
+      expect(tracker.events[0]!.target).toBe(buttons[2]);
       tracker.events.length = 0;
 
       // 2 → 0 (wrap)
       document.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }),
       );
-      expect(tracker.events[0].target).toBe(buttons[0]);
+      expect(tracker.events[0]!.target).toBe(buttons[0]);
 
       tracker.cleanup();
     });
@@ -238,7 +238,7 @@ describe('installFocusTrap', () => {
           cancelable: true,
         }),
       );
-      expect(tracker.events[0].target).toBe(buttons[2]);
+      expect(tracker.events[0]!.target).toBe(buttons[2]);
       tracker.events.length = 0;
 
       // 2 → 1
@@ -250,7 +250,7 @@ describe('installFocusTrap', () => {
           cancelable: true,
         }),
       );
-      expect(tracker.events[0].target).toBe(buttons[1]);
+      expect(tracker.events[0]!.target).toBe(buttons[1]);
 
       tracker.cleanup();
     });
@@ -261,8 +261,8 @@ describe('installFocusTrap', () => {
       const { root, buttons } = createModal(3);
 
       // Focus button 2 (pretend it was the opener)
-      buttons[2].focus();
-      const tracker = trackFocus(buttons[2]);
+      buttons[2]!.focus();
+      const tracker = trackFocus(buttons[2]!);
       tracker.events.length = 0; // clear initial
 
       installFocusTrap(root);
@@ -286,7 +286,7 @@ describe('installFocusTrap', () => {
 
       // Focus should be restored to the opener
       expect(tracker.events.length).toBeGreaterThanOrEqual(1);
-      expect(tracker.events[0].target).toBe(buttons[2]);
+      expect(tracker.events[0]!.target).toBe(buttons[2]);
 
       // After release, Tab should NOT be prevented anymore
       const tabEvent2 = new KeyboardEvent('keydown', {

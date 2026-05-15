@@ -9,8 +9,8 @@ const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 
 export interface ScaffoldInfo {
   scaffolded: boolean;
-  frontend?: string;
-  backends?: string[];
+  frontend?: string | undefined;
+  backends?: string[] | undefined;
 }
 
 /**
@@ -167,8 +167,8 @@ const KNOWN_TECHS: TechEntry[] = [
 export interface ScaffoldResult {
   command: string;
   needsInstall: boolean;
-  frontend?: string;
-  backends?: string[];
+  frontend?: string | undefined;
+  backends?: string[] | undefined;
 }
 
 function mapDescriptionToCommand(desc: string): ScaffoldResult {
@@ -192,8 +192,9 @@ function mapDescriptionToCommand(desc: string): ScaffoldResult {
 
   // Single tech
   if (matched.length === 1) {
-    const result: ScaffoldResult = { command: matched[0].command('.'), needsInstall: matched[0].needsInstall };
-    if (matched[0].type === 'backend') {
+    const first = matched[0]!;
+    const result: ScaffoldResult = { command: first.command('.'), needsInstall: first.needsInstall };
+    if (first.type === 'backend') {
       result.backends = ['.'];
     }
     return result;

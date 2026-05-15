@@ -27,12 +27,12 @@ describe('SuggestionGenerator', () => {
 
     const suggestions = generator.generate([pattern]);
     expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].title).toBe('Frequently visited page detected');
-    expect(suggestions[0].description).toContain('/dashboard');
-    expect(suggestions[0].status).toBe('pending');
-    expect(suggestions[0].suggestedTasks).toHaveLength(1);
-    expect(suggestions[0].suggestedTasks[0].type).toBe('single_file');
-    expect(suggestions[0].suggestedTasks[0].estimatedLane).toBe(1);
+    expect(suggestions[0]!.title).toBe('Frequently visited page detected');
+    expect(suggestions[0]!.description).toContain('/dashboard');
+    expect(suggestions[0]!.status).toBe('pending');
+    expect(suggestions[0]!.suggestedTasks).toHaveLength(1);
+    expect(suggestions[0]!.suggestedTasks[0]!.type).toBe('single_file');
+    expect(suggestions[0]!.suggestedTasks[0]!.estimatedLane).toBe(1);
   });
 
   it('should generate suggestion for repeated_action pattern', () => {
@@ -43,9 +43,9 @@ describe('SuggestionGenerator', () => {
 
     const suggestions = generator.generate([pattern]);
     expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].title).toBe('Repeated action detected');
-    expect(suggestions[0].description).toContain('click');
-    expect(suggestions[0].description).toContain('#sort-btn');
+    expect(suggestions[0]!.title).toBe('Repeated action detected');
+    expect(suggestions[0]!.description).toContain('click');
+    expect(suggestions[0]!.description).toContain('#sort-btn');
   });
 
   it('should generate suggestion for slow_api pattern', () => {
@@ -56,9 +56,9 @@ describe('SuggestionGenerator', () => {
 
     const suggestions = generator.generate([pattern]);
     expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].title).toBe('Slow API endpoint detected');
-    expect(suggestions[0].description).toContain('/api/users');
-    expect(suggestions[0].suggestedTasks[0].type).toBe('multi_file');
+    expect(suggestions[0]!.title).toBe('Slow API endpoint detected');
+    expect(suggestions[0]!.description).toContain('/api/users');
+    expect(suggestions[0]!.suggestedTasks[0]!.type).toBe('multi_file');
   });
 
   it('should generate suggestion for recurring_error pattern', () => {
@@ -69,8 +69,8 @@ describe('SuggestionGenerator', () => {
 
     const suggestions = generator.generate([pattern]);
     expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].title).toBe('Recurring error detected');
-    expect(suggestions[0].description).toContain('TypeError');
+    expect(suggestions[0]!.title).toBe('Recurring error detected');
+    expect(suggestions[0]!.description).toContain('TypeError');
   });
 
   it('should generate suggestion for unused_feature pattern', () => {
@@ -82,14 +82,14 @@ describe('SuggestionGenerator', () => {
 
     const suggestions = generator.generate([pattern]);
     expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].title).toBe('Potentially unused feature');
-    expect(suggestions[0].suggestedTasks[0].type).toBe('refactor');
+    expect(suggestions[0]!.title).toBe('Potentially unused feature');
+    expect(suggestions[0]!.suggestedTasks[0]!.type).toBe('refactor');
   });
 
   it('should generate unique IDs for each suggestion', () => {
     const patterns = [createPattern(), createPattern()];
     const suggestions = generator.generate(patterns);
-    expect(suggestions[0].id).not.toBe(suggestions[1].id);
+    expect(suggestions[0]!.id).not.toBe(suggestions[1]!.id);
   });
 
   it('should return empty array for empty input', () => {

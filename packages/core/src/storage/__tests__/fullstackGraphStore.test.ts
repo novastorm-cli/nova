@@ -95,9 +95,9 @@ describe('FullstackGraphStore', () => {
 
     const related = store.getRelatedNodes('b:B');
     expect(related.upstream).toHaveLength(1);
-    expect(related.upstream[0].id).toBe('a:A');
+    expect(related.upstream[0]!.id).toBe('a:A');
     expect(related.downstream).toHaveLength(1);
-    expect(related.downstream[0].id).toBe('c:C');
+    expect(related.downstream[0]!.id).toBe('c:C');
   });
 
   // --- getNodesByLayer ---
@@ -141,9 +141,9 @@ describe('FullstackGraphStore', () => {
 
     const tracedPath = store.getPathFromFrontendToDb('comp.tsx:UserList');
     expect(tracedPath).toHaveLength(3);
-    expect(tracedPath[0].id).toBe('comp.tsx:UserList');
-    expect(tracedPath[1].id).toBe('route.ts:GET');
-    expect(tracedPath[2].id).toBe('schema:User');
+    expect(tracedPath[0]!.id).toBe('comp.tsx:UserList');
+    expect(tracedPath[1]!.id).toBe('route.ts:GET');
+    expect(tracedPath[2]!.id).toBe('schema:User');
   });
 
   it('getPathFromFrontendToDb() returns empty for non-frontend node', async () => {

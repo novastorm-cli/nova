@@ -22,7 +22,7 @@ export class SearchRouter implements ISearchRouter {
     // Level 1: graph keyword search
     const graphNodes = await this.graphStore.search(query);
     for (let i = 0; i < graphNodes.length; i++) {
-      const node = graphNodes[i];
+      const node = graphNodes[i]!;
       // Score: inverse rank position + boost for graph results
       const score = (graphNodes.length - i) / graphNodes.length + GRAPH_SCORE_BOOST;
       resultMap.set(node.filePath, {

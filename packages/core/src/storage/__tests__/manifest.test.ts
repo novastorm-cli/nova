@@ -32,8 +32,8 @@ describe('ManifestStore', () => {
     const manifest = await store.load(tmpDir);
     expect(manifest).not.toBeNull();
     expect(manifest!.services).toHaveLength(1);
-    expect(manifest!.services[0].name).toBe('web');
-    expect(manifest!.services[0].type).toBe('frontend');
+    expect(manifest!.services[0]!.name).toBe('web');
+    expect(manifest!.services[0]!.type).toBe('frontend');
   });
 
   it('adds and loads a database', async () => {
@@ -42,7 +42,7 @@ describe('ManifestStore', () => {
 
     const manifest = await store.load(tmpDir);
     expect(manifest!.databases).toHaveLength(1);
-    expect(manifest!.databases[0].engine).toBe('postgresql');
+    expect(manifest!.databases[0]!.engine).toBe('postgresql');
   });
 
   it('adds and loads an entity', async () => {
@@ -51,7 +51,7 @@ describe('ManifestStore', () => {
 
     const manifest = await store.load(tmpDir);
     expect(manifest!.entities).toHaveLength(1);
-    expect(manifest!.entities[0].name).toBe('Stripe');
+    expect(manifest!.entities[0]!.name).toBe('Stripe');
   });
 
   it('removes by name', async () => {
@@ -90,7 +90,7 @@ describe('ManifestStore', () => {
 
     const manifest = await store.load(tmpDir);
     expect(manifest!.services).toHaveLength(1);
-    expect(manifest!.services[0].path).toBe('new/path');
+    expect(manifest!.services[0]!.path).toBe('new/path');
   });
 
   it('sets boundaries', async () => {

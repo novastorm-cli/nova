@@ -44,8 +44,8 @@ describe('HistoryStore', () => {
     const all = await store.getAll();
 
     expect(all).toHaveLength(1);
-    expect(all[0].id).toBe(entry.id);
-    expect(all[0].taskId).toBe(entry.taskId);
+    expect(all[0]!.id).toBe(entry.id);
+    expect(all[0]!.taskId).toBe(entry.taskId);
   });
 
   it('getAll() returns entries sorted by startedAt descending', async () => {
@@ -61,9 +61,9 @@ describe('HistoryStore', () => {
     const all = await store.getAll();
 
     expect(all).toHaveLength(3);
-    expect(all[0].startedAt).toBe(2000);
-    expect(all[1].startedAt).toBe(1500);
-    expect(all[2].startedAt).toBe(1000);
+    expect(all[0]!.startedAt).toBe(2000);
+    expect(all[1]!.startedAt).toBe(1500);
+    expect(all[2]!.startedAt).toBe(1000);
   });
 
   it('getAll() returns empty array when directory is missing', async () => {
@@ -83,8 +83,8 @@ describe('HistoryStore', () => {
     const recent = await store.getRecent(2);
 
     expect(recent).toHaveLength(2);
-    expect(recent[0].startedAt).toBe(3000);
-    expect(recent[1].startedAt).toBe(2000);
+    expect(recent[0]!.startedAt).toBe(3000);
+    expect(recent[1]!.startedAt).toBe(2000);
   });
 
   // --- getSince ---

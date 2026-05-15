@@ -82,9 +82,9 @@ describe('executeWithRetry', () => {
 
     expect(delays.length).toBe(2);
     // First retry: 100 * 2^0 = 100
-    expect(delays[0]).toBe(100);
+    expect(delays[0]!).toBe(100);
     // Second retry: 100 * 2^1 = 200
-    expect(delays[1]).toBe(200);
+    expect(delays[1]!).toBe(200);
 
     vi.restoreAllMocks();
   });

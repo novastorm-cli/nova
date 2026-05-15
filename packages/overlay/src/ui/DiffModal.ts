@@ -15,10 +15,10 @@ interface DiffStats {
 }
 
 interface DiffModalShowOptions {
-  absPath?: string;
-  firstLineNumber?: number;
-  canOpen?: boolean;
-  onRevert?: (filePath: string) => void;
+  absPath?: string | undefined;
+  firstLineNumber?: number | undefined;
+  canOpen?: boolean | undefined;
+  onRevert?: ((filePath: string) => void) | undefined;
 }
 
 let diffModalIdCounter = 0;
@@ -177,8 +177,8 @@ export class DiffModal {
         // Parse hunk header: @@ -oldStart,count +newStart,count @@
         const match = raw.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
         if (match) {
-          oldLine = parseInt(match[1], 10);
-          newLine = parseInt(match[2], 10);
+          oldLine = parseInt(match[1]!, 10);
+          newLine = parseInt(match[2]!, 10);
         }
         result.push({ type: 'hunk', content: raw, oldNum: '', newNum: '' });
       } else if (raw.startsWith('---') || raw.startsWith('+++')) {

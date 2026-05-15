@@ -135,7 +135,7 @@ export function installFocusTrap(root: HTMLElement, onEscape?: () => void): Focu
 
   // Focus the first focusable element
   if (focusable.length > 0) {
-    focusable[0].focus();
+    focusable[0]!.focus();
     lastFocusedIndex = 0;
   }
 
@@ -161,12 +161,12 @@ export function installFocusTrap(root: HTMLElement, onEscape?: () => void): Focu
     if (e.shiftKey) {
       // Shift+Tab: go backwards, wrap to last
       const next = idx <= 0 ? current.length - 1 : idx - 1;
-      current[next].focus();
+      current[next]!.focus();
       lastFocusedIndex = next;
     } else {
       // Tab: go forwards, wrap to first
       const next = idx < 0 || idx >= current.length - 1 ? 0 : idx + 1;
-      current[next].focus();
+      current[next]!.focus();
       lastFocusedIndex = next;
     }
   }

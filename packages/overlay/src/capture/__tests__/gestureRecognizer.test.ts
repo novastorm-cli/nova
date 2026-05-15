@@ -12,7 +12,7 @@ function createMockTracker(trail: CursorPoint[] = []): ICursorTracker {
     getTrail: vi.fn().mockReturnValue(trail),
     getPointAtTime: vi.fn((ts: number) => {
       if (trail.length === 0) return null;
-      let closest = trail[0];
+      let closest = trail[0]!;
       for (const p of trail) {
         if (Math.abs(p.timestamp - ts) < Math.abs(closest.timestamp - ts)) {
           closest = p;
@@ -78,7 +78,7 @@ describe('GestureRecognizer', () => {
     expect(circle).toBeDefined();
     expect(circle!.region).toBeDefined();
     expect(circle!.elements.length).toBeGreaterThan(0);
-    expect(circle!.elements[0].role).toBe('encircled');
+    expect(circle!.elements[0]!.role).toBe('encircled');
 
     centerEl.remove();
   });
@@ -162,7 +162,7 @@ describe('GestureRecognizer', () => {
     const gestures = recognizer.recognize();
     const dwell = gestures.find((g) => g.type === 'dwell');
     expect(dwell).toBeDefined();
-    expect(dwell!.elements[0].tagName).toBe('span');
+    expect(dwell!.elements[0]!.tagName).toBe('span');
 
     dwellEl.remove();
   });

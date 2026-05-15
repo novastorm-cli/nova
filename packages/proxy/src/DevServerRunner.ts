@@ -113,15 +113,16 @@ export class DevServerRunner implements IDevServerRunner {
 
   async spawn(command: string, cwd: string, port: number): Promise<void> {
     const tokens = validateCommand(command);
-    const cmd = tokens[0];
+    const cmd = tokens[0]!;
     const args = tokens.slice(1);
 
-    this.process = spawn(cmd, args, {
+    const proc = spawn(cmd, args, {
       cwd,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, PORT: String(port) },
     });
+    this.process = proc;
 
     this.running = true;
     this.logs = [];
@@ -135,7 +136,7 @@ export class DevServerRunner implements IDevServerRunner {
       // Check for port redirect
       const portMatch = PORT_REDIRECT_PATTERN.exec(text);
       if (portMatch) {
-        this.detectedPort = parseInt(portMatch[1], 10);
+        this.detectedPort = parseInt(portMatch[1]!, 10);
       }
 
       // Check for startup errors
@@ -151,10 +152,10 @@ export class DevServerRunner implements IDevServerRunner {
       }
     };
 
-    this.process.stdout?.on('data', handleOutput);
-    this.process.stderr?.on('data', handleOutput);
+    proc.stdout?.on('data', handleOutput);
+    proc.stderr?.on('data', handleOutput);
 
-    this.process.on('exit', (code, signal) => {
+    proc.on('exit', (code, signal) => {
       this.running = false;
       if (code !== 0 && code !== null) {
         this.errorHandler?.(`Dev server exited with code ${code}${signal ? ` (${signal})` : ''}`);
@@ -163,7 +164,7 @@ export class DevServerRunner implements IDevServerRunner {
       }
     });
 
-    this.process.on('error', (err) => {
+    proc.on('error', (err) => {
       this.running = false;
       this.errorHandler?.(err.message);
     });

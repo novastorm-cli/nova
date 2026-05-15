@@ -31,8 +31,8 @@ describe('BehaviorTracker', () => {
     }
     expect(tracker.size).toBe(1000);
     const events = tracker.getEvents();
-    expect(events[0].timestamp).toBe(50);
-    expect(events[999].timestamp).toBe(1049);
+    expect(events[0]!.timestamp).toBe(50);
+    expect(events[999]!.timestamp).toBe(1049);
   });
 
   it('should filter events by since timestamp', () => {
@@ -42,8 +42,8 @@ describe('BehaviorTracker', () => {
 
     const filtered = tracker.getEvents(200);
     expect(filtered).toHaveLength(2);
-    expect(filtered[0].timestamp).toBe(200);
-    expect(filtered[1].timestamp).toBe(300);
+    expect(filtered[0]!.timestamp).toBe(200);
+    expect(filtered[1]!.timestamp).toBe(300);
   });
 
   it('should count page visits by URL', () => {
@@ -65,8 +65,8 @@ describe('BehaviorTracker', () => {
     tracker.track(createEvent({ type: 'click', url: '/page', target: '#btn2' }));
 
     const actions = tracker.getFrequentActions();
-    expect(actions[0]).toEqual({ action: 'click:#btn1', count: 3 });
-    expect(actions[1]).toEqual({ action: 'click:#btn2', count: 1 });
+    expect(actions[0]!).toEqual({ action: 'click:#btn1', count: 3 });
+    expect(actions[1]!).toEqual({ action: 'click:#btn2', count: 1 });
   });
 
   it('should not count page_visit events as actions', () => {

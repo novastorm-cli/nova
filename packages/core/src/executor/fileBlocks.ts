@@ -23,7 +23,7 @@ export type ParsedBlock =
  */
 function sanitizePath(filePath: string): string | null {
   // Strip leading slashes
-  let sanitized = filePath.replace(/^\/+/, '');
+  const sanitized = filePath.replace(/^\/+/, '');
   // Reject path traversal
   const segments = sanitized.split(/[\\/]/);
   if (segments.some(s => s === '..')) {
@@ -45,8 +45,8 @@ export function parseFileBlocks(response: string): FileBlock[] {
 
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(response)) !== null) {
-    const rawPath = match[1].trim();
-    const content = match[2].trim();
+    const rawPath = match[1]!.trim();
+    const content = match[2]!.trim();
     const filePath = sanitizePath(rawPath);
     if (filePath && content) {
       blocks.push({ path: filePath, content });
@@ -58,8 +58,8 @@ export function parseFileBlocks(response: string): FileBlock[] {
     // Try markdown code blocks with filenames
     const mdPattern = /```(?:\w+)?\s*\n?\/\/\s*(.+?)\n([\s\S]*?)```/g;
     while ((match = mdPattern.exec(response)) !== null) {
-      const rawPath = match[1].trim();
-      const content = match[2].trim();
+      const rawPath = match[1]!.trim();
+      const content = match[2]!.trim();
       const filePath = sanitizePath(rawPath);
       if (filePath && content) {
         blocks.push({ path: filePath, content });
@@ -85,9 +85,9 @@ export function parseMixedBlocks(response: string): ParsedBlock[] {
   const pattern = /=== (FILE|DIFF): (.+?) ===([\s\S]*?)=== END (?:FILE|DIFF) ===/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(response)) !== null) {
-    const blockType = match[1];
-    const rawPath = match[2].trim();
-    const body = match[3].trim();
+    const blockType = match[1]!;
+    const rawPath = match[2]!.trim();
+    const body = match[3]!.trim();
     const safePath = sanitizePath(rawPath);
     if (!safePath || !body) continue;
 

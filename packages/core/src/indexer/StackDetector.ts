@@ -246,7 +246,7 @@ export class StackDetector implements IStackDetector {
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
 
-    const primary = detected[0];
+    const primary = detected[0]!;
     if (detected.length > 1) {
       primary.additionalStacks = detected.slice(1).map((s) => s.framework);
     }
@@ -718,7 +718,7 @@ export class StackDetector implements IStackDetector {
 
       // Match patterns like port: 4000 or --port 4000
       const match = content.match(/port\s*[:=]\s*(\d+)/);
-      if (match) return parseInt(match[1], 10);
+      if (match) return parseInt(match[1]!, 10);
     }
     return null;
   }
@@ -729,7 +729,7 @@ export class StackDetector implements IStackDetector {
       if (!content) continue;
 
       const match = content.match(/port\s*[:=]\s*(\d+)/);
-      if (match) return parseInt(match[1], 10);
+      if (match) return parseInt(match[1]!, 10);
     }
     return null;
   }
@@ -742,7 +742,7 @@ export class StackDetector implements IStackDetector {
 
     // Extract port from applicationUrl
     const match = content.match(/localhost:(\d+)/);
-    if (match) return parseInt(match[1], 10);
+    if (match) return parseInt(match[1]!, 10);
     return null;
   }
 
@@ -875,7 +875,7 @@ export class StackDetector implements IStackDetector {
 
     const getIndent = (line: string): number => {
       const match = line.match(/^(\s*)/);
-      return match ? match[1].length : 0;
+      return match ? match[1]!.length : 0;
     };
 
     for (const line of lines) {
@@ -946,8 +946,8 @@ export class StackDetector implements IStackDetector {
           const portMatch = portStr.match(/^(\d+):(\d+)/);
           if (portMatch) {
             currentPorts.push({
-              host: parseInt(portMatch[1], 10),
-              container: parseInt(portMatch[2], 10),
+              host: parseInt(portMatch[1]!, 10),
+              container: parseInt(portMatch[2]!, 10),
             });
           }
           continue;
@@ -957,14 +957,14 @@ export class StackDetector implements IStackDetector {
       // Detect "build:" under a service
       const buildMatch = trimmed.match(/^build\s*:\s*(.+)/);
       if (buildMatch && indent > serviceIndent) {
-        currentBuild = buildMatch[1].trim();
+        currentBuild = buildMatch[1]!.trim();
         continue;
       }
 
       // Detect "image:" under a service
       const imageMatch = trimmed.match(/^image\s*:\s*(.+)/);
       if (imageMatch && indent > serviceIndent) {
-        currentImage = imageMatch[1].trim();
+        currentImage = imageMatch[1]!.trim();
         continue;
       }
     }
@@ -991,7 +991,7 @@ export class StackDetector implements IStackDetector {
     if (!content) return null;
 
     const match = content.match(/port\s+(\d+)/);
-    if (match) return parseInt(match[1], 10);
+    if (match) return parseInt(match[1]!, 10);
     return null;
   }
 
@@ -1000,10 +1000,10 @@ export class StackDetector implements IStackDetector {
     if (!content) return null;
 
     const appPortMatch = content.match(/APP_PORT\s*=\s*(\d+)/);
-    if (appPortMatch) return parseInt(appPortMatch[1], 10);
+    if (appPortMatch) return parseInt(appPortMatch[1]!, 10);
 
     const serverPortMatch = content.match(/SERVER_PORT\s*=\s*(\d+)/);
-    if (serverPortMatch) return parseInt(serverPortMatch[1], 10);
+    if (serverPortMatch) return parseInt(serverPortMatch[1]!, 10);
 
     return null;
   }
@@ -1015,7 +1015,7 @@ export class StackDetector implements IStackDetector {
     );
     if (propsContent) {
       const match = propsContent.match(/server\.port\s*=\s*(\d+)/);
-      if (match) return parseInt(match[1], 10);
+      if (match) return parseInt(match[1]!, 10);
     }
 
     // Check application.yml
@@ -1024,7 +1024,7 @@ export class StackDetector implements IStackDetector {
     );
     if (ymlContent) {
       const match = ymlContent.match(/port\s*:\s*(\d+)/);
-      if (match) return parseInt(match[1], 10);
+      if (match) return parseInt(match[1]!, 10);
     }
 
     return null;

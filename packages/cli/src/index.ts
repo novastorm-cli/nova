@@ -10,12 +10,12 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'u
 };
 
 export interface StartOptions {
-  noOpen?: boolean;
-  yes?: boolean;
-  port?: string;
-  proxyPort?: string;
-  host?: string;
-  noTelemetry?: boolean;
+  noOpen?: boolean | undefined;
+  yes?: boolean | undefined;
+  port?: string | undefined;
+  proxyPort?: string | undefined;
+  host?: string | undefined;
+  noTelemetry?: boolean | undefined;
 }
 
 export function createCli(): Command {

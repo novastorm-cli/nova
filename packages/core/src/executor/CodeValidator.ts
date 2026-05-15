@@ -110,15 +110,15 @@ export class CodeValidator {
     const pattern = /^(.+)\((\d+),\d+\):\s+error\s+TS\d+:\s+(.+)$/gm;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(output)) !== null) {
-      const file = match[1]
+      const file = match[1]!
         .replace(this.projectPath + '/', '')
         .replace(this.projectPath + '\\', '');
       // Only include errors from generated files
       if (generatedPaths.has(file)) {
         errors.push({
           file,
-          line: parseInt(match[2], 10),
-          message: match[3],
+          line: parseInt(match[2]!, 10),
+          message: match[3]!,
           severity: 'error',
         });
       }
@@ -162,11 +162,11 @@ export class CodeValidator {
     for (let i = 0; i < lines.length; i++) {
       const lineImportPattern = /from\s+['"]([^./][^'"]*)['"]/g;
       let match: RegExpExecArray | null;
-      while ((match = lineImportPattern.exec(lines[i])) !== null) {
-        const importPath = match[1];
+      while ((match = lineImportPattern.exec(lines[i]!)) !== null) {
+        const importPath = match[1]!;
         const pkgName = importPath.startsWith('@')
           ? importPath.split('/').slice(0, 2).join('/')
-          : importPath.split('/')[0];
+          : importPath.split('/')[0]!;
 
         if (
           !installedDeps.has(pkgName) &&

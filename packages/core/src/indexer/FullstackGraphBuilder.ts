@@ -165,13 +165,13 @@ export class FullstackGraphBuilder {
     const fetchRe = /fetch\s*\(\s*[`'"](\/api\/[^`'"]+)[`'"]/g;
     let m: RegExpExecArray | null;
     while ((m = fetchRe.exec(content)) !== null) {
-      results.push({ url: m[1], method: 'GET' });
+      results.push({ url: m[1]!, method: 'GET' });
     }
 
     // fetch with full URL containing /api/
     const fetchFullRe = /fetch\s*\(\s*[`'"]([^`'"]*\/api\/[^`'"]+)[`'"]/g;
     while ((m = fetchFullRe.exec(content)) !== null) {
-      const url = m[1];
+      const url = m[1]!;
       // Skip if already captured by the first regex
       if (url.startsWith('/api/')) continue;
       results.push({ url, method: 'GET' });
@@ -180,25 +180,25 @@ export class FullstackGraphBuilder {
     // axios calls
     const axiosMethodRe = /axios\s*\.\s*(get|post|put|patch|delete)\s*\(\s*[`'"](\/api\/[^`'"]+)[`'"]/g;
     while ((m = axiosMethodRe.exec(content)) !== null) {
-      results.push({ url: m[2], method: m[1].toUpperCase() });
+      results.push({ url: m[2]!, method: m[1]!.toUpperCase() });
     }
 
     // axios config style
     const axiosConfigRe = /axios\s*\(\s*\{[^}]*url\s*:\s*[`'"](\/api\/[^`'"]+)[`'"]/g;
     while ((m = axiosConfigRe.exec(content)) !== null) {
-      results.push({ url: m[1], method: 'GET' });
+      results.push({ url: m[1]!, method: 'GET' });
     }
 
     // SWR
     const swrRe = /useSWR\s*\(\s*[`'"](\/api\/[^`'"]+)[`'"]/g;
     while ((m = swrRe.exec(content)) !== null) {
-      results.push({ url: m[1], method: 'GET' });
+      results.push({ url: m[1]!, method: 'GET' });
     }
 
     // React Query
     const rqRe = /useQuery\s*\([^)]*[`'"](\/api\/[^`'"]+)[`'"]/g;
     while ((m = rqRe.exec(content)) !== null) {
-      results.push({ url: m[1], method: 'GET' });
+      results.push({ url: m[1]!, method: 'GET' });
     }
 
     return results;
@@ -211,43 +211,43 @@ export class FullstackGraphBuilder {
     // Prisma
     const prismaRe = /prisma\.(\w+)\.\s*(findMany|findUnique|findFirst|create|update|delete|upsert|count|aggregate)/g;
     while ((m = prismaRe.exec(content)) !== null) {
-      results.push({ modelName: m[1], operation: m[2] });
+      results.push({ modelName: m[1]!, operation: m[2]! });
     }
 
     // Django ORM
     const djangoRe = /(\w+)\.objects\.\s*(filter|get|create|all|exclude|aggregate|annotate|update|delete)/g;
     while ((m = djangoRe.exec(content)) !== null) {
-      results.push({ modelName: m[1], operation: m[2] });
+      results.push({ modelName: m[1]!, operation: m[2]! });
     }
 
     // SQLAlchemy - session.query(Model)
     const sqlaQueryRe = /session\.query\(\s*(\w+)\s*\)/g;
     while ((m = sqlaQueryRe.exec(content)) !== null) {
-      results.push({ modelName: m[1], operation: 'query' });
+      results.push({ modelName: m[1]!, operation: 'query' });
     }
 
     // SQLAlchemy - db.session.add/delete/query
     const sqlaSessionRe = /db\.session\.\s*(add|delete|query)\s*\(\s*(\w+)/g;
     while ((m = sqlaSessionRe.exec(content)) !== null) {
-      results.push({ modelName: m[2], operation: m[1] });
+      results.push({ modelName: m[2]!, operation: m[1]! });
     }
 
     // Entity Framework
     const efContextRe = /_context\.(\w+)\./g;
     while ((m = efContextRe.exec(content)) !== null) {
-      results.push({ modelName: m[1], operation: 'query' });
+      results.push({ modelName: m[1]!, operation: 'query' });
     }
 
     // Entity Framework DbSet<Model>
     const efDbSetRe = /DbSet<(\w+)>/g;
     while ((m = efDbSetRe.exec(content)) !== null) {
-      results.push({ modelName: m[1], operation: 'dbset' });
+      results.push({ modelName: m[1]!, operation: 'dbset' });
     }
 
     // TypeORM - getRepository(Model)
     const typeormRepoRe = /getRepository\(\s*(\w+)\s*\)/g;
     while ((m = typeormRepoRe.exec(content)) !== null) {
-      results.push({ modelName: m[1], operation: 'repository' });
+      results.push({ modelName: m[1]!, operation: 'repository' });
     }
 
     return results;
@@ -255,7 +255,7 @@ export class FullstackGraphBuilder {
 
   matchUrlToEndpoint(url: string, endpoints: EndpointInfo[]): EndpointInfo | null {
     // Normalize URL: strip query string, trailing slash
-    const normalizedUrl = url.split('?')[0].replace(/\/$/, '');
+    const normalizedUrl = url.split('?')[0]!.replace(/\/$/, '');
 
     // Exact match first
     const exact = endpoints.find((ep) => ep.path === normalizedUrl);
@@ -270,8 +270,8 @@ export class FullstackGraphBuilder {
 
       let match = true;
       for (let i = 0; i < epParts.length; i++) {
-        if (epParts[i].startsWith(':') || epParts[i].startsWith('[')) continue;
-        if (epParts[i] !== urlParts[i]) {
+        if (epParts[i]!.startsWith(':') || epParts[i]!.startsWith('[')) continue;
+        if (epParts[i]! !== urlParts[i]!) {
           match = false;
           break;
         }

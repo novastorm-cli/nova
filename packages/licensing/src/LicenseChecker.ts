@@ -21,6 +21,7 @@ function validateKeyFormat(key: string): boolean {
   const match = NOVA_KEY_PATTERN.exec(key);
   if (!match) return false;
   const [, body, checksum] = match;
+  if (!body || !checksum) return false;
   return computeChecksum(body) === checksum;
 }
 

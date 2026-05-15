@@ -20,7 +20,7 @@ export interface DeepSeekConfig {
 
 export class DeepSeekProvider extends BaseProvider {
   /** The reasoning_content extracted from the most recent chat or stream call. */
-  public lastReasoningContent?: string;
+  public lastReasoningContent?: string | undefined;
 
   protected readonly providerName = 'deepseek';
   protected readonly client: OpenAI;

@@ -50,8 +50,8 @@ describe('SuggestionStore', () => {
 
     const loaded = await store.load();
     expect(loaded).toHaveLength(1);
-    expect(loaded[0].id).toBe('test-1');
-    expect(loaded[0].title).toBe('Test suggestion');
+    expect(loaded[0]!.id).toBe('test-1');
+    expect(loaded[0]!.title).toBe('Test suggestion');
   });
 
   it('should load multiple suggestions', async () => {
@@ -75,8 +75,8 @@ describe('SuggestionStore', () => {
     await store.update('upd-1', 'approved');
 
     const loaded = await store.load();
-    expect(loaded[0].status).toBe('approved');
-    expect(loaded[0].respondedAt).toBeDefined();
+    expect(loaded[0]!.status).toBe('approved');
+    expect(loaded[0]!.respondedAt).toBeDefined();
   });
 
   it('should not throw when updating non-existent suggestion', async () => {
@@ -94,6 +94,6 @@ describe('SuggestionStore', () => {
 
     const loaded = await store.load();
     expect(loaded).toHaveLength(1);
-    expect(loaded[0].id).toBe('new');
+    expect(loaded[0]!.id).toBe('new');
   });
 });

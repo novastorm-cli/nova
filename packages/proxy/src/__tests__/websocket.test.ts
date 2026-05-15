@@ -83,7 +83,7 @@ describe('WebSocketServer', () => {
     await waitFor(100);
 
     expect(handler).toHaveBeenCalledOnce();
-    const received = handler.mock.calls[0][0];
+    const received = handler.mock.calls[0]![0];
     expect(received.currentUrl).toBe(observation.currentUrl);
     expect(received.timestamp).toBe(observation.timestamp);
     expect(received.consoleErrors).toEqual(observation.consoleErrors);

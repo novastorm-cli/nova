@@ -10,10 +10,10 @@ describe('MethodExtractor', () => {
 }`;
     const methods = extractor.extract(code, 'src/api.ts');
     expect(methods).toHaveLength(1);
-    expect(methods[0].name).toBe('fetchUsers');
-    expect(methods[0].isAsync).toBe(false);
-    expect(methods[0].visibility).toBe('public');
-    expect(methods[0].filePath).toBe('src/api.ts');
+    expect(methods[0]!.name).toBe('fetchUsers');
+    expect(methods[0]!.isAsync).toBe(false);
+    expect(methods[0]!.visibility).toBe('public');
+    expect(methods[0]!.filePath).toBe('src/api.ts');
   });
 
   it('extracts async functions', () => {
@@ -22,8 +22,8 @@ describe('MethodExtractor', () => {
 }`;
     const methods = extractor.extract(code, 'src/loader.ts');
     expect(methods).toHaveLength(1);
-    expect(methods[0].isAsync).toBe(true);
-    expect(methods[0].signature).toContain('async');
+    expect(methods[0]!.isAsync).toBe(true);
+    expect(methods[0]!.signature).toContain('async');
   });
 
   it('extracts arrow function consts', () => {
@@ -32,8 +32,8 @@ describe('MethodExtractor', () => {
 };`;
     const methods = extractor.extract(code, 'src/handler.ts');
     expect(methods).toHaveLength(1);
-    expect(methods[0].name).toBe('handleClick');
-    expect(methods[0].isAsync).toBe(true);
+    expect(methods[0]!.name).toBe('handleClick');
+    expect(methods[0]!.isAsync).toBe(true);
   });
 
   it('extracts class methods with visibility', () => {
@@ -69,7 +69,7 @@ export function getActiveUsers() {
 }`;
     const methods = extractor.extract(code, 'src/users.ts');
     expect(methods).toHaveLength(1);
-    expect(methods[0].purpose).toBe('Fetches all active users from the database');
+    expect(methods[0]!.purpose).toBe('Fetches all active users from the database');
   });
 
   it('generates purpose from camelCase name when no JSDoc', () => {
@@ -78,7 +78,7 @@ export function getActiveUsers() {
 }`;
     const methods = extractor.extract(code, 'src/calc.ts');
     expect(methods).toHaveLength(1);
-    expect(methods[0].purpose).toBe('calculate total price');
+    expect(methods[0]!.purpose).toBe('calculate total price');
   });
 
   it('handles files with no methods', () => {

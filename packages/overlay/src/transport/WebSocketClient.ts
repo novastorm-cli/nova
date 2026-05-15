@@ -6,11 +6,11 @@ import type { NovaEvent } from '@novastorm-ai/core';
  */
 export interface BrowserObservation {
   screenshotBase64: string;
-  clickCoords?: { x: number; y: number };
-  domSnapshot?: string;
-  transcript?: string;
+  clickCoords?: { x: number; y: number } | undefined;
+  domSnapshot?: string | undefined;
+  transcript?: string | undefined;
   currentUrl: string;
-  consoleErrors?: string[];
+  consoleErrors?: string[] | undefined;
   timestamp: number;
   gestureContext?: {
     gestures: Array<{
@@ -23,17 +23,17 @@ export interface BrowserObservation {
         domSnippet: string;
         role: string;
       }>;
-      region?: { x: number; y: number; width: number; height: number };
+      region?: { x: number; y: number; width: number; height: number } | undefined;
     }>;
     summary: string;
-  };
+  } | undefined;
   selectedArea?: {
     x: number;
     y: number;
     width: number;
     height: number;
-    screenshotBase64?: string;
-  };
+    screenshotBase64?: string | undefined;
+  } | undefined;
 }
 
 type EventCallback = (event: NovaEvent) => void;

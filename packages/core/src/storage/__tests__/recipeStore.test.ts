@@ -100,7 +100,7 @@ describe('RecipeStore', () => {
     const all = await store.getAll();
     // Should only have the one custom recipe, no built-ins
     expect(all).toHaveLength(1);
-    expect(all[0].name).toBe('Custom');
+    expect(all[0]!.name).toBe('Custom');
   });
 
   // --- findByCategory ---
@@ -145,7 +145,7 @@ describe('RecipeStore', () => {
 
     const results = await store.search('form');
     expect(results).toHaveLength(1);
-    expect(results[0].name).toBe('User Form');
+    expect(results[0]!.name).toBe('User Form');
   });
 
   it('search() matches in description', async () => {

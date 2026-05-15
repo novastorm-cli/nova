@@ -48,25 +48,25 @@ export class ComponentExtractor implements IComponentExtractor {
     const defaultFnMatch = content.match(
       /export\s+default\s+function\s+([A-Z]\w*)/,
     );
-    if (defaultFnMatch) return defaultFnMatch[1];
+    if (defaultFnMatch) return defaultFnMatch[1]!;
 
     // 2. export default class ComponentName
     const defaultClassMatch = content.match(
       /export\s+default\s+class\s+([A-Z]\w*)/,
     );
-    if (defaultClassMatch) return defaultClassMatch[1];
+    if (defaultClassMatch) return defaultClassMatch[1]!;
 
     // 3. Named export: export function ComponentName / export const ComponentName
     const namedExportMatch = content.match(
       /export\s+(?:async\s+)?(?:function|const)\s+([A-Z]\w*)/,
     );
-    if (namedExportMatch) return namedExportMatch[1];
+    if (namedExportMatch) return namedExportMatch[1]!;
 
     // 4. For hooks: export function useSomething / export const useSomething
     const hookMatch = content.match(
       /export\s+(?:async\s+)?(?:function|const)\s+(use[A-Z]\w*)/,
     );
-    if (hookMatch) return hookMatch[1];
+    if (hookMatch) return hookMatch[1]!;
 
     // 5. Fallback to filename
     return fileName;
@@ -79,8 +79,8 @@ export class ComponentExtractor implements IComponentExtractor {
     const namedRegex = /export\s+(?:async\s+)?(?:function|const|class|let|var|enum|type|interface)\s+(\w+)/g;
     let match;
     while ((match = namedRegex.exec(content)) !== null) {
-      if (!exports.includes(match[1])) {
-        exports.push(match[1]);
+      if (!exports.includes(match[1]!)) {
+        exports.push(match[1]!);
       }
     }
 
@@ -89,7 +89,7 @@ export class ComponentExtractor implements IComponentExtractor {
       const defaultNameMatch = content.match(
         /export\s+default\s+(?:async\s+)?(?:function|class)\s+(\w+)/,
       );
-      const name = defaultNameMatch ? defaultNameMatch[1] : 'default';
+      const name = defaultNameMatch ? defaultNameMatch[1]! : 'default';
       if (!exports.includes(name)) {
         exports.push(name);
       }
@@ -149,11 +149,11 @@ export class ComponentExtractor implements IComponentExtractor {
       /(?:interface|type)\s+\w*Props\w*\s*(?:=\s*)?{([^}]*)}/,
     );
     if (propsBlockMatch) {
-      const block = propsBlockMatch[1];
+      const block = propsBlockMatch[1]!;
       const propRegex = /(\w+)\s*[?:]?\s*:/g;
       let match;
       while ((match = propRegex.exec(block)) !== null) {
-        props.push(match[1]);
+        props.push(match[1]!);
       }
     }
 
@@ -163,12 +163,12 @@ export class ComponentExtractor implements IComponentExtractor {
       /(?:export\s+(?:default\s+)?function\s+\w+|(?:const|let)\s+\w+\s*=\s*(?:\([^)]*\)\s*=>|function))\s*\(\s*\{([^}]*)\}/,
     );
     if (destructuredMatch && props.length === 0) {
-      const params = destructuredMatch[1];
+      const params = destructuredMatch[1]!;
       const paramRegex = /(\w+)/g;
       let match;
       while ((match = paramRegex.exec(params)) !== null) {
-        if (!props.includes(match[1])) {
-          props.push(match[1]);
+        if (!props.includes(match[1]!)) {
+          props.push(match[1]!);
         }
       }
     }

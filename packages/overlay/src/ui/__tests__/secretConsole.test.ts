@@ -39,8 +39,8 @@ describe('SecretConsole', () => {
     expect(inputs.length).toBe(2);
 
     const labels = shadow.querySelectorAll('.secret-label');
-    expect(labels[0].textContent).toBe('API_KEY');
-    expect(labels[1].textContent).toBe('DATABASE_URL');
+    expect(labels[0]!.textContent).toBe('API_KEY');
+    expect(labels[1]!.textContent).toBe('DATABASE_URL');
   });
 
   it('hide() hides the component', () => {
@@ -84,8 +84,8 @@ describe('SecretConsole', () => {
     const inputs = shadow.querySelectorAll<HTMLInputElement>('.secret-input');
 
     // Simulate typing
-    inputs[0].value = 'sk_test_123';
-    inputs[1].value = 'postgres://localhost';
+    inputs[0]!.value = 'sk_test_123';
+    inputs[1]!.value = 'postgres://localhost';
 
     const saveBtn = shadow.querySelector('.secret-btn-save') as HTMLButtonElement;
     saveBtn.click();

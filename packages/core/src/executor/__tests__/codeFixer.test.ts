@@ -72,7 +72,7 @@ describe('CodeFixer', () => {
       expect(capturedMessages.length).toBe(1);
 
       // The prompt should contain file content
-      const allContent = capturedMessages[0].map((m) => m.content).join('\n');
+      const allContent = capturedMessages[0]!.map((m) => m.content).join('\n');
       expect(allContent).toContain('const x: string = 42;');
       expect(allContent).toContain('src/app.ts');
     });
@@ -161,7 +161,7 @@ describe('CodeFixer', () => {
 
       await fixer.fixErrors(files, errors, defaultContext());
 
-      const allContent = capturedMessages[0].map((m) => m.content).join('\n');
+      const allContent = capturedMessages[0]!.map((m) => m.content).join('\n');
 
       // Should contain file:line references
       expect(allContent).toContain('src/index.ts');
@@ -193,7 +193,7 @@ describe('CodeFixer', () => {
 
       await fixer.fixErrors(files, errors, defaultContext({ packageJson: packageJsonStr }));
 
-      const allContent = capturedMessages[0].map((m) => m.content).join('\n');
+      const allContent = capturedMessages[0]!.map((m) => m.content).join('\n');
 
       expect(allContent).toContain('package.json');
       expect(allContent).toContain('react');
@@ -210,7 +210,7 @@ describe('CodeFixer', () => {
 
       await fixer.fixErrors(files, errors, defaultContext());
 
-      const allContent = capturedMessages[0].map((m) => m.content).join('\n');
+      const allContent = capturedMessages[0]!.map((m) => m.content).join('\n');
 
       // No dependency versions should appear when packageJson is omitted
       expect(allContent).not.toContain('"^18.0.0"');

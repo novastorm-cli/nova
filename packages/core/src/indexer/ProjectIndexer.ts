@@ -268,7 +268,7 @@ export class ProjectIndexer implements IProjectIndexer {
     manifest?: Manifest | null,
   ): Promise<{
     files: Array<{ absPath: string; relPath: string; mtimeMs: number; size: number }>;
-    cappedAt?: number;
+    cappedAt?: number | undefined;
   }> {
     // Manifest services take priority
     if (manifest?.services && manifest.services.length > 0) {
@@ -466,14 +466,14 @@ export class ProjectIndexer implements IProjectIndexer {
     let match: RegExpExecArray | null;
 
     while ((match = IMPORT_REGEX.exec(content)) !== null) {
-      const specifier = match[1];
+      const specifier = match[1]!;
       if (this.isRelativeImport(specifier)) {
         imports.push(this.normalizeImportPath(specifier));
       }
     }
 
     while ((match = REQUIRE_REGEX.exec(content)) !== null) {
-      const specifier = match[1];
+      const specifier = match[1]!;
       if (this.isRelativeImport(specifier)) {
         imports.push(this.normalizeImportPath(specifier));
       }
@@ -489,8 +489,8 @@ export class ProjectIndexer implements IProjectIndexer {
 
     let match: RegExpExecArray | null;
     while ((match = regex.exec(content)) !== null) {
-      if (!exports.includes(match[1])) {
-        exports.push(match[1]);
+      if (!exports.includes(match[1]!)) {
+        exports.push(match[1]!);
       }
     }
 
@@ -498,7 +498,7 @@ export class ProjectIndexer implements IProjectIndexer {
       const defaultMatch = content.match(
         /export\s+default\s+(?:async\s+)?(?:function|class)\s+(\w+)/,
       );
-      const name = defaultMatch ? defaultMatch[1] : 'default';
+      const name = defaultMatch ? defaultMatch[1]! : 'default';
       if (!exports.includes(name)) {
         exports.push(name);
       }
@@ -514,8 +514,8 @@ export class ProjectIndexer implements IProjectIndexer {
 
     let match: RegExpExecArray | null;
     while ((match = identRegex.exec(content)) !== null) {
-      if (!keywords.includes(match[1])) {
-        keywords.push(match[1]);
+      if (!keywords.includes(match[1]!)) {
+        keywords.push(match[1]!);
       }
     }
 
@@ -531,7 +531,7 @@ export class ProjectIndexer implements IProjectIndexer {
 
     let match: RegExpExecArray | null;
     while ((match = MODEL_REGEX.exec(content)) !== null) {
-      const name = match[1];
+      const name = match[1]!;
       // Skip common non-model patterns (Props, Context, Config, etc.)
       if (
         name.endsWith('Props') ||
@@ -553,15 +553,15 @@ export class ProjectIndexer implements IProjectIndexer {
       if (blockMatch) {
         const fieldRegex = /(\w+)\s*[?:]?\s*:/g;
         let fMatch: RegExpExecArray | null;
-        while ((fMatch = fieldRegex.exec(blockMatch[1])) !== null) {
-          fields.push(fMatch[1]);
+        while ((fMatch = fieldRegex.exec(blockMatch[1]!)) !== null) {
+          fields.push(fMatch[1]!);
         }
       }
 
       // Only add if it looks like a data model (has fields or is a class)
       if (fields.length > 0 || /export\s+class\s+/.test(content)) {
         models.push({
-          name,
+          name: name,
           filePath: relPath,
           ...(fields.length > 0 && { fields }),
         });

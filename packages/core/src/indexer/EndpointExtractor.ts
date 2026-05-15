@@ -45,7 +45,7 @@ export class EndpointExtractor implements IEndpointExtractor {
       for (const filePath of files) {
         const rel = relative(dir, filePath);
         const parts = rel.split(/[\\/]/);
-        const fileName = parts[parts.length - 1];
+        const fileName = parts[parts.length - 1]!;
 
         // Only route.ts/route.js files under api/ segments
         if (!/^route\.(tsx?|jsx?)$/.test(fileName)) continue;
@@ -105,8 +105,8 @@ export class EndpointExtractor implements IEndpointExtractor {
     const routeBaseMatch = content.match(/\[Route\("([^"]+)"\)\]\s*(?:\[.*?\]\s*)*(?:public\s+)?class\s+(\w+)/);
     let basePath = '';
     if (routeBaseMatch) {
-      let route = routeBaseMatch[1];
-      const className = routeBaseMatch[2];
+      let route = routeBaseMatch[1]!;
+      const className = routeBaseMatch[2]!;
       // Resolve [controller] template to the controller name (class name minus "Controller" suffix)
       const controllerName = className.replace(/Controller$/i, '').toLowerCase();
       route = route.replace(/\[controller\]/gi, controllerName);
@@ -117,9 +117,9 @@ export class EndpointExtractor implements IEndpointExtractor {
     const httpAttrRegex = /\[Http(Get|Post|Put|Delete|Patch)(?:\("([^"]*)"\))?\]\s*(?:\[.*?\]\s*)*(?:public\s+)?(?:\w+(?:<[^>]+>)?\s+)?(\w+)/g;
     let match;
     while ((match = httpAttrRegex.exec(content)) !== null) {
-      const method = match[1].toUpperCase();
+      const method = match[1]!.toUpperCase();
       const subPath = match[2] ?? '';
-      const handler = match[3];
+      const handler = match[3]!;
 
       let path = basePath;
       if (subPath) {
@@ -145,8 +145,8 @@ export class EndpointExtractor implements IEndpointExtractor {
     const mapRegex = /\.Map(Get|Post|Put|Delete|Patch)\(\s*"([^"]+)"/g;
     let match;
     while ((match = mapRegex.exec(content)) !== null) {
-      const method = match[1].toUpperCase();
-      const path = match[2].startsWith('/') ? match[2] : `/${match[2]}`;
+      const method = match[1]!.toUpperCase();
+      const path = match[2]!.startsWith('/') ? match[2]! : `/${match[2]!}`;
 
       endpoints.push({
         method,
@@ -191,8 +191,8 @@ export class EndpointExtractor implements IEndpointExtractor {
       const expressRegex = /(?:app|router|server)\.(get|post|put|delete|patch|options|head)\(\s*['"]([^'"]+)['"]/g;
       let match;
       while ((match = expressRegex.exec(content)) !== null) {
-        const method = match[1].toUpperCase();
-        const path = match[2];
+        const method = match[1]!.toUpperCase();
+        const path = match[2]!;
 
         endpoints.push({
           method,

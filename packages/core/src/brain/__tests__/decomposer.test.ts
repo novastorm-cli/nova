@@ -75,7 +75,7 @@ describe('TaskDecomposer', () => {
     const result = await decomposer.decompose(task, projectMap);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual(task);
+    expect(result[0]!).toEqual(task);
     // LLM should NOT be called for simple tasks
     expect(llm.chat).not.toHaveBeenCalled();
   });

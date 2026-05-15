@@ -62,7 +62,7 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
       const framework = (await rl.question('Framework? (optional) ')).trim() || undefined;
       const language = (await rl.question('Language? (optional) ')).trim() || undefined;
 
-      const service: ManifestService = { name, type: typeRaw as ServiceType, path, framework, language };
+      const service: ManifestService = { name, type: typeRaw as ServiceType, path, ...(framework ? { framework } : {}), ...(language ? { language } : {}) };
       await store.addService(cwd, service);
       logger.info(`Added service "${name}" to .nova/manifest.toml`);
 
@@ -76,7 +76,7 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
       const schemaPath = (await rl.question('Schema path? (optional) ')).trim() || undefined;
       const connectionEnv = (await rl.question('Connection env var? (optional) ')).trim() || undefined;
 
-      await store.addDatabase(cwd, { name, engine, schema_path: schemaPath, connection_env: connectionEnv });
+      await store.addDatabase(cwd, { name, engine, ...(schemaPath ? { schema_path: schemaPath } : {}), ...(connectionEnv ? { connection_env: connectionEnv } : {}) });
       logger.info(`Added database "${name}" to .nova/manifest.toml`);
 
     } else if (kind === 'entity') {
@@ -93,7 +93,7 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
       const filesRaw = (await rl.question('Files? (comma-separated, optional) ')).trim();
       const files = filesRaw ? filesRaw.split(',').map(f => f.trim()).filter(Boolean) : undefined;
 
-      const entity: ManifestEntity = { name, type: typeRaw as EntityType, description, files };
+      const entity: ManifestEntity = { name, type: typeRaw as EntityType, ...(description ? { description } : {}), ...(files ? { files } : {}) };
       await store.addEntity(cwd, entity);
       logger.info(`Added entity "${name}" to .nova/manifest.toml`);
 

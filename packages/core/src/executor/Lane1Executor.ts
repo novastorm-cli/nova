@@ -11,7 +11,7 @@ import { DiffApplier } from './DiffApplier.js';
 function extractClassFromSnapshot(domSnapshot: string): string | null {
   const classMatch = /class(?:Name)?="([^"]+)"/.exec(domSnapshot);
   if (!classMatch) return null;
-  const classes = classMatch[1].trim().split(/\s+/);
+  const classes = classMatch[1]!.trim().split(/\s+/);
   return classes[0] ?? null;
 }
 
@@ -44,26 +44,26 @@ export function parsePropertyChange(
   const colonMatch =
     /(\w[\w-]*):\s*(\S+)\s+to\s+\1:\s*(\S+)/i.exec(description);
   if (colonMatch) {
-    return { property: colonMatch[1], from: colonMatch[2], to: colonMatch[3] };
+    return { property: colonMatch[1]!, from: colonMatch[2]!, to: colonMatch[3]! };
   }
 
   // Pattern: "change/set <property> from <value> to <value>"
   const fromToMatch =
     /(?:change|set|update)\s+([\w-]+)\s+from\s+(\S+)\s+to\s+(\S+)/i.exec(description);
-  if (fromToMatch && CSS_PROPERTY_NAMES.has(fromToMatch[1].toLowerCase())) {
-    return { property: fromToMatch[1], from: fromToMatch[2], to: fromToMatch[3] };
+  if (fromToMatch && CSS_PROPERTY_NAMES.has(fromToMatch[1]!.toLowerCase())) {
+    return { property: fromToMatch[1]!, from: fromToMatch[2]!, to: fromToMatch[3]! };
   }
 
   // Pattern: "change/set <property> to <value>"
   const toMatch = /(?:change|set|update)\s+([\w-]+)\s+to\s+(\S+)/i.exec(description);
-  if (toMatch && CSS_PROPERTY_NAMES.has(toMatch[1].toLowerCase())) {
-    return { property: toMatch[1], from: null, to: toMatch[2] };
+  if (toMatch && CSS_PROPERTY_NAMES.has(toMatch[1]!.toLowerCase())) {
+    return { property: toMatch[1]!, from: null, to: toMatch[2]! };
   }
 
   // Pattern: "make <property> <value>"
   const makeMatch = /(?:make)\s+([\w-]+)\s+(\S+)/i.exec(description);
-  if (makeMatch && CSS_PROPERTY_NAMES.has(makeMatch[1].toLowerCase())) {
-    return { property: makeMatch[1], from: null, to: makeMatch[2] };
+  if (makeMatch && CSS_PROPERTY_NAMES.has(makeMatch[1]!.toLowerCase())) {
+    return { property: makeMatch[1]!, from: null, to: makeMatch[2]! };
   }
 
   return null;
@@ -71,7 +71,7 @@ export function parsePropertyChange(
 
 export interface TextChange {
   type: 'text';
-  attribute?: string;
+  attribute?: string | undefined;
   from: string | null;
   to: string;
 }
@@ -93,28 +93,28 @@ export function parseTextChange(description: string): TextChange | null {
 
   // Pattern: "change/set/update <attribute> from '<from>' to '<to>'"
   const attrFromTo = /(?:change|set|update)\s+([\w-]+)\s+from\s+['"]([^'"]+)['"]\s+to\s+['"]([^'"]+)['"]/i.exec(description);
-  if (attrFromTo && TEXT_ATTRIBUTES.has(attrFromTo[1].toLowerCase())) {
-    const attr = attrFromTo[1].toLowerCase();
-    return { type: 'text', attribute: attr === 'text' ? undefined : attr, from: attrFromTo[2], to: attrFromTo[3] };
+  if (attrFromTo && TEXT_ATTRIBUTES.has(attrFromTo[1]!.toLowerCase())) {
+    const attr = attrFromTo[1]!.toLowerCase();
+    return { type: 'text', attribute: attr === 'text' ? undefined : attr, from: attrFromTo[2]!, to: attrFromTo[3]! };
   }
 
   // Pattern: "change/set/update <attribute> to '<to>'"
   const attrTo = /(?:change|set|update)\s+([\w-]+)\s+to\s+['"]([^'"]+)['"]/i.exec(description);
-  if (attrTo && TEXT_ATTRIBUTES.has(attrTo[1].toLowerCase())) {
-    const attr = attrTo[1].toLowerCase();
-    return { type: 'text', attribute: attr === 'text' ? undefined : attr, from: null, to: attrTo[2] };
+  if (attrTo && TEXT_ATTRIBUTES.has(attrTo[1]!.toLowerCase())) {
+    const attr = attrTo[1]!.toLowerCase();
+    return { type: 'text', attribute: attr === 'text' ? undefined : attr, from: null, to: attrTo[2]! };
   }
 
   // Pattern: "change text 'Submit' to 'Send'"
   const textFromTo = /(?:change|set|update)\s+text\s+['"]([^'"]+)['"]\s+to\s+['"]([^'"]+)['"]/i.exec(description);
   if (textFromTo) {
-    return { type: 'text', from: textFromTo[1], to: textFromTo[2] };
+    return { type: 'text', from: textFromTo[1]!, to: textFromTo[2]! };
   }
 
   // Pattern: "replace 'Hello World' with 'Welcome'"
   const replaceWith = /(?:replace)\s+['"]([^'"]+)['"]\s+with\s+['"]([^'"]+)['"]/i.exec(description);
   if (replaceWith) {
-    return { type: 'text', from: replaceWith[1], to: replaceWith[2] };
+    return { type: 'text', from: replaceWith[1]!, to: replaceWith[2]! };
   }
 
   return null;
@@ -154,18 +154,18 @@ export function parseConfigChange(description: string): ConfigChange | null {
   // Pattern: "change/set/update <key> from <from> to <to>"
   const fromTo = /(?:change|set|update)\s+([\w-]+)\s+from\s+(\S+)\s+to\s+(\S+)/i.exec(description);
   if (fromTo) {
-    const key = fromTo[1].toLowerCase();
+    const key = fromTo[1]!.toLowerCase();
     if (!CSS_PROPERTIES.has(key) && !TEXT_ATTRIBUTES.has(key)) {
-      return { type: 'config', key: fromTo[1], from: fromTo[2], to: fromTo[3] };
+      return { type: 'config', key: fromTo[1]!, from: fromTo[2]!, to: fromTo[3]! };
     }
   }
 
   // Pattern: "change/set/update <key> to <value>"
   const toMatch = /(?:change|set|update)\s+([\w-]+)\s+to\s+(\S+)/i.exec(description);
   if (toMatch) {
-    const key = toMatch[1].toLowerCase();
+    const key = toMatch[1]!.toLowerCase();
     if (!CSS_PROPERTIES.has(key) && !TEXT_ATTRIBUTES.has(key)) {
-      return { type: 'config', key: toMatch[1], from: null, to: toMatch[2] };
+      return { type: 'config', key: toMatch[1]!, from: null, to: toMatch[2]! };
     }
   }
 
@@ -384,7 +384,7 @@ export class Lane1Executor implements ILane1Executor {
         );
         const propMatch = propertyPattern.exec(block);
         if (propMatch) {
-          if (change.from && propMatch[2].trim() !== change.from) {
+          if (change.from && propMatch[2]!.trim() !== change.from) {
             return fullMatch;
           }
           matched = true;
@@ -522,7 +522,7 @@ export class Lane1Executor implements ILane1Executor {
           }
           // Detect indentation from original content
           const indentMatch = /^(\s+)"/m.exec(content);
-          const indent = indentMatch ? indentMatch[1].length : 2;
+          const indent = indentMatch ? indentMatch[1]!.length : 2;
           content = JSON.stringify(json, null, indent) + '\n';
           replaced = true;
         }

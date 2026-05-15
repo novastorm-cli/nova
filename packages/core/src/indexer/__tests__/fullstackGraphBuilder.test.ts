@@ -68,10 +68,10 @@ describe('FullstackGraphBuilder', () => {
     const graph = await builder.build(makeProjectMap({ components }));
 
     expect(graph.nodes).toHaveLength(2);
-    expect(graph.nodes[0].layer).toBe('frontend');
-    expect(graph.nodes[0].type).toBe('component');
-    expect(graph.nodes[0].id).toBe('src/UserTable.tsx:UserTable');
-    expect(graph.nodes[1].type).toBe('page');
+    expect(graph.nodes[0]!.layer).toBe('frontend');
+    expect(graph.nodes[0]!.type).toBe('component');
+    expect(graph.nodes[0]!.id).toBe('src/UserTable.tsx:UserTable');
+    expect(graph.nodes[1]!.type).toBe('page');
   });
 
   it('creates backend nodes from endpoints', async () => {
@@ -84,9 +84,9 @@ describe('FullstackGraphBuilder', () => {
     const graph = await builder.build(makeProjectMap({ endpoints }));
 
     expect(graph.nodes).toHaveLength(1);
-    expect(graph.nodes[0].layer).toBe('backend');
-    expect(graph.nodes[0].type).toBe('api_endpoint');
-    expect(graph.nodes[0].id).toBe('app/api/users/route.ts:GET');
+    expect(graph.nodes[0]!.layer).toBe('backend');
+    expect(graph.nodes[0]!.type).toBe('api_endpoint');
+    expect(graph.nodes[0]!.id).toBe('app/api/users/route.ts:GET');
   });
 
   it('creates database nodes from models', async () => {
@@ -99,9 +99,9 @@ describe('FullstackGraphBuilder', () => {
     const graph = await builder.build(makeProjectMap({ models }));
 
     expect(graph.nodes).toHaveLength(1);
-    expect(graph.nodes[0].layer).toBe('database');
-    expect(graph.nodes[0].type).toBe('db_model');
-    expect(graph.nodes[0].id).toBe('prisma/schema.prisma:User');
+    expect(graph.nodes[0]!.layer).toBe('database');
+    expect(graph.nodes[0]!.type).toBe('db_model');
+    expect(graph.nodes[0]!.id).toBe('prisma/schema.prisma:User');
   });
 
   it('detects frontend->backend edges from fetch calls', async () => {
@@ -126,8 +126,8 @@ describe('FullstackGraphBuilder', () => {
 
     const fetchEdges = graph.edges.filter((e) => e.type === 'fetches');
     expect(fetchEdges).toHaveLength(1);
-    expect(fetchEdges[0].from).toBe(`${compFile}:UserList`);
-    expect(fetchEdges[0].to).toBe('app/api/users/route.ts:GET');
+    expect(fetchEdges[0]!.from).toBe(`${compFile}:UserList`);
+    expect(fetchEdges[0]!.to).toBe('app/api/users/route.ts:GET');
   });
 
   it('detects frontend->backend edges from axios calls', async () => {
@@ -151,7 +151,7 @@ describe('FullstackGraphBuilder', () => {
 
     const fetchEdges = graph.edges.filter((e) => e.type === 'fetches');
     expect(fetchEdges).toHaveLength(1);
-    expect(fetchEdges[0].metadata?.method).toBe('POST');
+    expect(fetchEdges[0]!.metadata?.method).toBe('POST');
   });
 
   it('detects frontend->backend edges from useSWR calls', async () => {
@@ -200,8 +200,8 @@ describe('FullstackGraphBuilder', () => {
 
     const queryEdges = graph.edges.filter((e) => e.type === 'queries');
     expect(queryEdges).toHaveLength(1);
-    expect(queryEdges[0].to).toBe('prisma/schema.prisma:User');
-    expect(queryEdges[0].metadata?.operation).toBe('findMany');
+    expect(queryEdges[0]!.to).toBe('prisma/schema.prisma:User');
+    expect(queryEdges[0]!.metadata?.operation).toBe('findMany');
   });
 
   it('detects backend->database edges from Django ORM', async () => {
@@ -281,8 +281,8 @@ describe('FullstackGraphBuilder', () => {
 
     const renderEdges = graph.edges.filter((e) => e.type === 'renders');
     expect(renderEdges).toHaveLength(1);
-    expect(renderEdges[0].from).toBe('src/Dashboard.tsx:Dashboard');
-    expect(renderEdges[0].to).toBe('src/UserTable.tsx:UserTable');
+    expect(renderEdges[0]!.from).toBe('src/Dashboard.tsx:Dashboard');
+    expect(renderEdges[0]!.to).toBe('src/UserTable.tsx:UserTable');
   });
 
   it('matches URL with path parameters', async () => {
@@ -373,7 +373,7 @@ describe('FullstackGraphBuilder', () => {
       const content = "fetch(`/api/users/${id}`)";
       const calls = builder.extractApiCalls(content);
       expect(calls.length).toBeGreaterThanOrEqual(1);
-      expect(calls[0].url).toContain('/api/users/');
+      expect(calls[0]!.url).toContain('/api/users/');
     });
 
     it('extracts useQuery calls', () => {
@@ -382,7 +382,7 @@ describe('FullstackGraphBuilder', () => {
       const content = "useQuery(['users'], '/api/users')";
       const calls = builder.extractApiCalls(content);
       expect(calls).toHaveLength(1);
-      expect(calls[0].url).toBe('/api/users');
+      expect(calls[0]!.url).toBe('/api/users');
     });
   });
 
@@ -392,7 +392,7 @@ describe('FullstackGraphBuilder', () => {
       const content = 'const repo = getRepository(User);';
       const queries = builder.extractOrmQueries(content, nextjsStack);
       expect(queries).toHaveLength(1);
-      expect(queries[0].modelName).toBe('User');
+      expect(queries[0]!.modelName).toBe('User');
     });
 
     it('extracts SQLAlchemy session.query calls', () => {
@@ -400,7 +400,7 @@ describe('FullstackGraphBuilder', () => {
       const content = 'users = session.query(User).all()';
       const queries = builder.extractOrmQueries(content, nextjsStack);
       expect(queries).toHaveLength(1);
-      expect(queries[0].modelName).toBe('User');
+      expect(queries[0]!.modelName).toBe('User');
     });
 
     it('extracts DbSet<Model> patterns', () => {
@@ -408,7 +408,7 @@ describe('FullstackGraphBuilder', () => {
       const content = 'public DbSet<Product> Products { get; set; }';
       const queries = builder.extractOrmQueries(content, nextjsStack);
       expect(queries).toHaveLength(1);
-      expect(queries[0].modelName).toBe('Product');
+      expect(queries[0]!.modelName).toBe('Product');
     });
   });
 });

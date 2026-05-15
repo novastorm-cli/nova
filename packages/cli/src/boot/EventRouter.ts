@@ -114,7 +114,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
         try {
           const gitLog = await gitManager.getLog();
           if (gitLog.length > 0) {
-            const lastCommit = gitLog[0];
+            const lastCommit = gitLog[0]!;
             log.info(
               `[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`,
             );
@@ -194,12 +194,16 @@ export function setupEventRouting(deps: EventRouterDeps): void {
         wsServer.sendEvent({
           type: 'pending_tasks',
           data: {
-            tasks: tasks.map((t) => ({
-              id: t.id,
-              description: t.description,
-              lane: t.lane,
-              preConfirmed: t.preConfirmed,
-            })),
+            tasks: tasks.map((t) => {
+              const base = {
+                id: t.id,
+                description: t.description,
+                lane: t.lane,
+              };
+              return t.preConfirmed !== undefined
+                ? { ...base, preConfirmed: t.preConfirmed }
+                : base;
+            }),
             message: pendingMessage,
           },
         });
@@ -302,12 +306,16 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       wsServer.sendEvent({
         type: 'pending_tasks',
         data: {
-          tasks: tasks.map((t) => ({
-            id: t.id,
-            description: t.description,
-            lane: t.lane,
-            preConfirmed: t.preConfirmed,
-          })),
+          tasks: tasks.map((t) => {
+            const base = {
+              id: t.id,
+              description: t.description,
+              lane: t.lane,
+            };
+            return t.preConfirmed !== undefined
+              ? { ...base, preConfirmed: t.preConfirmed }
+              : base;
+          }),
           message: pendingMessage,
         },
       });
@@ -371,7 +379,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       try {
         const devPort = config.project.port || 3000;
         const http = await import('node:http');
-        const res = await new Promise<{ statusCode?: number }>((resolve) => {
+        const res = await new Promise<{ statusCode?: number | undefined }>((resolve) => {
           const req = http.get(`http://localhost:${devPort}`, resolve);
           req.on('error', () => resolve({ statusCode: 0 }));
           req.setTimeout(5000, () => {
@@ -454,7 +462,7 @@ async function runWithConcurrency<T>(
 
   for (let i = 0; i < tasks.length; i++) {
     const index = i;
-    const p = tasks[index]().then((result) => {
+    const p = tasks[index]!().then((result) => {
       results[index] = result;
       executing.delete(p);
     });

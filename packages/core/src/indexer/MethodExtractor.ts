@@ -39,8 +39,8 @@ export class MethodExtractor {
       const lineStart = this.getLineNumber(content, match.index);
       const lineEnd = this.findBlockEnd(lines, lineStart - 1);
       const isAsync = match[2] === 'async';
-      const name = match[3];
-      const params = match[4];
+      const name = match[3]!;
+      const params = match[4]!;
 
       methods.push({
         name,
@@ -68,7 +68,7 @@ export class MethodExtractor {
     while ((match = ARROW_CONST_REGEX.exec(content)) !== null) {
       const lineStart = this.getLineNumber(content, match.index);
       const lineEnd = this.findBlockEnd(lines, lineStart - 1);
-      const name = match[2];
+      const name = match[2]!;
       const isAsync = match[3] === 'async';
 
       methods.push({
@@ -100,8 +100,8 @@ export class MethodExtractor {
       const lineEnd = this.findBlockEnd(lines, lineStart - 1);
       const visibility = (match[2] as MethodVisibility) ?? 'public';
       const isAsync = match[4] === 'async';
-      const name = match[5];
-      const params = match[6];
+      const name = match[5]!;
+      const params = match[6]!;
 
       // Skip constructor-like or getter/setter noise
       if (name === 'constructor' || name === 'get' || name === 'set') continue;
@@ -135,7 +135,7 @@ export class MethodExtractor {
       // The function/method declaration is on the next non-blank line after the JSDoc
       const nextCodeLine = jsdocEndLine + 1;
       // Extract first sentence from JSDoc
-      const raw = match[1]
+      const raw = match[1]!
         .replace(/\s*\*\s*/g, ' ')
         .replace(/@\w+.*$/gm, '')
         .trim();
@@ -159,7 +159,7 @@ export class MethodExtractor {
     while ((match = CLASS_REGEX.exec(content)) !== null) {
       const start = this.getLineNumber(content, match.index);
       const end = this.findBlockEnd(lines, start - 1);
-      ranges.push({ name: match[1], start, end });
+      ranges.push({ name: match[1]!, start, end });
     }
 
     return ranges;
@@ -178,7 +178,7 @@ export class MethodExtractor {
     let foundOpen = false;
 
     for (let i = startIdx; i < lines.length; i++) {
-      for (const ch of lines[i]) {
+      for (const ch of lines[i]!) {
         if (ch === '{') {
           depth++;
           foundOpen = true;

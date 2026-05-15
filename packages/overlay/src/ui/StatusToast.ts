@@ -26,7 +26,7 @@ export class StatusToast implements IStatusToast {
     const id = `nova-toast-${++idCounter}`;
 
     while (this.toasts.length >= MAX_TOASTS) {
-      this.dismiss(this.toasts[0].id);
+      this.dismiss(this.toasts[0]!.id);
     }
 
     const element = this.createToastElement(id, message, type);
@@ -49,7 +49,7 @@ export class StatusToast implements IStatusToast {
     const index = this.toasts.findIndex((t) => t.id === id);
     if (index === -1) return;
 
-    const entry = this.toasts[index];
+    const entry = this.toasts[index]!;
     if (entry.timer !== null) {
       clearTimeout(entry.timer);
     }
@@ -79,7 +79,7 @@ export class StatusToast implements IStatusToast {
     const id = `nova-toast-${++idCounter}`;
 
     while (this.toasts.length >= MAX_TOASTS) {
-      this.dismiss(this.toasts[0].id);
+      this.dismiss(this.toasts[0]!.id);
     }
 
     const el = document.createElement('div');

@@ -23,7 +23,7 @@ function mockLogger(): { logger: ILogger; output: () => string } {
 describe('BrowserOpener', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockOpen.mockResolvedValue(undefined);
+    mockOpen.mockResolvedValue(undefined as any);
   });
 
   it('calls open() with the URL when noOpen is false', async () => {

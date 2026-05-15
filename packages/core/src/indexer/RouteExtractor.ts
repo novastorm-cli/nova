@@ -41,7 +41,7 @@ export class RouteExtractor implements IRouteExtractor {
       for (const filePath of files) {
         const rel = relative(dir, filePath);
         const parts = rel.split(/[\\/]/);
-        const fileName = parts[parts.length - 1];
+        const fileName = parts[parts.length - 1]!;
 
         if (this.isPageFile(fileName)) {
           const routePath = this.filePathToRoute(parts.slice(0, -1));
@@ -104,14 +104,14 @@ export class RouteExtractor implements IRouteExtractor {
       for (const filePath of files) {
         const rel = relative(dir, filePath);
         const parts = rel.split(/[\\/]/);
-        const fileName = parts[parts.length - 1];
+        const fileName = parts[parts.length - 1]!;
 
         if (!this.isComponentFile(fileName)) continue;
         // Skip _app, _document, _error special files
         if (fileName.startsWith('_')) continue;
 
         const relFromProject = relative(projectPath, filePath);
-        const isApi = parts[0] === 'api';
+        const isApi = parts[0]! === 'api';
 
         if (isApi) {
           const methods = await this.detectPagesApiMethods(filePath);
@@ -158,7 +158,7 @@ export class RouteExtractor implements IRouteExtractor {
       const routeRegex = /<Route\s[^>]*path\s*=\s*["'{]?\s*["']([^"']+)["']/g;
       let match;
       while ((match = routeRegex.exec(content)) !== null) {
-        const routePath = match[1];
+        const routePath = match[1]!;
         const relFromProject = relative(projectPath, filePath);
 
         routes.push({
@@ -192,7 +192,7 @@ export class RouteExtractor implements IRouteExtractor {
       const routeAttrRegex = /\[Route\("([^"]+)"\)\]/g;
       let match;
       while ((match = routeAttrRegex.exec(content)) !== null) {
-        const routePath = match[1].startsWith('/') ? match[1] : `/${match[1]}`;
+        const routePath = match[1]!.startsWith('/') ? match[1]! : `/${match[1]!}`;
 
         routes.push({
           path: routePath,
@@ -204,13 +204,13 @@ export class RouteExtractor implements IRouteExtractor {
       // MapGet("/path"), MapPost("/path") etc.
       const mapRegex = /Map(Get|Post|Put|Delete|Patch)\("([^"]+)"\)/g;
       while ((match = mapRegex.exec(content)) !== null) {
-        const routePath = match[2].startsWith('/') ? match[2] : `/${match[2]}`;
+        const routePath = match[2]!.startsWith('/') ? match[2]! : `/${match[2]!}`;
 
         routes.push({
           path: routePath,
           filePath: this.toPosix(relFromProject),
           type: 'api',
-          methods: [match[1].toUpperCase()],
+          methods: [match[1]!.toUpperCase()],
         });
       }
     }
@@ -249,7 +249,7 @@ export class RouteExtractor implements IRouteExtractor {
     const methodRegex = /req\.method\s*===?\s*['"](\w+)['"]/g;
     let match;
     while ((match = methodRegex.exec(content)) !== null) {
-      const method = match[1].toUpperCase();
+      const method = match[1]!.toUpperCase();
       if (!methods.includes(method)) {
         methods.push(method);
       }
@@ -289,7 +289,7 @@ export class RouteExtractor implements IRouteExtractor {
 
   private pagesFileToRoute(parts: string[]): string {
     const withoutExt = [...parts];
-    const last = withoutExt[withoutExt.length - 1];
+    const last = withoutExt[withoutExt.length - 1]!;
     withoutExt[withoutExt.length - 1] = last.replace(/\.(tsx?|jsx?)$/, '');
 
     // index → remove (root of directory)

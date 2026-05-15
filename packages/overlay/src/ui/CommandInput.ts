@@ -151,6 +151,6 @@ export class CommandInput implements ICommandInput {
     if (newIndex >= history.length) return;
 
     this.historyIndex = newIndex;
-    this.inputEl.value = history[this.historyIndex];
+    this.inputEl.value = history[this.historyIndex]!;
   }
 }

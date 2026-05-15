@@ -84,7 +84,7 @@ export class GestureRecognizer {
 
     // Check the last segment of points
     const candidates = trail.slice(-Math.max(CIRCLE_MIN_POINTS, Math.min(trail.length, 60)));
-    const duration = candidates[candidates.length - 1].timestamp - candidates[0].timestamp;
+    const duration = candidates[candidates.length - 1]!.timestamp - candidates[0]!.timestamp;
     if (duration < CIRCLE_MIN_DURATION_MS) return null;
 
     // Compute centroid
@@ -116,8 +116,8 @@ export class GestureRecognizer {
     // Compute total angular traversal
     let totalAngle = 0;
     for (let i = 1; i < candidates.length; i++) {
-      const angle1 = Math.atan2(candidates[i - 1].y - cy, candidates[i - 1].x - cx);
-      const angle2 = Math.atan2(candidates[i].y - cy, candidates[i].x - cx);
+      const angle1 = Math.atan2(candidates[i - 1]!.y - cy, candidates[i - 1]!.x - cx);
+      const angle2 = Math.atan2(candidates[i]!.y - cy, candidates[i]!.x - cx);
       let delta = angle2 - angle1;
       // Normalize to [-PI, PI]
       while (delta > Math.PI) delta -= 2 * Math.PI;
@@ -137,7 +137,7 @@ export class GestureRecognizer {
 
     // Element at centroid
     const element = this.tracker.getElementAtTime(
-      candidates[Math.floor(candidates.length / 2)].timestamp,
+      candidates[Math.floor(candidates.length / 2)]!.timestamp,
     );
 
     const elements: GestureElement[] = [];
@@ -147,8 +147,8 @@ export class GestureRecognizer {
 
     return {
       type: 'circle',
-      startTime: candidates[0].timestamp,
-      endTime: candidates[candidates.length - 1].timestamp,
+      startTime: candidates[0]!.timestamp,
+      endTime: candidates[candidates.length - 1]!.timestamp,
       elements,
       region: {
         x: minX,
@@ -164,8 +164,8 @@ export class GestureRecognizer {
     const records = this.dwellRecords;
 
     for (let i = 0; i < records.length - 1; i++) {
-      const a = records[i];
-      const b = records[i + 1];
+      const a = records[i]!;
+      const b = records[i + 1]!;
 
       const timeDiff = b.startTime - a.endTime;
       if (timeDiff > PATH_MAX_DURATION_MS || timeDiff < 0) continue;

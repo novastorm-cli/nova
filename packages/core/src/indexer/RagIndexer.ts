@@ -39,12 +39,12 @@ export class RagIndexer {
     }
 
     for (let i = 0; i < allChunks.length; i++) {
-      const chunk = allChunks[i];
+      const chunk = allChunks[i]!;
       const record: EmbeddingRecord = {
         id: `${chunk.filePath}:${chunk.lineStart}-${chunk.lineEnd}`,
         filePath: chunk.filePath,
         chunkText: chunk.text,
-        embedding: embeddings[i],
+        embedding: embeddings[i]!,
         metadata: {
           type: chunk.type,
           name: chunk.name,
@@ -89,12 +89,12 @@ export class RagIndexer {
     const embeddings = await this.embeddingService.embed(texts);
 
     for (let i = 0; i < allChunks.length; i++) {
-      const chunk = allChunks[i];
+      const chunk = allChunks[i]!;
       const record: EmbeddingRecord = {
         id: `${chunk.filePath}:${chunk.lineStart}-${chunk.lineEnd}`,
         filePath: chunk.filePath,
         chunkText: chunk.text,
-        embedding: embeddings[i],
+        embedding: embeddings[i]!,
         metadata: {
           type: chunk.type,
           name: chunk.name,

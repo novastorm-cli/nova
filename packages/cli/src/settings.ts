@@ -43,12 +43,12 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: unkno
   const parts = path.split('.');
   let current: Record<string, unknown> = obj;
   for (let i = 0; i < parts.length - 1; i++) {
-    if (!current[parts[i]] || typeof current[parts[i]] !== 'object') {
-      current[parts[i]] = {};
+    if (!current[parts[i]!] || typeof current[parts[i]!] !== 'object') {
+      current[parts[i]!] = {};
     }
-    current = current[parts[i]] as Record<string, unknown>;
+    current = current[parts[i]!] as Record<string, unknown>;
   }
-  current[parts[parts.length - 1]] = value;
+  current[parts[parts.length - 1]!] = value;
 }
 
 export function formatSettings(config: NovaConfig): string {
@@ -56,7 +56,7 @@ export function formatSettings(config: NovaConfig): string {
 
   let lastSection = '';
   for (const field of SETTABLE_FIELDS) {
-    const section = field.path.split('.')[0];
+    const section = field.path.split('.')[0]!;
     if (section !== lastSection) {
       lines.push(chalk.dim(`  [${section}]`));
       lastSection = section;
@@ -97,7 +97,7 @@ export async function handleSettingsCommand(
 
   // Parse: /settings key value
   const parts = args.split(/\s+/);
-  const key = parts[0];
+  const key = parts[0]!;
   const valueStr = parts.slice(1).join(' ');
 
   if (!valueStr) {
@@ -157,7 +157,7 @@ export async function handleSettingsCommand(
       // Build partial config with only the secret field
       const secretConfig: Record<string, unknown> = {};
       setNestedValue(secretConfig, key, parsedValue);
-      await configReader.writeLocal(cwd, secretConfig as Partial<NovaConfig>);
+      await configReader.writeLocal(cwd, secretConfig);
       return chalk.green(`${key} = ${JSON.stringify(parsedValue).slice(0, 4)}... (saved to .nova/config.toml)`);
     }
     await configReader.write(cwd, config);

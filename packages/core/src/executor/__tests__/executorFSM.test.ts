@@ -35,10 +35,10 @@ describe('ExecutorFSM', () => {
     // Verify event emitted
     const transitionEvents = events.filter((e) => e.type === 'fsm_transition');
     expect(transitionEvents).toHaveLength(1);
-    expect(transitionEvents[0].task_id).toBe('task-1');
-    expect(transitionEvents[0].prev).toBe('Planning');
-    expect(transitionEvents[0].next).toBe('Generating');
-    expect(transitionEvents[0].ts).toBeGreaterThan(0);
+    expect(transitionEvents[0]!.task_id).toBe('task-1');
+    expect(transitionEvents[0]!.prev).toBe('Planning');
+    expect(transitionEvents[0]!.next).toBe('Generating');
+    expect(transitionEvents[0]!.ts).toBeGreaterThan(0);
   });
 
   it('should transition through a full happy-path flow for Lane 2', () => {

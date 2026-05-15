@@ -97,7 +97,7 @@ function stripCodeFences(text: string): string {
   // Match ```json or ``` at the start, capture everything until the closing ```
   const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
   if (fenceMatch) {
-    return fenceMatch[1].trim();
+    return fenceMatch[1]!.trim();
   }
 
   return text;
@@ -143,7 +143,7 @@ export function parseJsonArray(response: string): unknown[] {
   // Try candidates from last to first (last is usually the final answer)
   for (let i = candidates.length - 1; i >= 0; i--) {
     try {
-      const parsed: unknown = JSON.parse(candidates[i]);
+      const parsed: unknown = JSON.parse(candidates[i]!);
       if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed;
       }

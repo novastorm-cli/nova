@@ -56,20 +56,20 @@ async function run(): Promise<void> {
   const up = (n: number) => `${ESC}[${n}A`;
   const cl = `${ESC}[2K`;
 
-  const h = frames[0].length;
+  const h = frames[0]!.length;
 
   process.stdout.write(hide);
   process.on("SIGINT", () => { process.stdout.write(show); process.exit(0); });
 
   process.stdout.write("\n" + greeting);
-  for (const line of frames[0]) process.stdout.write(line + "\n");
+  for (const line of frames[0]!) process.stdout.write(line + "\n");
   process.stdout.write("\n");
 
   await sleep(400);
 
   for (const fi of sequence) {
     process.stdout.write(up(h + 1));
-    for (const line of frames[fi]) process.stdout.write(cl + line + "\n");
+    for (const line of frames[fi]!) process.stdout.write(cl + line + "\n");
     process.stdout.write(cl);
     await sleep(250);
   }

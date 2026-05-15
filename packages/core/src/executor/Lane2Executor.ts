@@ -42,7 +42,7 @@ function extractDiff(response: string): string {
   const fencePattern = /```(?:diff)?\n([\s\S]*?)```/;
   const fenceMatch = fencePattern.exec(response);
   if (fenceMatch) {
-    return fenceMatch[1].trim();
+    return fenceMatch[1]!.trim();
   }
 
   // Look for diff starting with --- or @@

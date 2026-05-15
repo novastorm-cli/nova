@@ -12,10 +12,10 @@ describe('TfIdfEmbedding', () => {
 
     expect(results).toHaveLength(3);
     // All vectors have same dimension
-    const dim = results[0].length;
+    const dim = results[0]!.length;
     expect(dim).toBe(512);
-    expect(results[1].length).toBe(dim);
-    expect(results[2].length).toBe(dim);
+    expect(results[1]!.length).toBe(dim);
+    expect(results[2]!.length).toBe(dim);
   });
 
   it('embedSingle() returns a vector', async () => {
@@ -25,7 +25,7 @@ describe('TfIdfEmbedding', () => {
     const vec = await service.embedSingle('function test');
 
     expect(vec).toHaveLength(512);
-    expect(typeof vec[0]).toBe('number');
+    expect(typeof vec[0]!).toBe('number');
   });
 
   it('produces similar vectors for similar texts', async () => {
@@ -37,8 +37,8 @@ describe('TfIdfEmbedding', () => {
     ]);
 
     // Cosine similarity between similar code should be higher than between code and CSS
-    const sim01 = cosine(results[0], results[1]);
-    const sim02 = cosine(results[0], results[2]);
+    const sim01 = cosine(results[0]!, results[1]!);
+    const sim02 = cosine(results[0]!, results[2]!);
 
     expect(sim01).toBeGreaterThan(sim02);
   });
@@ -49,7 +49,7 @@ describe('TfIdfEmbedding', () => {
       'export function calculateTotal(items: Item[]) { return items.reduce((s, i) => s + i.price, 0); }',
     ]);
 
-    const norm = Math.sqrt(results[0].reduce((s, v) => s + v * v, 0));
+    const norm = Math.sqrt(results[0]!.reduce((s, v) => s + v * v, 0));
     // Should be close to 1 (or 0 for empty docs)
     if (norm > 0) {
       expect(norm).toBeCloseTo(1, 2);
@@ -70,9 +70,9 @@ function cosine(a: number[], b: number[]): number {
     normA = 0,
     normB = 0;
   for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
+    dot += a[i]! * b[i]!;
+    normA += a[i]! * a[i]!;
+    normB += b[i]! * b[i]!;
   }
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   return denom === 0 ? 0 : dot / denom;

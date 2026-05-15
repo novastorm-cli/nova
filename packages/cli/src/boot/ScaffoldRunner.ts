@@ -91,7 +91,7 @@ export async function runScaffold(
     try {
       devCmd = await input({
         message: `Dev command not found${stackLabel}. Enter your dev command:`,
-        default: defaultCmd || undefined,
+        ...(defaultCmd ? { default: defaultCmd } : {}),
       });
     } catch {
       logger.info('\nCancelled.');

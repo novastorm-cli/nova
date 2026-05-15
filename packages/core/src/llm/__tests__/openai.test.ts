@@ -64,7 +64,7 @@ describe('OpenAIProvider', () => {
       expect(result).toEqual({ content: 'Hello back!' });
       expect(mockCompletionsCreate).toHaveBeenCalledOnce();
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       expect(args.messages).toBeDefined();
       expect(args.model).toBeDefined();
       expect(args.max_tokens).toBe(4096);
@@ -78,7 +78,7 @@ describe('OpenAIProvider', () => {
 
       await provider.chat(userMessages, { model: 'gpt-4-turbo' });
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       expect(args.model).toBe('gpt-4-turbo');
     });
 
@@ -89,7 +89,7 @@ describe('OpenAIProvider', () => {
 
       await provider.chat(userMessages, { responseFormat: 'json' });
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       const allContent = JSON.stringify(args);
       expect(allContent.toLowerCase()).toContain('json');
     });
@@ -108,7 +108,7 @@ describe('OpenAIProvider', () => {
       const result = await provider.chatWithVision(userMessages, [imageBuffer]);
 
       expect(result).toEqual({ content: 'I see an image' });
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       const bodyStr = JSON.stringify(args);
 
       expect(bodyStr).toContain(imageBuffer.toString('base64'));

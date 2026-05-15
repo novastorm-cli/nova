@@ -51,7 +51,7 @@ describe('HistoryRecorder', () => {
       expect(store.append).toHaveBeenCalledOnce();
     });
 
-    const call = vi.mocked(store.append).mock.calls[0][0];
+    const call = vi.mocked(store.append).mock.calls[0]![0];
     expect(call.taskId).toBe('task-1');
     expect(call.status).toBe('running');
     expect(call.description).toBe('Add button');
@@ -88,7 +88,7 @@ describe('HistoryRecorder', () => {
       expect(store.append).toHaveBeenCalledTimes(2);
     });
 
-    const secondCall = vi.mocked(store.append).mock.calls[1][0];
+    const secondCall = vi.mocked(store.append).mock.calls[1]![0];
     expect(secondCall.status).toBe('done');
     expect(secondCall.commitHash).toBe('abc123');
     expect(secondCall.diff).toBe('--- a\n+++ b');
@@ -125,7 +125,7 @@ describe('HistoryRecorder', () => {
       expect(store.append).toHaveBeenCalledTimes(2);
     });
 
-    const secondCall = vi.mocked(store.append).mock.calls[1][0];
+    const secondCall = vi.mocked(store.append).mock.calls[1]![0];
     expect(secondCall.status).toBe('failed');
     expect(secondCall.error).toBe('Compilation failed');
     expect(secondCall.completedAt).toBeDefined();

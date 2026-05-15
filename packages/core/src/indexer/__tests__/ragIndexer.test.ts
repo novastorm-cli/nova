@@ -96,9 +96,9 @@ describe('RagIndexer', () => {
 
     const results = await ragIndexer.searchCode('login', 3);
     expect(results.length).toBeGreaterThan(0);
-    expect(results[0]).toHaveProperty('filePath');
-    expect(results[0]).toHaveProperty('chunkText');
-    expect(results[0]).toHaveProperty('score');
+    expect(results[0]!).toHaveProperty('filePath');
+    expect(results[0]!).toHaveProperty('chunkText');
+    expect(results[0]!).toHaveProperty('score');
   });
 
   it('updateFiles re-embeds only changed files', async () => {

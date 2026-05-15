@@ -9,14 +9,14 @@ import { streamWithEvents } from '../llm/streamWithEvents.js';
 
 export interface FixableError {
   file: string;
-  line?: number;
+  line?: number | undefined;
   message: string;
 }
 
 export interface ProjectContext {
   framework: string;
   language: string;
-  packageJson?: string;
+  packageJson?: string | undefined;
 }
 
 const SYSTEM_PROMPT = `You are a senior developer fixing code errors. You receive files with compilation/validation errors.

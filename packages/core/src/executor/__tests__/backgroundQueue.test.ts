@@ -102,7 +102,7 @@ describe('BackgroundQueue', () => {
     expect(all).toHaveLength(3);
     // Sorted by queuedAt ascending
     for (let i = 1; i < all.length; i++) {
-      expect(all[i].queuedAt).toBeGreaterThanOrEqual(all[i - 1].queuedAt);
+      expect(all[i]!.queuedAt).toBeGreaterThanOrEqual(all[i - 1]!.queuedAt);
     }
   });
 
@@ -115,7 +115,7 @@ describe('BackgroundQueue', () => {
 
     const pending = await queue.getPending();
     expect(pending).toHaveLength(1);
-    expect(pending[0].task.id).toBe('p2');
+    expect(pending[0]!.task.id).toBe('p2');
   });
 
   it('removes a task', async () => {

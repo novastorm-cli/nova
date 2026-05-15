@@ -27,7 +27,7 @@ vi.mock('openai', () => {
       },
     };
 
-    readonly baseURL?: string;
+    readonly baseURL?: string | undefined;
 
     constructor(opts: Record<string, unknown>) {
       capturedOpts.push(opts);
@@ -160,7 +160,7 @@ describe('DeepSeekProvider', () => {
 
       await provider.chat(userMessages, { model: 'deepseek-v4-pro' });
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       expect(args.model).toBe('deepseek-v4-pro');
     });
 
@@ -182,7 +182,7 @@ describe('DeepSeekProvider', () => {
 
       await provider.chat(userMessages);
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       expect(args.model).toBe('deepseek-v4-flash');
     });
 
@@ -193,7 +193,7 @@ describe('DeepSeekProvider', () => {
 
       await provider.chat(userMessages, { maxTokens: 8 });
 
-      const args = mockCompletionsCreate.mock.calls[0][0];
+      const args = mockCompletionsCreate.mock.calls[0]![0];
       expect(args.max_tokens).toBe(8);
     });
   });
@@ -243,7 +243,7 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: Array<{ content: string; reasoningContent?: string }> = [];
+      const result: Array<{ content: string; reasoningContent?: string | undefined }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }
@@ -266,7 +266,7 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: Array<{ content: string; reasoningContent?: string }> = [];
+      const result: Array<{ content: string; reasoningContent?: string | undefined }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }
@@ -294,7 +294,7 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: Array<{ content: string; reasoningContent?: string }> = [];
+      const result: Array<{ content: string; reasoningContent?: string | undefined }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }
@@ -317,7 +317,7 @@ describe('DeepSeekProvider', () => {
         })(),
       );
 
-      const result: Array<{ content: string; reasoningContent?: string }> = [];
+      const result: Array<{ content: string; reasoningContent?: string | undefined }> = [];
       for await (const chunk of provider.stream(userMessages)) {
         result.push(chunk);
       }

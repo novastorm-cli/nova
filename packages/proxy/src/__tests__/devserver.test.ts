@@ -105,7 +105,7 @@ describe('DevServerRunner', () => {
     }
 
     expect(errorHandler).toHaveBeenCalled();
-    const errorArg = errorHandler.mock.calls[0][0];
+    const errorArg = errorHandler.mock.calls[0]![0];
     expect(typeof errorArg).toBe('string');
   });
 });

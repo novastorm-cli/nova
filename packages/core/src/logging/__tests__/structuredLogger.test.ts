@@ -7,7 +7,7 @@ describe('StructuredLogger', () => {
   let writeSpy: any;
 
   beforeEach(() => {
-    writeSpy = vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
+    writeSpy = vi.spyOn(process.stderr, 'write').mockImplementation((() => true));
   });
 
   afterEach(() => {
@@ -19,7 +19,7 @@ describe('StructuredLogger', () => {
     logger.info('hello', { key: 'value' });
 
     expect(writeSpy).toHaveBeenCalledTimes(1);
-    const output = writeSpy.mock.calls[0][0] as string;
+    const output = writeSpy.mock.calls[0]![0] as string;
     const parsed = JSON.parse(output);
     expect(parsed.level).toBe('INFO');
     expect(parsed.message).toBe('hello');
@@ -41,7 +41,7 @@ describe('StructuredLogger', () => {
     const child = logger.child({ correlationId: 'abc' });
     child.info('test');
 
-    const output = writeSpy.mock.calls[0][0] as string;
+    const output = writeSpy.mock.calls[0]![0] as string;
     const parsed = JSON.parse(output);
     expect(parsed.correlationId).toBe('abc');
   });
@@ -51,7 +51,7 @@ describe('StructuredLogger', () => {
     const child = logger.child({ component: 'ws' });
     child.error('fail', { code: 500 });
 
-    const output = writeSpy.mock.calls[0][0] as string;
+    const output = writeSpy.mock.calls[0]![0] as string;
     const parsed = JSON.parse(output);
     expect(parsed.component).toBe('ws');
     expect(parsed.code).toBe(500);
@@ -63,7 +63,7 @@ describe('StructuredLogger', () => {
     logger.warn('caution');
 
     expect(writeSpy).toHaveBeenCalledTimes(1);
-    const output = writeSpy.mock.calls[0][0] as string;
+    const output = writeSpy.mock.calls[0]![0] as string;
     expect(output).toContain('WARN');
     expect(output).toContain('caution');
     // Should contain ANSI color codes

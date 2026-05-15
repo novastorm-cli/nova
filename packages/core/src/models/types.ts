@@ -7,23 +7,23 @@ import type { Manifest } from './manifest.js';
 export interface StackInfo {
   framework: string; // "next.js", "vite", "dotnet", "django", etc.
   language: string; // "typescript", "javascript", "csharp", "python"
-  packageManager?: string; // "npm", "yarn", "pnpm", "bun"
+  packageManager?: string | undefined; // "npm", "yarn", "pnpm", "bun"
   typescript: boolean;
-  additionalStacks?: string[]; // other detected frameworks e.g. ["dotnet", "express"]
+  additionalStacks?: string[] | undefined; // other detected frameworks e.g. ["dotnet", "express"]
 }
 
 export interface DockerServiceInfo {
   name: string;
   ports: Array<{ host: number; container: number }>;
-  buildContext?: string;
-  image?: string;
+  buildContext?: string | undefined;
+  image?: string | undefined;
 }
 
 export interface RouteInfo {
   path: string; // "/dashboard", "/api/users"
   filePath: string; // "app/dashboard/page.tsx"
   type: 'page' | 'api' | 'layout';
-  methods?: string[]; // for API: ["GET", "POST"]
+  methods?: string[] | undefined; // for API: ["GET", "POST"]
 }
 
 export interface ComponentInfo {
@@ -31,20 +31,20 @@ export interface ComponentInfo {
   filePath: string; // "components/CustomerTable.tsx"
   type: 'component' | 'page' | 'layout' | 'hook';
   exports: string[]; // exported symbol names
-  props?: string[]; // prop names if detectable
+  props?: string[] | undefined; // prop names if detectable
 }
 
 export interface EndpointInfo {
   method: string; // "GET", "POST", etc.
   path: string; // "/api/users"
   filePath: string;
-  handler?: string; // function/method name
+  handler?: string | undefined; // function/method name
 }
 
 export interface ModelInfo {
   name: string; // "User", "Transaction"
   filePath: string;
-  fields?: string[];
+  fields?: string[] | undefined;
 }
 
 export interface DependencyNode {
@@ -52,7 +52,7 @@ export interface DependencyNode {
   imports: string[];
   exports: string[];
   type: 'component' | 'page' | 'api' | 'model' | 'hook' | 'util' | 'config';
-  route?: string;
+  route?: string | undefined;
   keywords: string[];
 }
 
@@ -75,11 +75,11 @@ export interface ProjectMap {
   dependencies: DependencyGraph;
   fileContexts: Map<string, MiniContext>;
   compressedContext: string;
-  frontend?: string;
-  backends?: string[];
-  manifest?: Manifest;
+  frontend?: string | undefined;
+  backends?: string[] | undefined;
+  manifest?: Manifest | undefined;
   /** If set, the indexer hit the file cap and only indexed a subset */
-  cappedAt?: number;
+  cappedAt?: number | undefined;
 }
 
 // ============================================================
@@ -88,11 +88,11 @@ export interface ProjectMap {
 
 export interface Observation {
   screenshot: Buffer;
-  clickCoords?: { x: number; y: number };
-  domSnapshot?: string;
-  transcript?: string;
+  clickCoords?: { x: number; y: number } | undefined;
+  domSnapshot?: string | undefined;
+  transcript?: string | undefined;
   currentUrl: string;
-  consoleErrors?: string[];
+  consoleErrors?: string[] | undefined;
   timestamp: number;
   gestureContext?: {
     gestures: Array<{
@@ -105,17 +105,17 @@ export interface Observation {
         domSnippet: string;
         role: string;
       }>;
-      region?: { x: number; y: number; width: number; height: number };
+      region?: { x: number; y: number; width: number; height: number } | undefined;
     }>;
     summary: string;
-  };
+  } | undefined;
   selectedArea?: {
     x: number;
     y: number;
     width: number;
     height: number;
-    screenshot?: Buffer;
-  };
+    screenshot?: Buffer | undefined;
+  } | undefined;
 }
 
 // ============================================================
@@ -133,25 +133,25 @@ export interface TaskItem {
   type: TaskType;
   lane: Lane;
   status: TaskStatus;
-  commitHash?: string;
-  diff?: string;
-  error?: string;
+  commitHash?: string | undefined;
+  diff?: string | undefined;
+  error?: string | undefined;
   /** When true, the task was explicitly initiated by user action (Quick Edit, Multi-Edit)
    * and can skip the confirmation gate. */
-  preConfirmed?: boolean;
+  preConfirmed?: boolean | undefined;
 }
 
 export interface ExecutionResult {
   success: boolean;
   taskId: string;
-  diff?: string;
-  commitHash?: string;
-  error?: string;
+  diff?: string | undefined;
+  commitHash?: string | undefined;
+  error?: string | undefined;
 }
 
 export interface ValidationResult {
   valid: boolean;
-  errors: Array<{ file: string; line?: number; message: string }>;
+  errors: Array<{ file: string; line?: number | undefined; message: string }>;
 }
 
 // ============================================================
@@ -164,24 +164,24 @@ export interface Message {
 }
 
 export interface LlmOptions {
-  model?: string;
-  maxTokens?: number;
-  temperature?: number;
-  responseFormat?: 'text' | 'json';
+  model?: string | undefined;
+  maxTokens?: number | undefined;
+  temperature?: number | undefined;
+  responseFormat?: 'text' | 'json' | undefined;
 }
 
 /** Normalized response from a provider chat call. */
 export interface ChatResponse {
   content: string;
   /** Optional chain-of-thought / reasoning content (e.g., DeepSeek reasoning_content). */
-  reasoningContent?: string;
+  reasoningContent?: string | undefined;
 }
 
 /** Normalized stream chunk from a provider streaming call. */
 export interface StreamChunk {
   content: string;
   /** Optional chain-of-thought / reasoning content (e.g., DeepSeek delta.reasoning_content). */
-  reasoningContent?: string;
+  reasoningContent?: string | undefined;
 }
 
 // ============================================================
@@ -206,7 +206,7 @@ export interface LicenseStatus {
   valid: boolean;
   tier: LicenseTier;
   devCount: number;
-  message?: string;
+  message?: string | undefined;
 }
 
 export interface TeamInfo {
@@ -216,7 +216,7 @@ export interface TeamInfo {
 }
 
 export interface TeamDetectOptions {
-  windowDays?: number;
+  windowDays?: number | undefined;
 }
 
 export interface TelemetryPayload {
@@ -250,7 +250,7 @@ export interface SearchResult {
   filePath: string;
   score: number;
   matchType: 'graph' | 'keyword' | 'semantic';
-  snippet?: string;
+  snippet?: string | undefined;
 }
 
 // ============================================================
@@ -262,7 +262,7 @@ export type MethodVisibility = 'public' | 'private' | 'protected';
 export interface MethodInfo {
   name: string;
   filePath: string;
-  className?: string;
+  className?: string | undefined;
   signature: string;
   purpose: string;
   lineStart: number;
@@ -295,7 +295,7 @@ export interface FullstackEdge {
   from: string; // source node ID (filePath:name)
   to: string; // target node ID
   type: 'fetches' | 'imports' | 'queries' | 'middleware' | 'renders';
-  metadata?: Record<string, string>;
+  metadata?: Record<string, string> | undefined;
 }
 
 export interface FullstackNode {
@@ -323,9 +323,9 @@ export interface EmbeddingRecord {
   embedding: number[];
   metadata: {
     type: 'method' | 'imports' | 'types' | 'general';
-    name?: string;
-    lineStart?: number;
-    lineEnd?: number;
+    name?: string | undefined;
+    lineStart?: number | undefined;
+    lineEnd?: number | undefined;
   };
 }
 
@@ -336,10 +336,10 @@ export interface EmbeddingRecord {
 export interface BehaviorEvent {
   type: 'page_visit' | 'click' | 'scroll' | 'api_call' | 'error' | 'sort' | 'filter';
   url: string;
-  target?: string; // CSS selector or element description
-  metadata?: Record<string, string>;
+  target?: string | undefined; // CSS selector or element description
+  metadata?: Record<string, string> | undefined;
   timestamp: number;
-  duration?: number; // time on page in ms
+  duration?: number | undefined; // time on page in ms
 }
 
 export interface BehaviorPattern {
@@ -367,7 +367,7 @@ export interface PassiveSuggestion {
   }>;
   status: SuggestionStatus;
   createdAt: number;
-  respondedAt?: number;
+  respondedAt?: number | undefined;
 }
 
 // ============================================================
@@ -381,13 +381,13 @@ export interface BackgroundTask {
   task: TaskItem;
   status: BackgroundTaskStatus;
   queuedAt: number;
-  startedAt?: number;
-  completedAt?: number;
-  branch?: string;
-  commitHash?: string;
-  diff?: string;
-  error?: string;
-  progress?: string;
+  startedAt?: number | undefined;
+  completedAt?: number | undefined;
+  branch?: string | undefined;
+  commitHash?: string | undefined;
+  diff?: string | undefined;
+  error?: string | undefined;
+  progress?: string | undefined;
 }
 
 // ============================================================
@@ -402,11 +402,11 @@ export interface HistoryEntry {
   lane: Lane;
   status: TaskStatus;
   filesChanged: string[];
-  commitHash?: string;
-  diff?: string;
-  error?: string;
+  commitHash?: string | undefined;
+  diff?: string | undefined;
+  error?: string | undefined;
   startedAt: number;
-  completedAt?: number;
+  completedAt?: number | undefined;
 }
 
 // ============================================================
@@ -439,6 +439,6 @@ export interface RecipeFileTemplate {
 export interface RecipeVariable {
   name: string;
   description: string;
-  defaultValue?: string;
+  defaultValue?: string | undefined;
   required: boolean;
 }

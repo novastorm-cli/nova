@@ -42,7 +42,7 @@ export class TfIdfEmbedding implements IEmbeddingService {
 
     this.vocabulary.clear();
     for (let i = 0; i < sorted.length; i++) {
-      this.vocabulary.set(sorted[i][0], i);
+      this.vocabulary.set(sorted[i]![0]!, i);
     }
 
     // Calculate IDF
@@ -81,7 +81,7 @@ export class TfIdfEmbedding implements IEmbeddingService {
     for (const v of vec) norm += v * v;
     norm = Math.sqrt(norm);
     if (norm > 0) {
-      for (let i = 0; i < vec.length; i++) vec[i] /= norm;
+      for (let i = 0; i < vec.length; i++) vec[i]! /= norm;
     }
 
     return vec;

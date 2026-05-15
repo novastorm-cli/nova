@@ -9,11 +9,11 @@ import type { RetryOptions } from './retry.js';
  */
 export interface BaseProviderOptions {
   /** EventBus for emitting provider_retry / provider_fallback events. */
-  eventBus?: EventBus;
+  eventBus?: EventBus | undefined;
   /** The primary model name this provider is configured to use. */
-  model?: string;
+  model?: string | undefined;
   /** Fallback model to try after all retries are exhausted (e.g. `models.micro`). */
-  fallbackModel?: string;
+  fallbackModel?: string | undefined;
 }
 
 /**
@@ -42,9 +42,9 @@ export abstract class BaseProvider implements LlmClient {
   /** Base delay for exponential backoff in ms. */
   protected static readonly RETRY_BASE_DELAY_MS = 1000;
 
-  protected readonly eventBus?: EventBus;
-  protected readonly model?: string;
-  protected readonly fallbackModel?: string;
+  protected readonly eventBus?: EventBus | undefined;
+  protected readonly model?: string | undefined;
+  protected readonly fallbackModel?: string | undefined;
 
   constructor(options?: BaseProviderOptions) {
     this.eventBus = options?.eventBus;

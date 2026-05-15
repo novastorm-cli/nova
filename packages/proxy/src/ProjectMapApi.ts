@@ -9,7 +9,7 @@ export interface ProjectMapNode {
   type: DependencyNode['type'];
   exports: string[];
   keywords: string[];
-  route?: string;
+  route?: string | undefined;
   methods?: Array<{ name: string; signature: string; purpose: string }>;
 }
 

@@ -215,7 +215,7 @@ describe('ExecutorPool', () => {
       .filter((e): e is Extract<NovaEvent, { type: 'task_failed' }> => e.type === 'task_failed');
 
     expect(taskFailedCalls.length).toBeGreaterThanOrEqual(1);
-    const failEvent = taskFailedCalls[0];
+    const failEvent = taskFailedCalls[0]!;
     expect(failEvent.data.taskId).toBe('task-pool-fail');
     expect(failEvent.data.error).toBe('Something went wrong');
   });
@@ -245,7 +245,7 @@ describe('ExecutorPool', () => {
       .filter((e): e is Extract<NovaEvent, { type: 'task_failed' }> => e.type === 'task_failed');
 
     expect(taskFailedCalls.length).toBeGreaterThanOrEqual(1);
-    const failEvent = taskFailedCalls[0];
+    const failEvent = taskFailedCalls[0]!;
     expect(failEvent.data.taskId).toBe('task-pool-crash');
   });
 

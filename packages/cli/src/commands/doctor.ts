@@ -31,7 +31,7 @@ export interface DoctorOptions {
 
 function checkNodeVersion(): CheckResult {
   const version = process.version;
-  const major = parseInt(version.slice(1).split('.')[0], 10);
+  const major = parseInt(version.slice(1).split('.')[0]!, 10);
   if (major >= 22) {
     return { name: 'Node.js', status: 'ok', message: version };
   }

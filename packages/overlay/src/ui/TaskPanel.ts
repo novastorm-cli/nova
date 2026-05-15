@@ -6,8 +6,8 @@ interface TaskEntry {
   description: string;
   lane: number;
   status: 'pending' | 'executing' | 'completed' | 'failed';
-  commitHash?: string;
-  error?: string;
+  commitHash?: string | undefined;
+  error?: string | undefined;
   element: HTMLElement;
 }
 
@@ -21,8 +21,8 @@ interface StoredTask {
   description: string;
   lane: number;
   status: TaskEntry['status'];
-  commitHash?: string;
-  error?: string;
+  commitHash?: string | undefined;
+  error?: string | undefined;
 }
 
 export class TaskPanel {

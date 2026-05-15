@@ -2,8 +2,8 @@ export interface NovaConfig {
   project: {
     devCommand: string;
     port: number;
-    frontend?: string;
-    backends?: string[];
+    frontend?: string | undefined;
+    backends?: string[] | undefined;
   };
   models: {
     micro: string;
@@ -13,7 +13,7 @@ export interface NovaConfig {
   };
   apiKeys: {
     provider: 'openrouter' | 'anthropic' | 'openai' | 'ollama' | 'claude-cli' | 'deepseek';
-    key?: string;  // resolved from env or .nova/config.toml
+    key?: string | undefined;  // resolved from env or .nova/config.toml
   };
   behavior: {
     autoCommit: boolean;
@@ -29,14 +29,14 @@ export interface NovaConfig {
     enabled: boolean;
   };
   license?: {
-    key?: string;
-  };
+    key?: string | undefined;
+  } | undefined;
   git?: {
-    allowProtectedBranchCommits?: boolean;
-  };
+    allowProtectedBranchCommits?: boolean | undefined;
+  } | undefined;
   rag?: {
-    embeddingProvider?: 'openai' | 'ollama' | 'tfidf';
-  };
+    embeddingProvider?: 'openai' | 'ollama' | 'tfidf' | undefined;
+  } | undefined;
 }
 
 export const DEFAULT_CONFIG: NovaConfig = {

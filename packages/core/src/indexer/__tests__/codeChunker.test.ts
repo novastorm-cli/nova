@@ -31,8 +31,8 @@ export function main() {}`;
     const chunks = chunker.chunkFile(code, 'f.ts', methods);
     const methodChunks = chunks.filter((c) => c.type === 'method');
     expect(methodChunks).toHaveLength(2);
-    expect(methodChunks[0].name).toBe('a');
-    expect(methodChunks[1].name).toBe('b');
+    expect(methodChunks[0]!.name).toBe('a');
+    expect(methodChunks[1]!.name).toBe('b');
   });
 
   it('falls back to sliding window for files without methods', () => {
@@ -53,7 +53,7 @@ export function main() {}`;
     const chunks = chunker.chunkFile(code, 'src/types.ts', []);
     const typeChunks = chunks.filter((c) => c.type === 'types');
     expect(typeChunks.length).toBeGreaterThanOrEqual(1);
-    expect(typeChunks[0].name).toBe('User');
+    expect(typeChunks[0]!.name).toBe('User');
   });
 
   it('handles empty files', () => {

@@ -39,7 +39,7 @@ describe('OllamaProvider', () => {
       await provider.chat(userMessages);
 
       expect(fetchMock).toHaveBeenCalledOnce();
-      const [url, init] = fetchMock.mock.calls[0];
+      const [url, init] = fetchMock.mock.calls[0]!;
 
       // Ollama runs on localhost:11434
       expect(url).toContain('localhost:11434');
@@ -77,7 +77,7 @@ describe('OllamaProvider', () => {
 
       await provider.chat(userMessages, { model: 'codellama:13b' });
 
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body);
       expect(body.model).toBe('codellama:13b');
     });
 
@@ -92,7 +92,7 @@ describe('OllamaProvider', () => {
 
       await provider.chat(userMessages, { responseFormat: 'json' });
 
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body);
       const allContent = JSON.stringify(body);
       expect(allContent.toLowerCase()).toContain('json');
     });
@@ -114,7 +114,7 @@ describe('OllamaProvider', () => {
 
       await provider.chatWithVision(userMessages, [imageBuffer]);
 
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body);
       const bodyStr = JSON.stringify(body);
 
       expect(bodyStr).toContain(imageBuffer.toString('base64'));

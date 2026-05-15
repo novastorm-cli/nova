@@ -9,7 +9,7 @@ export class RetryPolicy {
   private readonly retryCounts = new Map<string, number>();
   private readonly maxRetries: number;
   private readonly backoffMs: number[];
-  private readonly logger?: ILogger;
+  private readonly logger?: ILogger | undefined;
 
   constructor(maxRetries = 3, logger?: ILogger) {
     this.maxRetries = maxRetries;

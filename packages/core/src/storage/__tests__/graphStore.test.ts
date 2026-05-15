@@ -69,7 +69,7 @@ describe('GraphStore', () => {
     const loaded = await store.load();
 
     expect(loaded).toHaveLength(1);
-    expect(loaded[0]).toEqual(node);
+    expect(loaded[0]!).toEqual(node);
   });
 
   it('upsertNode() updates an existing node matched by filePath', async () => {
@@ -82,8 +82,8 @@ describe('GraphStore', () => {
     const loaded = await store.load();
 
     expect(loaded).toHaveLength(1);
-    expect(loaded[0].exports).toEqual(['New']);
-    expect(loaded[0].keywords).toEqual(['updated']);
+    expect(loaded[0]!.exports).toEqual(['New']);
+    expect(loaded[0]!.keywords).toEqual(['updated']);
   });
 
   // --- removeNode ---
@@ -99,7 +99,7 @@ describe('GraphStore', () => {
     const loaded = await store.load();
 
     expect(loaded).toHaveLength(1);
-    expect(loaded[0].filePath).toBe('src/b.ts');
+    expect(loaded[0]!.filePath).toBe('src/b.ts');
   });
 
   it('removeNode() on nonexistent filePath is a no-op (no error)', async () => {
@@ -159,7 +159,7 @@ describe('GraphStore', () => {
     const results = await store.search('USER');
 
     expect(results.length).toBeGreaterThanOrEqual(1);
-    expect(results[0].filePath).toBe('src/UserService.ts');
+    expect(results[0]!.filePath).toBe('src/UserService.ts');
   });
 
   it('search() sorts by match count (most matches first)', async () => {
@@ -182,7 +182,7 @@ describe('GraphStore', () => {
 
     expect(results.length).toBe(2);
     // auth-utils.ts has more matches (filePath, keywords x2, exports, route)
-    expect(results[0].filePath).toBe('src/auth-utils.ts');
+    expect(results[0]!.filePath).toBe('src/auth-utils.ts');
   });
 
   it('search() matches against filePath, keywords, exports, and route', async () => {

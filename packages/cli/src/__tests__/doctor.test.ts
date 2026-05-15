@@ -47,7 +47,7 @@ interface CheckResult {
  */
 function checkNodeVersion(): CheckResult {
   const version = process.version; // e.g. "v22.22.2"
-  const major = parseInt(version.slice(1).split('.')[0], 10);
+  const major = parseInt(version.slice(1).split('.')[0]!, 10);
   if (major >= 22) {
     return { name: 'Node.js', status: 'ok', message: version };
   }
@@ -356,7 +356,7 @@ describe('nova doctor - unit tests', () => {
       // Test the version comparison logic directly
       const versions = ['v16.0.0', 'v18.19.0', 'v20.18.0', 'v21.0.0'];
       for (const v of versions) {
-        const major = parseInt(v.slice(1).split('.')[0], 10);
+        const major = parseInt(v.slice(1).split('.')[0]!, 10);
         expect(major).toBeLessThan(22);
       }
     });
@@ -710,9 +710,9 @@ describe('nova doctor - unit tests', () => {
       expect(parsed).toHaveProperty('checks');
       expect(parsed).toHaveProperty('overall');
       expect(Array.isArray(parsed.checks)).toBe(true);
-      expect(parsed.checks[0].name).toBe('Node.js');
-      expect(parsed.checks[0].status).toBe('ok');
-      expect(parsed.checks[0].message).toBe('v22.22.2');
+      expect(parsed.checks[0]!.name).toBe('Node.js');
+      expect(parsed.checks[0]!.status).toBe('ok');
+      expect(parsed.checks[0]!.message).toBe('v22.22.2');
     });
 
     it('overall is "pass" when all checks ok or warn', () => {

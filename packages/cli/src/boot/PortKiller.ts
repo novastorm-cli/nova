@@ -56,13 +56,13 @@ function parseProcLine(line: string, wantPort: number): { inode: number } | null
   const state = fields[3];
   if (state !== '0A') return null; // only interested in LISTEN
 
-  const local = fields[1];
+  const local = fields[1]!;
   const colonIdx = local.lastIndexOf(':');
   if (colonIdx === -1) return null;
   const hexPort = local.slice(colonIdx + 1);
   if (hexPort !== toHexPort(wantPort)) return null;
 
-  const inode = parseInt(fields[9], 10);
+  const inode = parseInt(fields[9]!, 10);
   if (isNaN(inode)) return null;
 
   return { inode };
@@ -84,7 +84,7 @@ function collectInodes(port: number): number[] {
     const lines = raw.split('\n');
     for (let i = 1; i < lines.length; i++) {
       // skip header
-      const parsed = parseProcLine(lines[i], port);
+      const parsed = parseProcLine(lines[i]!, port);
       if (parsed) inodes.add(parsed.inode);
     }
   }
@@ -185,7 +185,7 @@ function findPidsViaNetstat(port: number): Promise<number[]> {
         const listeners = /LISTEN\s+\d+\s+\d+\s+(\d+)/;
         const m = line.match(listeners);
         if (m) {
-          const pid = parseInt(m[1], 10);
+          const pid = parseInt(m[1]!, 10);
           if (!isNaN(pid) && pid > 0) {
             pids.add(pid);
           }

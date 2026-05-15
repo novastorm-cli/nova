@@ -4,7 +4,7 @@ export interface CodeChunk {
   text: string;
   filePath: string;
   type: 'method' | 'imports' | 'types' | 'general';
-  name?: string;
+  name?: string | undefined;
   lineStart: number;
   lineEnd: number;
 }
@@ -21,10 +21,10 @@ export class CodeChunker {
     const importLines: string[] = [];
     let importEnd = 0;
     for (let i = 0; i < lines.length; i++) {
-      if (/^\s*(import|require)\b/.test(lines[i]) || (importLines.length > 0 && /^\s*[}),]/.test(lines[i]))) {
-        importLines.push(lines[i]);
+      if (/^\s*(import|require)\b/.test(lines[i]!) || (importLines.length > 0 && /^\s*[}),]/.test(lines[i]!))) {
+        importLines.push(lines[i]!);
         importEnd = i;
-      } else if (importLines.length > 0 && !lines[i].trim()) {
+      } else if (importLines.length > 0 && !lines[i]!.trim()) {
         // Skip blank lines between imports
         continue;
       } else if (importLines.length > 0) {
@@ -130,7 +130,7 @@ export class CodeChunker {
     let foundOpen = false;
 
     for (let i = startIdx; i < lines.length; i++) {
-      for (const ch of lines[i]) {
+      for (const ch of lines[i]!) {
         if (ch === '{') { depth++; foundOpen = true; }
         else if (ch === '}') { depth--; }
       }

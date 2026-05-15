@@ -150,7 +150,7 @@ export class ActivityLog {
 
     // Trim old entries
     while (this.logEl.children.length > this.maxEntries) {
-      this.logEl.removeChild(this.logEl.children[0]);
+      this.logEl.removeChild(this.logEl.children[0]!);
     }
 
     // Auto-scroll to bottom
@@ -217,7 +217,7 @@ export class ActivityLog {
     this.lastEntry = entry;
 
     while (this.logEl.children.length > this.maxEntries) {
-      this.logEl.removeChild(this.logEl.children[0]);
+      this.logEl.removeChild(this.logEl.children[0]!);
     }
     this.logEl.scrollTop = this.logEl.scrollHeight;
     return entry;
@@ -293,7 +293,7 @@ export class ActivityLog {
     this.lastEntry = entry;
 
     while (this.logEl.children.length > this.maxEntries) {
-      this.logEl.removeChild(this.logEl.children[0]);
+      this.logEl.removeChild(this.logEl.children[0]!);
     }
     this.logEl.scrollTop = this.logEl.scrollHeight;
     return entry;

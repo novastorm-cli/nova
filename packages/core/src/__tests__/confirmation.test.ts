@@ -147,7 +147,7 @@ describe('Pending tasks lifecycle', () => {
     const task = makeTask();
     pendingTasks.push(task);
     expect(pendingTasks).toHaveLength(1);
-    expect(pendingTasks[0].description).toBe('Add a button');
+    expect(pendingTasks[0]!.description).toBe('Add a button');
   });
 
   it('tasks are drained from pendingTasks on confirm', () => {
@@ -162,8 +162,8 @@ describe('Pending tasks lifecycle', () => {
 
     expect(pendingTasks).toHaveLength(0);
     expect(tasksToRun).toHaveLength(2);
-    expect(tasksToRun[0].id).toBe('task-001');
-    expect(tasksToRun[1].id).toBe('task-002');
+    expect(tasksToRun[0]!.id).toBe('task-001');
+    expect(tasksToRun[1]!.id).toBe('task-002');
   });
 
   it('tasks are cleared on cancel without execution', () => {
@@ -188,7 +188,7 @@ describe('NovaEvent types -- pending_tasks and confirm_tasks', () => {
 
     expect(event.type).toBe('pending_tasks');
     expect(event.data.tasks).toHaveLength(1);
-    expect(event.data.tasks[0].id).toBe('task-001');
+    expect(event.data.tasks[0]!.id).toBe('task-001');
     expect(event.data.message).toContain('Press Y to execute');
   });
 
@@ -208,7 +208,7 @@ describe('NovaEvent types -- pending_tasks and confirm_tasks', () => {
       },
     };
 
-    expect(event.data.tasks[0].preConfirmed).toBe(true);
+    expect(event.data.tasks[0]!.preConfirmed).toBe(true);
   });
 
   it('confirm_tasks event has correct shape', () => {
@@ -276,8 +276,8 @@ describe('Chat confirm handler must call executeTasks (not just emit events)', (
     expect(pendingTasks).toHaveLength(0);
     expect(executeCalledWith).not.toBeNull();
     expect(executeCalledWith!).toHaveLength(2);
-    expect(executeCalledWith![0].id).toBe('task-001');
-    expect(executeCalledWith![1].id).toBe('task-002');
+    expect(executeCalledWith![0]!.id).toBe('task-001');
+    expect(executeCalledWith![1]!.id).toBe('task-002');
   });
 
   it('chat confirm and wsServer.onConfirm follow the same execution pattern', () => {
