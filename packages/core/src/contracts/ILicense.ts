@@ -1,4 +1,9 @@
-import type { LicenseStatus, NovaConfig, TelemetryPayload, TelemetryResponse } from '../models/index.js';
+import type {
+  LicenseStatus,
+  NovaConfig,
+  TelemetryPayload,
+  TelemetryResponse,
+} from '../models/index.js';
 
 export interface ILicenseChecker {
   /**

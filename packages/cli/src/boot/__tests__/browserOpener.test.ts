@@ -11,10 +11,18 @@ const mockOpen = vi.mocked(open);
 function mockLogger(): { logger: ILogger; output: () => string } {
   const calls: string[] = [];
   const logger: ILogger = {
-    debug: (msg: string) => { calls.push(msg); },
-    info: (msg: string) => { calls.push(msg); },
-    warn: (msg: string) => { calls.push(msg); },
-    error: (msg: string) => { calls.push(msg); },
+    debug: (msg: string) => {
+      calls.push(msg);
+    },
+    info: (msg: string) => {
+      calls.push(msg);
+    },
+    warn: (msg: string) => {
+      calls.push(msg);
+    },
+    error: (msg: string) => {
+      calls.push(msg);
+    },
     child: () => logger,
   };
   return { logger, output: () => calls.join(' ') };

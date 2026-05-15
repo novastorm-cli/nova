@@ -45,27 +45,19 @@ export class ComponentExtractor implements IComponentExtractor {
 
   private detectComponentName(content: string, fileName: string): string {
     // 1. export default function ComponentName
-    const defaultFnMatch = content.match(
-      /export\s+default\s+function\s+([A-Z]\w*)/,
-    );
+    const defaultFnMatch = content.match(/export\s+default\s+function\s+([A-Z]\w*)/);
     if (defaultFnMatch) return defaultFnMatch[1]!;
 
     // 2. export default class ComponentName
-    const defaultClassMatch = content.match(
-      /export\s+default\s+class\s+([A-Z]\w*)/,
-    );
+    const defaultClassMatch = content.match(/export\s+default\s+class\s+([A-Z]\w*)/);
     if (defaultClassMatch) return defaultClassMatch[1]!;
 
     // 3. Named export: export function ComponentName / export const ComponentName
-    const namedExportMatch = content.match(
-      /export\s+(?:async\s+)?(?:function|const)\s+([A-Z]\w*)/,
-    );
+    const namedExportMatch = content.match(/export\s+(?:async\s+)?(?:function|const)\s+([A-Z]\w*)/);
     if (namedExportMatch) return namedExportMatch[1]!;
 
     // 4. For hooks: export function useSomething / export const useSomething
-    const hookMatch = content.match(
-      /export\s+(?:async\s+)?(?:function|const)\s+(use[A-Z]\w*)/,
-    );
+    const hookMatch = content.match(/export\s+(?:async\s+)?(?:function|const)\s+(use[A-Z]\w*)/);
     if (hookMatch) return hookMatch[1]!;
 
     // 5. Fallback to filename
@@ -76,7 +68,8 @@ export class ComponentExtractor implements IComponentExtractor {
     const exports: string[] = [];
 
     // export function/const/class Name
-    const namedRegex = /export\s+(?:async\s+)?(?:function|const|class|let|var|enum|type|interface)\s+(\w+)/g;
+    const namedRegex =
+      /export\s+(?:async\s+)?(?:function|const|class|let|var|enum|type|interface)\s+(\w+)/g;
     let match;
     while ((match = namedRegex.exec(content)) !== null) {
       if (!exports.includes(match[1]!)) {
@@ -106,10 +99,7 @@ export class ComponentExtractor implements IComponentExtractor {
     const posixPath = this.toPosix(relPath);
 
     // Hook: file name starts with "use" or has an export starting with "use"
-    if (
-      fileName.startsWith('use') ||
-      exports.some((e) => e.startsWith('use') && e !== 'default')
-    ) {
+    if (fileName.startsWith('use') || exports.some((e) => e.startsWith('use') && e !== 'default')) {
       return 'hook';
     }
 
@@ -145,9 +135,7 @@ export class ComponentExtractor implements IComponentExtractor {
     const props: string[] = [];
 
     // Match interface/type Props { prop1: ...; prop2: ... }
-    const propsBlockMatch = content.match(
-      /(?:interface|type)\s+\w*Props\w*\s*(?:=\s*)?{([^}]*)}/,
-    );
+    const propsBlockMatch = content.match(/(?:interface|type)\s+\w*Props\w*\s*(?:=\s*)?{([^}]*)}/);
     if (propsBlockMatch) {
       const block = propsBlockMatch[1]!;
       const propRegex = /(\w+)\s*[?:]?\s*:/g;
@@ -195,7 +183,8 @@ export class ComponentExtractor implements IComponentExtractor {
       return entries
         .filter((e) => e.isFile())
         .map((e) => {
-          const parent = (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
+          const parent =
+            (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
           return join(parent, e.name);
         });
     } catch {

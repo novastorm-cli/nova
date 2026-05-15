@@ -53,13 +53,13 @@ export class CodeFixer {
   ): Promise<FileBlock[]> {
     // Combine into single message for Claude CLI compatibility
     const combined = `${SYSTEM_PROMPT}\n\n---\n\n${this.buildUserPrompt(files, errors, context)}\n\nOutput ONLY === FILE: === blocks with fixed code. Start immediately with === FILE:`;
-    const messages: Message[] = [
-      { role: 'user', content: combined },
-    ];
+    const messages: Message[] = [{ role: 'user', content: combined }];
 
     this.logger.info(`Fixer: sending ${errors.length} error(s) to LLM for fixing...`);
     for (const err of errors.slice(0, 5)) {
-      this.logger.debug(`  Fix: ${err.file}${err.line ? ':' + err.line : ''} — ${err.message.slice(0, 100)}`);
+      this.logger.debug(
+        `  Fix: ${err.file}${err.line ? ':' + err.line : ''} — ${err.message.slice(0, 100)}`,
+      );
     }
 
     const response = await streamWithEvents(
@@ -92,9 +92,7 @@ export class CodeFixer {
     parts.push(`Project: ${context.framework} + ${context.language}`);
 
     if (context.packageJson) {
-      parts.push(
-        `\nAvailable dependencies (from package.json):\n${context.packageJson}`,
-      );
+      parts.push(`\nAvailable dependencies (from package.json):\n${context.packageJson}`);
     }
 
     parts.push('\n--- FILES WITH ERRORS ---\n');

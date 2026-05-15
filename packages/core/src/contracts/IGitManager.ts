@@ -63,7 +63,10 @@ export interface IGitManager {
 }
 
 export class GitError extends Error {
-  constructor(message: string, public readonly command?: string) {
+  constructor(
+    message: string,
+    public readonly command?: string,
+  ) {
     super(message);
     this.name = 'GitError';
   }

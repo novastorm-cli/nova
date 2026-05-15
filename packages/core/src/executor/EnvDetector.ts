@@ -2,8 +2,19 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const EXCLUDED_VARS = new Set([
-  'NODE_ENV', 'PORT', 'CI', 'HOME', 'PATH', 'PWD', 'SHELL', 'USER', 'LANG',
-  'TERM', 'HOSTNAME', 'TMPDIR', 'TZ',
+  'NODE_ENV',
+  'PORT',
+  'CI',
+  'HOME',
+  'PATH',
+  'PWD',
+  'SHELL',
+  'USER',
+  'LANG',
+  'TERM',
+  'HOSTNAME',
+  'TMPDIR',
+  'TZ',
 ]);
 
 export class EnvDetector {
@@ -28,7 +39,7 @@ export class EnvDetector {
     const existing = this.readEnvLocal(projectPath);
     const existingKeys = new Set(Object.keys(existing));
 
-    return Array.from(referenced).filter(v => !existingKeys.has(v));
+    return Array.from(referenced).filter((v) => !existingKeys.has(v));
   }
 
   readEnvLocal(projectPath: string): Record<string, string> {
@@ -85,7 +96,7 @@ export class EnvDetector {
 
     if (fs.existsSync(gitignorePath)) {
       content = fs.readFileSync(gitignorePath, 'utf-8');
-      const lines = content.split('\n').map(l => l.trim());
+      const lines = content.split('\n').map((l) => l.trim());
       if (lines.includes('.env.local')) return;
     }
 

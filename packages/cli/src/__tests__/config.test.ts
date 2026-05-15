@@ -3,7 +3,12 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { ConfigReader } from '../config.js';
-import { type NovaConfig, DEFAULT_CONFIG, PROVIDER_MODEL_DEFAULTS, ConfigError } from '@novastorm-ai/core';
+import {
+  type NovaConfig,
+  DEFAULT_CONFIG,
+  PROVIDER_MODEL_DEFAULTS,
+  ConfigError,
+} from '@novastorm-ai/core';
 
 describe('ConfigReader', () => {
   let tmpDir: string;
@@ -180,13 +185,21 @@ port = -1
     it('should create nova.toml and skip default values', async () => {
       const config: Partial<NovaConfig> = {
         project: { devCommand: 'npm start', port: 3000 }, // port is default
-        behavior: { autoCommit: true, confirmTasks: true, branchPrefix: 'nova/', passiveSuggestions: true }, // branchPrefix and passiveSuggestions are default
+        behavior: {
+          autoCommit: true,
+          confirmTasks: true,
+          branchPrefix: 'nova/',
+          passiveSuggestions: true,
+        }, // branchPrefix and passiveSuggestions are default
       };
 
       await reader.write(tmpDir, config);
 
       const filePath = path.join(tmpDir, 'nova.toml');
-      const exists = await fs.stat(filePath).then(() => true).catch(() => false);
+      const exists = await fs
+        .stat(filePath)
+        .then(() => true)
+        .catch(() => false);
       expect(exists).toBe(true);
 
       const content = await fs.readFile(filePath, 'utf-8');

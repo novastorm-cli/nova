@@ -167,7 +167,10 @@ describe('GitManager', () => {
       expect(count).toBe(1);
 
       // Add a commit from a different author
-      git(tmpDir, '-c user.email="other@nova.dev" -c user.name="Other Dev" commit --allow-empty -m "other commit"');
+      git(
+        tmpDir,
+        '-c user.email="other@nova.dev" -c user.name="Other Dev" commit --allow-empty -m "other commit"',
+      );
 
       const updatedCount = await manager.getDevCount();
       expect(updatedCount).toBe(2);

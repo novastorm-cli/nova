@@ -297,7 +297,9 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   );
 
   // ── 13. Browser ──────────────────────────────────────────────────
-  await openBrowser(`http://localhost:${proxyPort}`, { ...(options.noOpen !== undefined ? { noOpen: options.noOpen } : {}) });
+  await openBrowser(`http://localhost:${proxyPort}`, {
+    ...(options.noOpen !== undefined ? { noOpen: options.noOpen } : {}),
+  });
 
   // ── 14. Git ──────────────────────────────────────────────────────
   try {
@@ -325,7 +327,11 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   let executorPool: any = null;
   const commitQueue = new CommitQueue(
     gitManager,
-    { ...(config.git?.allowProtectedBranchCommits !== undefined ? { allowProtectedBranchCommits: config.git.allowProtectedBranchCommits } : {}) },
+    {
+      ...(config.git?.allowProtectedBranchCommits !== undefined
+        ? { allowProtectedBranchCommits: config.git.allowProtectedBranchCommits }
+        : {}),
+    },
     undefined,
     eventBus,
   );

@@ -23,9 +23,7 @@ function createProjectMap(overrides: Partial<ProjectMap> = {}): ProjectMap {
     },
     devCommand: 'npm run dev',
     port: 3000,
-    routes: [
-      { path: '/dashboard', filePath: 'app/dashboard/page.tsx', type: 'page' },
-    ],
+    routes: [{ path: '/dashboard', filePath: 'app/dashboard/page.tsx', type: 'page' }],
     components: [],
     endpoints: [],
     models: [],

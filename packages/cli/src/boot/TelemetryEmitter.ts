@@ -29,10 +29,15 @@ export async function sendBootTelemetry(
   let projectHash: string;
   try {
     const remoteUrl = await new Promise<string>((resolve, reject) => {
-      execFile('git', ['remote', 'get-url', 'origin'], { cwd }, (err: ExecFileException | null, stdout: string) => {
-        if (err) reject(new Error(err.message));
-        else resolve(stdout.trim());
-      });
+      execFile(
+        'git',
+        ['remote', 'get-url', 'origin'],
+        { cwd },
+        (err: ExecFileException | null, stdout: string) => {
+          if (err) reject(new Error(err.message));
+          else resolve(stdout.trim());
+        },
+      );
     });
     projectHash = createHash('sha256').update(remoteUrl).digest('hex');
   } catch {

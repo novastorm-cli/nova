@@ -1,5 +1,10 @@
 import type { SearchResult } from '../models/types.js';
-import type { IGraphStore, ISearchRouter, IVectorStore, IEmbeddingService } from '../contracts/IStorage.js';
+import type {
+  IGraphStore,
+  ISearchRouter,
+  IVectorStore,
+  IEmbeddingService,
+} from '../contracts/IStorage.js';
 
 const GRAPH_SCORE_BOOST = 1.0;
 const SEMANTIC_SCORE_BOOST = 0.8;
@@ -29,9 +34,7 @@ export class SearchRouter implements ISearchRouter {
         filePath: node.filePath,
         score,
         matchType: 'graph',
-        snippet: node.exports.length > 0
-          ? `exports: ${node.exports.join(', ')}`
-          : undefined,
+        snippet: node.exports.length > 0 ? `exports: ${node.exports.join(', ')}` : undefined,
       });
     }
 

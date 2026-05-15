@@ -2,12 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type {
-  TaskItem,
-  ProjectMap,
-  StackInfo,
-  ExecutionResult,
-} from '../../models/types.js';
+import type { TaskItem, ProjectMap, StackInfo, ExecutionResult } from '../../models/types.js';
 import type { LlmClient } from '../../contracts/ILlmClient.js';
 import type { IGitManager } from '../../contracts/IGitManager.js';
 import type { EventBus } from '../../contracts/IEventBus.js';
@@ -55,11 +50,9 @@ function createMockLlmClient(): LlmClient {
   };
 
   return {
-    chat: vi
-      .fn()
-      .mockResolvedValue({
-        content: '=== FILE: src/auth.ts ===\nconsole.log("refactored");\n=== END FILE ===',
-      }),
+    chat: vi.fn().mockResolvedValue({
+      content: '=== FILE: src/auth.ts ===\nconsole.log("refactored");\n=== END FILE ===',
+    }),
     chatWithVision: vi.fn().mockResolvedValue({ content: '' }),
     stream: vi.fn().mockReturnValue(mockStream()),
   };

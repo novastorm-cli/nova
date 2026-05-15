@@ -37,9 +37,9 @@ export class PathGuard implements IPathGuard {
   }
 
   loadBoundaries(boundaries: {
-    writable?: string[];
-    readonly?: string[];
-    ignored?: string[];
+    writable?: string[] | undefined;
+    readonly?: string[] | undefined;
+    ignored?: string[] | undefined;
   }): void {
     if (boundaries.writable) {
       this.writableMatchers = boundaries.writable.map((p) => picomatch(p, { dot: false }));

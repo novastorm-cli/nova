@@ -16,11 +16,17 @@ export type NovaEvent =
   | { type: 'index_updated'; data: { filesChanged: string[] } }
   | {
       type: 'status';
-      data: { message: string; tasks?: Array<{ id: string; description: string; lane: number }> | undefined };
+      data: {
+        message: string;
+        tasks?: Array<{ id: string; description: string; lane: number }> | undefined;
+      };
     }
   | { type: 'confirm'; data: Record<string, never> }
   | { type: 'cancel'; data: Record<string, never> }
-  | { type: 'llm_chunk'; data: { text: string; phase: 'reasoning' | 'code'; taskId?: string | undefined } }
+  | {
+      type: 'llm_chunk';
+      data: { text: string; phase: 'reasoning' | 'code'; taskId?: string | undefined };
+    }
   | { type: 'secrets_required'; data: { envVars: string[]; taskId: string } }
   | { type: 'analysis_complete'; data: { fileCount: number; methodCount: number } }
   | { type: 'passive_behavior'; data: BehaviorEvent }
@@ -38,7 +44,12 @@ export type NovaEvent =
   | {
       type: 'pending_tasks';
       data: {
-        tasks: Array<{ id: string; description: string; lane: number; preConfirmed?: boolean | undefined }>;
+        tasks: Array<{
+          id: string;
+          description: string;
+          lane: number;
+          preConfirmed?: boolean | undefined;
+        }>;
         message: string;
       };
     }

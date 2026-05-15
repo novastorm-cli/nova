@@ -1,4 +1,10 @@
-import type { StackInfo, ProjectMap, RouteInfo, ComponentInfo, EndpointInfo } from '../models/types.js';
+import type {
+  StackInfo,
+  ProjectMap,
+  RouteInfo,
+  ComponentInfo,
+  EndpointInfo,
+} from '../models/types.js';
 
 export interface IStackDetector {
   /**
@@ -86,7 +92,10 @@ export interface IProjectIndexer {
    *
    * @returns complete ProjectMap
    */
-  index(projectPath: string, config?: { frontend?: string; backends?: string[] }): Promise<ProjectMap>;
+  index(
+    projectPath: string,
+    config?: { frontend?: string; backends?: string[] },
+  ): Promise<ProjectMap>;
 
   /**
    * Incrementally update index for changed files.

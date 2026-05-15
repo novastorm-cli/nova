@@ -72,9 +72,10 @@ export class ProjectMapApi {
 
     const nodes = await this.graphStore.load();
     const mapNodes: ProjectMapNode[] = nodes.map((n) => {
-      const methods = this.analysis?.methods
-        .filter((m) => m.filePath === n.filePath)
-        .map((m) => ({ name: m.name, signature: m.signature, purpose: m.purpose })) ?? [];
+      const methods =
+        this.analysis?.methods
+          .filter((m) => m.filePath === n.filePath)
+          .map((m) => ({ name: m.name, signature: m.signature, purpose: m.purpose })) ?? [];
 
       return {
         id: n.filePath,

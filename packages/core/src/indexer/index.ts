@@ -8,7 +8,12 @@ export { ProjectScaffolder, SCAFFOLD_PRESETS, type ScaffoldOption } from './Proj
 export { MethodExtractor } from './MethodExtractor.js';
 export { ProjectAnalyzer } from './ProjectAnalyzer.js';
 export { CodeChunker } from './CodeChunker.js';
-export { EmbeddingService, createEmbeddingService, type EmbeddingProvider, type EmbeddingServiceOptions } from './EmbeddingService.js';
+export {
+  EmbeddingService,
+  createEmbeddingService,
+  type EmbeddingProvider,
+  type EmbeddingServiceOptions,
+} from './EmbeddingService.js';
 export { OllamaEmbedding } from './OllamaEmbedding.js';
 export { TfIdfEmbedding } from './TfIdfEmbedding.js';
 export { RagIndexer } from './RagIndexer.js';

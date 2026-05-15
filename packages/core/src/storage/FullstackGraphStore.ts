@@ -124,6 +124,8 @@ export class FullstackGraphStore {
     }
 
     const nodeMap = new Map(this.graph.nodes.map((n) => [n.id, n]));
-    return [...visited].map((id) => nodeMap.get(id)).filter((n): n is FullstackNode => n !== undefined);
+    return [...visited]
+      .map((id) => nodeMap.get(id))
+      .filter((n): n is FullstackNode => n !== undefined);
   }
 }

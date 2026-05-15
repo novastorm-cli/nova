@@ -9,7 +9,9 @@ class TestError extends Error {
 
 const shouldRetry = (err: unknown) => err instanceof TestError && err.retryable;
 const shouldAbort = (_err: unknown) => false;
-const handleError = (err: unknown): never => { throw err; };
+const handleError = (err: unknown): never => {
+  throw err;
+};
 
 describe('executeWithRetry', () => {
   it('should return result on first success', async () => {
@@ -20,9 +22,7 @@ describe('executeWithRetry', () => {
   });
 
   it('should retry on retryable errors', async () => {
-    const fn = vi.fn()
-      .mockRejectedValueOnce(new TestError(true))
-      .mockResolvedValue('ok');
+    const fn = vi.fn().mockRejectedValueOnce(new TestError(true)).mockResolvedValue('ok');
     const result = await executeWithRetry(fn, shouldRetry, shouldAbort, handleError, {
       baseDelayMs: 10,
       maxDelayMs: 50,
@@ -34,7 +34,10 @@ describe('executeWithRetry', () => {
   it('should not retry on non-retryable errors', async () => {
     const fn = vi.fn().mockRejectedValue(new TestError(false));
     await expect(
-      executeWithRetry(fn, shouldRetry, shouldAbort, handleError, { maxAttempts: 3, baseDelayMs: 10 })
+      executeWithRetry(fn, shouldRetry, shouldAbort, handleError, {
+        maxAttempts: 3,
+        baseDelayMs: 10,
+      }),
     ).rejects.toThrow('test error');
     expect(fn).toHaveBeenCalledTimes(1);
   });
@@ -46,7 +49,7 @@ describe('executeWithRetry', () => {
         maxAttempts: 3,
         baseDelayMs: 10,
         maxDelayMs: 50,
-      })
+      }),
     ).rejects.toThrow('test error');
     expect(fn).toHaveBeenCalledTimes(3);
   });
@@ -55,7 +58,7 @@ describe('executeWithRetry', () => {
     const fn = vi.fn().mockRejectedValue(new Error('abort'));
     const abortAll = () => true;
     await expect(
-      executeWithRetry(fn, shouldRetry, abortAll, handleError, { maxAttempts: 3, baseDelayMs: 10 })
+      executeWithRetry(fn, shouldRetry, abortAll, handleError, { maxAttempts: 3, baseDelayMs: 10 }),
     ).rejects.toThrow('abort');
     expect(fn).toHaveBeenCalledTimes(1);
   });
@@ -68,7 +71,8 @@ describe('executeWithRetry', () => {
       return originalSetTimeout(fn, 0);
     });
 
-    const fn = vi.fn()
+    const fn = vi
+      .fn()
       .mockRejectedValueOnce(new TestError(true))
       .mockRejectedValueOnce(new TestError(true))
       .mockResolvedValue('ok');
@@ -92,7 +96,10 @@ describe('executeWithRetry', () => {
 
 describe('streamWithRetry', () => {
   it('should yield all values on success', async () => {
-    async function* gen() { yield 'a'; yield 'b'; }
+    async function* gen() {
+      yield 'a';
+      yield 'b';
+    }
     const results: string[] = [];
     for await (const val of streamWithRetry(gen, shouldRetry, shouldAbort, handleError)) {
       results.push(val);
@@ -108,7 +115,9 @@ describe('streamWithRetry', () => {
       yield 'ok';
     }
     const results: string[] = [];
-    for await (const val of streamWithRetry(gen, shouldRetry, shouldAbort, handleError, { baseDelayMs: 10 })) {
+    for await (const val of streamWithRetry(gen, shouldRetry, shouldAbort, handleError, {
+      baseDelayMs: 10,
+    })) {
       results.push(val);
     }
     expect(results).toEqual(['ok']);

@@ -1,15 +1,39 @@
 import type { ILaneClassifier } from '../contracts/IBrain.js';
 
 const STYLE_KEYWORDS: ReadonlySet<string> = new Set([
-  'color', 'font', 'margin', 'padding', 'display', 'visibility', 'text',
-  'label', 'placeholder', 'opacity', 'border', 'width', 'height', 'gap',
-  'radius', 'background', 'align', 'hide', 'show', 'blue', 'red', 'green',
-  'white', 'black', 'yellow', 'purple', 'pink', 'orange', 'gray', 'grey',
+  'color',
+  'font',
+  'margin',
+  'padding',
+  'display',
+  'visibility',
+  'text',
+  'label',
+  'placeholder',
+  'opacity',
+  'border',
+  'width',
+  'height',
+  'gap',
+  'radius',
+  'background',
+  'align',
+  'hide',
+  'show',
+  'blue',
+  'red',
+  'green',
+  'white',
+  'black',
+  'yellow',
+  'purple',
+  'pink',
+  'orange',
+  'gray',
+  'grey',
 ]);
 
-const NEW_ELEMENT_KEYWORDS: ReadonlySet<string> = new Set([
-  'add', 'create', 'new',
-]);
+const NEW_ELEMENT_KEYWORDS: ReadonlySet<string> = new Set(['add', 'create', 'new']);
 
 const LANE4_PATTERN = /\b(refactor|migrate|rewrite|redesign|restructure|upgrade)\b/i;
 const LANE3_PATTERN = /\b(add\s+.*page|new\s+.*endpoint|create\s+.*component)\b/i;

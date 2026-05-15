@@ -28,9 +28,12 @@ export class FullstackGraphBuilder {
 
     // 1. Frontend nodes
     for (const comp of projectMap.components) {
-      const nodeType = comp.type === 'page' ? 'page' as const
-        : comp.type === 'hook' ? 'hook' as const
-        : 'component' as const;
+      const nodeType =
+        comp.type === 'page'
+          ? ('page' as const)
+          : comp.type === 'hook'
+            ? ('hook' as const)
+            : ('component' as const);
       nodes.push({
         id: `${comp.filePath}:${comp.name}`,
         name: comp.name,
@@ -82,9 +85,7 @@ export class FullstackGraphBuilder {
         const matched = this.matchUrlToEndpoint(call.url, projectMap.endpoints);
         if (!matched) continue;
 
-        const fromNodes = nodes.filter(
-          (n) => n.filePath === filePath && n.layer === 'frontend',
-        );
+        const fromNodes = nodes.filter((n) => n.filePath === filePath && n.layer === 'frontend');
         const toName = matched.handler ?? `${matched.method} ${matched.path}`;
         const toId = `${matched.filePath}:${toName}`;
 
@@ -112,9 +113,7 @@ export class FullstackGraphBuilder {
         const matched = this.matchModelNameToModel(query.modelName, projectMap.models);
         if (!matched) continue;
 
-        const fromNodes = nodes.filter(
-          (n) => n.filePath === filePath && n.layer === 'backend',
-        );
+        const fromNodes = nodes.filter((n) => n.filePath === filePath && n.layer === 'backend');
         const toId = `${matched.filePath}:${matched.name}`;
 
         for (const fromNode of fromNodes) {
@@ -132,18 +131,18 @@ export class FullstackGraphBuilder {
 
     // 6. Component -> Component edges (renders)
     for (const [filePath, depNode] of projectMap.dependencies) {
-      const fromComps = nodes.filter(
-        (n) => n.filePath === filePath && n.layer === 'frontend',
-      );
+      const fromComps = nodes.filter((n) => n.filePath === filePath && n.layer === 'frontend');
       if (fromComps.length === 0) continue;
 
       for (const imp of depNode.imports) {
-        const toComps = nodes.filter(
-          (n) => n.filePath === imp && n.layer === 'frontend',
-        );
+        const toComps = nodes.filter((n) => n.filePath === imp && n.layer === 'frontend');
         for (const fromNode of fromComps) {
           for (const toNode of toComps) {
-            if (!edges.some((e) => e.from === fromNode.id && e.to === toNode.id && e.type === 'renders')) {
+            if (
+              !edges.some(
+                (e) => e.from === fromNode.id && e.to === toNode.id && e.type === 'renders',
+              )
+            ) {
               edges.push({
                 from: fromNode.id,
                 to: toNode.id,
@@ -178,7 +177,8 @@ export class FullstackGraphBuilder {
     }
 
     // axios calls
-    const axiosMethodRe = /axios\s*\.\s*(get|post|put|patch|delete)\s*\(\s*[`'"](\/api\/[^`'"]+)[`'"]/g;
+    const axiosMethodRe =
+      /axios\s*\.\s*(get|post|put|patch|delete)\s*\(\s*[`'"](\/api\/[^`'"]+)[`'"]/g;
     while ((m = axiosMethodRe.exec(content)) !== null) {
       results.push({ url: m[2]!, method: m[1]!.toUpperCase() });
     }
@@ -209,13 +209,15 @@ export class FullstackGraphBuilder {
     let m: RegExpExecArray | null;
 
     // Prisma
-    const prismaRe = /prisma\.(\w+)\.\s*(findMany|findUnique|findFirst|create|update|delete|upsert|count|aggregate)/g;
+    const prismaRe =
+      /prisma\.(\w+)\.\s*(findMany|findUnique|findFirst|create|update|delete|upsert|count|aggregate)/g;
     while ((m = prismaRe.exec(content)) !== null) {
       results.push({ modelName: m[1]!, operation: m[2]! });
     }
 
     // Django ORM
-    const djangoRe = /(\w+)\.objects\.\s*(filter|get|create|all|exclude|aggregate|annotate|update|delete)/g;
+    const djangoRe =
+      /(\w+)\.objects\.\s*(filter|get|create|all|exclude|aggregate|annotate|update|delete)/g;
     while ((m = djangoRe.exec(content)) !== null) {
       results.push({ modelName: m[1]!, operation: m[2]! });
     }

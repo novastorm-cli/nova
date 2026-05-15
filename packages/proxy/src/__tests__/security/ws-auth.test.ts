@@ -35,9 +35,7 @@ function wsHandshake(
   origin?: string,
 ): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
-    const tokenParam = token
-      ? `?token=${encodeURIComponent(token)}`
-      : '';
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
 
     // Generate a fresh random key each time — avoids triggering secret scanners
     // (ws library requires 24-char base64: 16 random bytes → 24 chars ending with ==)
@@ -180,11 +178,13 @@ describe('WebSocket Auth (session token + Origin)', () => {
     await proxy.start(targetPort, proxyPort, overlayScriptPath);
 
     const result = await new Promise<{ status: number; body: string }>((resolve, reject) => {
-      http.get(`http://127.0.0.1:${proxyPort}/`, (res) => {
-        let body = '';
-        res.on('data', (chunk) => (body += chunk));
-        res.on('end', () => resolve({ status: res.statusCode!, body }));
-      }).on('error', reject);
+      http
+        .get(`http://127.0.0.1:${proxyPort}/`, (res) => {
+          let body = '';
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => resolve({ status: res.statusCode!, body }));
+        })
+        .on('error', reject);
     });
 
     expect(result.status).toBe(200);
@@ -202,11 +202,13 @@ describe('WebSocket Auth (session token + Origin)', () => {
     await proxy2.start(targetPort, proxyPort, overlayScriptPath);
 
     const result = await new Promise<{ status: number; body: string }>((resolve, reject) => {
-      http.get(`http://127.0.0.1:${proxyPort}/`, (res) => {
-        let body = '';
-        res.on('data', (chunk) => (body += chunk));
-        res.on('end', () => resolve({ status: res.statusCode!, body }));
-      }).on('error', reject);
+      http
+        .get(`http://127.0.0.1:${proxyPort}/`, (res) => {
+          let body = '';
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => resolve({ status: res.statusCode!, body }));
+        })
+        .on('error', reject);
     });
 
     expect(result.status).toBe(200);
@@ -253,11 +255,7 @@ describe('WebSocket Auth (session token + Origin)', () => {
   it('WS upgrade with correct token but foreign Origin returns 403', async () => {
     await startProxyAndWs();
 
-    const result = await wsHandshake(
-      proxyPort,
-      sessionToken,
-      'http://evil.example',
-    );
+    const result = await wsHandshake(proxyPort, sessionToken, 'http://evil.example');
     expect(result.statusCode).toBe(403);
   });
 
@@ -309,10 +307,9 @@ describe('WebSocket Auth (session token + Origin)', () => {
 
     await expect(
       new Promise<WebSocket>((_resolve, reject) => {
-        const ws = new WebSocket(
-          `ws://127.0.0.1:${proxyPort}/nova-ws`,
-          { origin: `http://localhost:${proxyPort}` },
-        );
+        const ws = new WebSocket(`ws://127.0.0.1:${proxyPort}/nova-ws`, {
+          origin: `http://localhost:${proxyPort}`,
+        });
         ws.on('open', () => ws.close());
         ws.on('error', () => reject(new Error('Connection error')));
         ws.on('unexpected-response', (_req, res) => {
@@ -328,10 +325,9 @@ describe('WebSocket Auth (session token + Origin)', () => {
 
     await expect(
       new Promise<WebSocket>((_resolve, reject) => {
-        const ws = new WebSocket(
-          `ws://127.0.0.1:${proxyPort}/nova-ws?token=wrong-token-123`,
-          { origin: `http://localhost:${proxyPort}` },
-        );
+        const ws = new WebSocket(`ws://127.0.0.1:${proxyPort}/nova-ws?token=wrong-token-123`, {
+          origin: `http://localhost:${proxyPort}`,
+        });
         ws.on('open', () => ws.close());
         ws.on('error', () => reject(new Error('Connection error')));
         ws.on('unexpected-response', (_req, res) => {

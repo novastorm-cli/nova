@@ -68,7 +68,10 @@ export class PatternDetector {
 
   private detectRepeatedActions(tracker: BehaviorTracker, now: number): BehaviorPattern[] {
     const recentEvents = tracker.getEvents(now - REPEATED_ACTION_WINDOW_MS);
-    const actionCounts = new Map<string, { count: number; firstSeen: number; lastSeen: number; target: string }>();
+    const actionCounts = new Map<
+      string,
+      { count: number; firstSeen: number; lastSeen: number; target: string }
+    >();
 
     for (const event of recentEvents) {
       if (event.type === 'click' || event.type === 'sort' || event.type === 'filter') {
@@ -111,7 +114,10 @@ export class PatternDetector {
 
   private detectSlowApis(tracker: BehaviorTracker): BehaviorPattern[] {
     const apiEvents = tracker.getEvents().filter((e) => e.type === 'api_call');
-    const endpointDurations = new Map<string, { durations: number[]; firstSeen: number; lastSeen: number }>();
+    const endpointDurations = new Map<
+      string,
+      { durations: number[]; firstSeen: number; lastSeen: number }
+    >();
 
     for (const event of apiEvents) {
       if (event.duration !== undefined) {
@@ -154,7 +160,10 @@ export class PatternDetector {
 
   private detectRecurringErrors(tracker: BehaviorTracker): BehaviorPattern[] {
     const errorEvents = tracker.getEvents().filter((e) => e.type === 'error');
-    const errorCounts = new Map<string, { count: number; firstSeen: number; lastSeen: number; message: string }>();
+    const errorCounts = new Map<
+      string,
+      { count: number; firstSeen: number; lastSeen: number; message: string }
+    >();
 
     for (const event of errorEvents) {
       const message = event.metadata?.['message'] ?? event.target ?? 'Unknown error';

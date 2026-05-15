@@ -56,9 +56,7 @@ export class RecipeStore implements IRecipeStore {
   async findByTags(tags: string[]): Promise<Recipe[]> {
     const all = await this.getAll();
     const tagSet = new Set(tags.map((t) => t.toLowerCase()));
-    return all.filter((r) =>
-      r.tags.some((t) => tagSet.has(t.toLowerCase())),
-    );
+    return all.filter((r) => r.tags.some((t) => tagSet.has(t.toLowerCase())));
   }
 
   async search(query: string): Promise<Recipe[]> {
@@ -128,7 +126,7 @@ function createBuiltinRecipes(now: number): Recipe[] {
           {
             pathPattern: 'app/api/{{name}}/route.ts',
             content: [
-              'import { NextRequest, NextResponse } from \'next/server\';',
+              "import { NextRequest, NextResponse } from 'next/server';",
               '',
               'export async function GET(request: NextRequest) {',
               '  // TODO: implement GET handler for {{name}}',
@@ -167,16 +165,17 @@ function createBuiltinRecipes(now: number): Recipe[] {
     {
       id: randomUUID(),
       name: 'Form Component',
-      description: 'Creates a React form component with state management, validation, and submit handler',
+      description:
+        'Creates a React form component with state management, validation, and submit handler',
       category: 'form_field',
       template: {
         files: [
           {
             pathPattern: 'components/{{name}}Form.tsx',
             content: [
-              '\'use client\';',
+              "'use client';",
               '',
-              'import { useState, type FormEvent } from \'react\';',
+              "import { useState, type FormEvent } from 'react';",
               '',
               'interface {{name}}FormProps {',
               '  onSubmit: (data: {{name}}Data) => void;',
@@ -188,7 +187,7 @@ function createBuiltinRecipes(now: number): Recipe[] {
               '}',
               '',
               'export function {{name}}Form({ onSubmit }: {{name}}FormProps) {',
-              '  const [value, setValue] = useState(\'\');',
+              "  const [value, setValue] = useState('');",
               '  const [error, setError] = useState<string | null>(null);',
               '',
               '  function handleSubmit(e: FormEvent) {',
@@ -196,7 +195,7 @@ function createBuiltinRecipes(now: number): Recipe[] {
               '    setError(null);',
               '',
               '    if (!value.trim()) {',
-              '      setError(\'Value is required\');',
+              "      setError('Value is required');",
               '      return;',
               '    }',
               '',
@@ -221,7 +220,11 @@ function createBuiltinRecipes(now: number): Recipe[] {
           },
         ],
         variables: [
-          { name: 'name', description: 'Form name in PascalCase (e.g. Login, Register)', required: true },
+          {
+            name: 'name',
+            description: 'Form name in PascalCase (e.g. Login, Register)',
+            required: true,
+          },
         ],
       },
       tags: ['form', 'react', 'component', 'validation'],
@@ -239,7 +242,7 @@ function createBuiltinRecipes(now: number): Recipe[] {
           {
             pathPattern: 'app/{{path}}/page.tsx',
             content: [
-              'import { Suspense } from \'react\';',
+              "import { Suspense } from 'react';",
               '',
               'export default function {{name}}Page() {',
               '  return (',
@@ -309,7 +312,11 @@ function createBuiltinRecipes(now: number): Recipe[] {
           },
         ],
         variables: [
-          { name: 'name', description: 'Component name in PascalCase (e.g. UserCard)', required: true },
+          {
+            name: 'name',
+            description: 'Component name in PascalCase (e.g. UserCard)',
+            required: true,
+          },
         ],
       },
       tags: ['component', 'react', 'ui'],
@@ -327,14 +334,14 @@ function createBuiltinRecipes(now: number): Recipe[] {
           {
             pathPattern: 'app/api/{{name}}/route.ts',
             content: [
-              'import { NextRequest, NextResponse } from \'next/server\';',
+              "import { NextRequest, NextResponse } from 'next/server';",
               '',
               'interface {{name}}Request {',
               '  // TODO: define request body',
               '}',
               '',
               'function validate(body: unknown): body is {{name}}Request {',
-              '  if (!body || typeof body !== \'object\') return false;',
+              "  if (!body || typeof body !== 'object') return false;",
               '  // TODO: add validation rules',
               '  return true;',
               '}',
@@ -345,7 +352,7 @@ function createBuiltinRecipes(now: number): Recipe[] {
               '',
               '    if (!validate(body)) {',
               '      return NextResponse.json(',
-              '        { error: \'Invalid request body\' },',
+              "        { error: 'Invalid request body' },",
               '        { status: 400 },',
               '      );',
               '    }',
@@ -354,7 +361,7 @@ function createBuiltinRecipes(now: number): Recipe[] {
               '    return NextResponse.json({ success: true });',
               '  } catch {',
               '    return NextResponse.json(',
-              '      { error: \'Internal server error\' },',
+              "      { error: 'Internal server error' },",
               '      { status: 500 },',
               '    );',
               '  }',
@@ -365,7 +372,12 @@ function createBuiltinRecipes(now: number): Recipe[] {
         ],
         variables: [
           { name: 'name', description: 'Endpoint name (e.g. submit, webhook)', required: true },
-          { name: 'method', description: 'HTTP method (GET, POST, PUT, DELETE)', defaultValue: 'POST', required: false },
+          {
+            name: 'method',
+            description: 'HTTP method (GET, POST, PUT, DELETE)',
+            defaultValue: 'POST',
+            required: false,
+          },
         ],
       },
       tags: ['api', 'endpoint', 'validation', 'nextjs'],

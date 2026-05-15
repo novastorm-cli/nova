@@ -69,10 +69,7 @@ export class HistoryRecorder {
     this.eventBus.off('task_failed', this.handleTaskFailed);
   }
 
-  private async updateEntry(
-    taskId: string,
-    updates: Partial<HistoryEntry>,
-  ): Promise<void> {
+  private async updateEntry(taskId: string, updates: Partial<HistoryEntry>): Promise<void> {
     const existing = await this.historyStore.getByTaskId(taskId);
     if (!existing) return;
 

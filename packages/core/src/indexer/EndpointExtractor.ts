@@ -18,10 +18,7 @@ export class EndpointExtractor implements IEndpointExtractor {
     }
 
     // Express detection: check for express in any JS/TS project
-    if (
-      stack.language === 'typescript' ||
-      stack.language === 'javascript'
-    ) {
+    if (stack.language === 'typescript' || stack.language === 'javascript') {
       await this.extractExpressEndpoints(projectPath, endpoints);
     }
 
@@ -102,7 +99,9 @@ export class EndpointExtractor implements IEndpointExtractor {
     endpoints: EndpointInfo[],
   ): void {
     // Detect [Route("basePath")] at controller level
-    const routeBaseMatch = content.match(/\[Route\("([^"]+)"\)\]\s*(?:\[.*?\]\s*)*(?:public\s+)?class\s+(\w+)/);
+    const routeBaseMatch = content.match(
+      /\[Route\("([^"]+)"\)\]\s*(?:\[.*?\]\s*)*(?:public\s+)?class\s+(\w+)/,
+    );
     let basePath = '';
     if (routeBaseMatch) {
       let route = routeBaseMatch[1]!;
@@ -114,7 +113,8 @@ export class EndpointExtractor implements IEndpointExtractor {
     }
 
     // Match [HttpGet], [HttpGet("subpath")], [HttpPost], etc.
-    const httpAttrRegex = /\[Http(Get|Post|Put|Delete|Patch)(?:\("([^"]*)"\))?\]\s*(?:\[.*?\]\s*)*(?:public\s+)?(?:\w+(?:<[^>]+>)?\s+)?(\w+)/g;
+    const httpAttrRegex =
+      /\[Http(Get|Post|Put|Delete|Patch)(?:\("([^"]*)"\))?\]\s*(?:\[.*?\]\s*)*(?:public\s+)?(?:\w+(?:<[^>]+>)?\s+)?(\w+)/g;
     let match;
     while ((match = httpAttrRegex.exec(content)) !== null) {
       const method = match[1]!.toUpperCase();
@@ -188,7 +188,8 @@ export class EndpointExtractor implements IEndpointExtractor {
       const relFromProject = relative(projectPath, filePath);
 
       // Match app.get("/path" or router.post("/path" etc.
-      const expressRegex = /(?:app|router|server)\.(get|post|put|delete|patch|options|head)\(\s*['"]([^'"]+)['"]/g;
+      const expressRegex =
+        /(?:app|router|server)\.(get|post|put|delete|patch|options|head)\(\s*['"]([^'"]+)['"]/g;
       let match;
       while ((match = expressRegex.exec(content)) !== null) {
         const method = match[1]!.toUpperCase();
@@ -212,9 +213,7 @@ export class EndpointExtractor implements IEndpointExtractor {
     const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
 
     for (const method of httpMethods) {
-      const regex = new RegExp(
-        `export\\s+(?:async\\s+)?(?:function|const)\\s+${method}\\b`,
-      );
+      const regex = new RegExp(`export\\s+(?:async\\s+)?(?:function|const)\\s+${method}\\b`);
       if (regex.test(content)) {
         methods.push(method);
       }
@@ -259,7 +258,8 @@ export class EndpointExtractor implements IEndpointExtractor {
       return entries
         .filter((e) => e.isFile())
         .map((e) => {
-          const parent = (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
+          const parent =
+            (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
           return join(parent, e.name);
         });
     } catch {

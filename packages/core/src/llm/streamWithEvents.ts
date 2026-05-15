@@ -11,7 +11,7 @@ export async function streamWithEvents(
   messages: Message[],
   options: LlmOptions | undefined,
   eventBus: EventBus | undefined,
-  taskId?: string | undefined,
+  taskId?: string,
 ): Promise<string> {
   const chunks: string[] = [];
   let inCodeBlock = false;

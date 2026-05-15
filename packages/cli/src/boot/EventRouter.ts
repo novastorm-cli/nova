@@ -93,9 +93,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   // ── Handle observations: analyze → create tasks ───────────────────
   eventBus.on('observation', async (event) => {
     if (!brain) {
-      log.warn(
-        'Observation received but no AI configured. Run "nova setup" to add an API key.',
-      );
+      log.warn('Observation received but no AI configured. Run "nova setup" to add an API key.');
       return;
     }
 
@@ -115,9 +113,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
           const gitLog = await gitManager.getLog();
           if (gitLog.length > 0) {
             const lastCommit = gitLog[0]!;
-            log.info(
-              `[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`,
-            );
+            log.info(`[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`);
             await gitManager.rollback(lastCommit.hash);
             log.info('[Nova] Reverted successfully!');
             wsServer.sendEvent({
@@ -174,9 +170,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       }
 
       const shouldAutoExecute =
-        isNonInteractive(options) ||
-        config.behavior.confirmTasks === false ||
-        isPreConfirmed;
+        isNonInteractive(options) || config.behavior.confirmTasks === false || isPreConfirmed;
 
       if (shouldAutoExecute) {
         log.info(`Executing ${tasks.length} task(s)...`);
@@ -242,9 +236,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
   wsServer.onConfirmTasks(() => {
     if (deps.pendingTasks.length === 0) return;
-    log.info(
-      `Confirmed ${deps.pendingTasks.length} task(s) via overlay. Executing...`,
-    );
+    log.info(`Confirmed ${deps.pendingTasks.length} task(s) via overlay. Executing...`);
     wsServer.sendEvent({
       type: 'status',
       data: { message: `Executing ${deps.pendingTasks.length} task(s)...` },
@@ -312,9 +304,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
               description: t.description,
               lane: t.lane,
             };
-            return t.preConfirmed !== undefined
-              ? { ...base, preConfirmed: t.preConfirmed }
-              : base;
+            return t.preConfirmed !== undefined ? { ...base, preConfirmed: t.preConfirmed } : base;
           }),
           message: pendingMessage,
         },
@@ -364,9 +354,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
           .slice(-5)
           .join('\n');
         if (errorLines.trim()) {
-          log.warn(
-            '[Nova] Post-task health check: build errors detected, auto-fixing...',
-          );
+          log.warn('[Nova] Post-task health check: build errors detected, auto-fixing...');
           wsServer.sendEvent({
             type: 'status',
             data: { message: 'Post-task check: fixing build errors...' },
@@ -388,16 +376,12 @@ export function setupEventRouting(deps: EventRouterDeps): void {
           });
         });
         if (res.statusCode && res.statusCode >= 500) {
-          log.warn(
-            `[Nova] Post-task health check: HTTP ${res.statusCode}, auto-fixing...`,
-          );
+          log.warn(`[Nova] Post-task health check: HTTP ${res.statusCode}, auto-fixing...`);
           wsServer.sendEvent({
             type: 'status',
             data: { message: `Site returned ${res.statusCode}, auto-fixing...` },
           });
-          autoFixer?.forceFixNow(
-            `Dev server returned HTTP ${res.statusCode} after code changes`,
-          );
+          autoFixer?.forceFixNow(`Dev server returned HTTP ${res.statusCode} after code changes`);
         }
       } catch {
         // health check failed silently
@@ -432,9 +416,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
   // ── Secrets submission ────────────────────────────────────────────
   wsServer.onSecretsSubmit((secrets: Record<string, string>) => {
-    log.info(
-      `[Nova] Saving ${Object.keys(secrets).length} secret(s) to .env.local`,
-    );
+    log.info(`[Nova] Saving ${Object.keys(secrets).length} secret(s) to .env.local`);
     const envDetector = new EnvDetector();
     envDetector.writeEnvLocal(process.cwd(), secrets);
     envDetector.ensureGitignored(process.cwd());

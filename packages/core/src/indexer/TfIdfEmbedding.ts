@@ -36,13 +36,11 @@ export class TfIdfEmbedding implements IEmbeddingService {
     }
 
     // Select top VOCAB_SIZE terms by frequency
-    const sorted = [...allTerms.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, VOCAB_SIZE);
+    const sorted = [...allTerms.entries()].sort((a, b) => b[1] - a[1]).slice(0, VOCAB_SIZE);
 
     this.vocabulary.clear();
     for (let i = 0; i < sorted.length; i++) {
-      this.vocabulary.set(sorted[i]![0]!, i);
+      this.vocabulary.set(sorted[i]![0], i);
     }
 
     // Calculate IDF
@@ -88,13 +86,15 @@ export class TfIdfEmbedding implements IEmbeddingService {
   }
 
   private tokenize(text: string): string[] {
-    return text
-      .toLowerCase()
-      // Split camelCase
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      // Remove non-alphanumeric
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((t) => t.length > 1 && t.length < 30);
+    return (
+      text
+        .toLowerCase()
+        // Split camelCase
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        // Remove non-alphanumeric
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length > 1 && t.length < 30)
+    );
   }
 }

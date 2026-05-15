@@ -81,14 +81,11 @@ describe('EnvDetector', () => {
     });
 
     it('deduplicates vars referenced in multiple files', () => {
-      const contents = [
-        'const a = process.env.API_KEY;',
-        'const b = process.env.API_KEY;',
-      ];
+      const contents = ['const a = process.env.API_KEY;', 'const b = process.env.API_KEY;'];
 
       const missing = detector.detectMissing(tmpDir, contents);
 
-      expect(missing.filter(v => v === 'API_KEY')).toHaveLength(1);
+      expect(missing.filter((v) => v === 'API_KEY')).toHaveLength(1);
     });
   });
 

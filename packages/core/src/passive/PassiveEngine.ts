@@ -18,8 +18,18 @@ export class PassiveEngine {
   private readonly config: PassiveEngineConfig;
 
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
-  private behaviorHandler: ((event: { type: 'passive_behavior'; data: import('../models/types.js').BehaviorEvent }) => void) | null = null;
-  private responseHandler: ((event: { type: 'suggestion_response'; data: { suggestionId: string; approved: boolean } }) => void) | null = null;
+  private behaviorHandler:
+    | ((event: {
+        type: 'passive_behavior';
+        data: import('../models/types.js').BehaviorEvent;
+      }) => void)
+    | null = null;
+  private responseHandler:
+    | ((event: {
+        type: 'suggestion_response';
+        data: { suggestionId: string; approved: boolean };
+      }) => void)
+    | null = null;
 
   constructor(bus: EventBus, novaPath: string, config: PassiveEngineConfig) {
     this.bus = bus;

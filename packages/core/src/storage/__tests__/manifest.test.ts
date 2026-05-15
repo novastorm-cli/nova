@@ -37,7 +37,11 @@ describe('ManifestStore', () => {
   });
 
   it('adds and loads a database', async () => {
-    const db: ManifestDatabase = { name: 'main-db', engine: 'postgresql', connection_env: 'DATABASE_URL' };
+    const db: ManifestDatabase = {
+      name: 'main-db',
+      engine: 'postgresql',
+      connection_env: 'DATABASE_URL',
+    };
     await store.addDatabase(tmpDir, db);
 
     const manifest = await store.load(tmpDir);
@@ -46,7 +50,11 @@ describe('ManifestStore', () => {
   });
 
   it('adds and loads an entity', async () => {
-    const entity: ManifestEntity = { name: 'Stripe', type: 'external-service', description: 'Payment SDK' };
+    const entity: ManifestEntity = {
+      name: 'Stripe',
+      type: 'external-service',
+      description: 'Payment SDK',
+    };
     await store.addEntity(tmpDir, entity);
 
     const manifest = await store.load(tmpDir);

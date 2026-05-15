@@ -25,11 +25,17 @@ function createMockEventBus(): EventBus & {
         }
       }
     },
-    on<T extends NovaEventType>(type: T, handler: (event: Extract<NovaEvent, { type: T }>) => void): void {
+    on<T extends NovaEventType>(
+      type: T,
+      handler: (event: Extract<NovaEvent, { type: T }>) => void,
+    ): void {
       if (!handlers.has(type)) handlers.set(type, new Set());
       handlers.get(type)!.add(handler as (event: NovaEvent) => void);
     },
-    off<T extends NovaEventType>(type: T, handler: (event: Extract<NovaEvent, { type: T }>) => void): void {
+    off<T extends NovaEventType>(
+      type: T,
+      handler: (event: Extract<NovaEvent, { type: T }>) => void,
+    ): void {
       handlers.get(type)?.delete(handler as (event: NovaEvent) => void);
     },
   };

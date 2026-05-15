@@ -322,10 +322,10 @@ describe('TaskPanel', () => {
       status: string;
     }>;
     expect(stored).toHaveLength(2);
-    expect(stored[0]!.id as string).toBe('t2'); // most recent first
-    expect(stored[1]!.id as string).toBe('t1');
-    expect(stored[0]!.status as string).toBe('completed');
-    expect(stored[1]!.status as string).toBe('completed');
+    expect(stored[0]!.id).toBe('t2'); // most recent first
+    expect(stored[1]!.id).toBe('t1');
+    expect(stored[0]!.status).toBe('completed');
+    expect(stored[1]!.status).toBe('completed');
   });
 
   it('persists failed tasks in recent tasks', () => {
@@ -365,7 +365,7 @@ describe('TaskPanel', () => {
     taskPanel.setTaskCompleted('new-2', 'abc');
     taskPanel.setTaskCompleted('new-3', 'abc');
 
-    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']!) as Array<{
+    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']) as Array<{
       id: string;
     }>;
     expect(stored.length).toBe(20); // 19 old + 3 new = 22, capped to 20
@@ -388,7 +388,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'New desc', lane: 1 }]);
     taskPanel.setTaskCompleted('t1', 'newhash');
 
-    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']!) as Array<{
+    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']) as Array<{
       id: string;
     }>;
     expect(stored).toHaveLength(1);

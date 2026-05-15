@@ -2,7 +2,11 @@ export interface IPathGuard {
   check(absPath: string): Promise<void>;
   validate(absPath: string): void;
   allow(dirPath: string): void;
-  loadBoundaries(boundaries: { writable?: string[]; readonly?: string[]; ignored?: string[] }): void;
+  loadBoundaries(boundaries: {
+    writable?: string[] | undefined;
+    readonly?: string[] | undefined;
+    ignored?: string[] | undefined;
+  }): void;
   isReadonly(absPath: string): boolean;
   isIgnored(absPath: string): boolean;
 }

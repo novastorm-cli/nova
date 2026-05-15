@@ -90,9 +90,7 @@ describe('SearchRouter', () => {
   });
 
   it('search() returns empty array when no matches', async () => {
-    const router = await createRouter([
-      makeNode({ filePath: 'src/a.ts', keywords: ['alpha'] }),
-    ]);
+    const router = await createRouter([makeNode({ filePath: 'src/a.ts', keywords: ['alpha'] })]);
 
     const results = await router.search('zzz-nonexistent');
     expect(results).toEqual([]);

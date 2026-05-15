@@ -96,12 +96,9 @@ export class ContextDistiller implements IContextDistiller {
   private formatEndpoints(pm: ProjectMap): string | null {
     if (pm.endpoints.length === 0) return null;
 
-    const display = pm.endpoints
-      .slice(0, MAX_ITEMS)
-      .map((e) => `${e.method} ${e.path}`);
-    const suffix = pm.endpoints.length > MAX_ITEMS
-      ? ` (+${pm.endpoints.length - MAX_ITEMS} more)`
-      : '';
+    const display = pm.endpoints.slice(0, MAX_ITEMS).map((e) => `${e.method} ${e.path}`);
+    const suffix =
+      pm.endpoints.length > MAX_ITEMS ? ` (+${pm.endpoints.length - MAX_ITEMS} more)` : '';
 
     return `Key endpoints: ${display.join(', ')}${suffix}`;
   }
@@ -118,9 +115,7 @@ export class ContextDistiller implements IContextDistiller {
       return m.name;
     });
 
-    const suffix = pm.models.length > MAX_ITEMS
-      ? ` (+${pm.models.length - MAX_ITEMS} more)`
-      : '';
+    const suffix = pm.models.length > MAX_ITEMS ? ` (+${pm.models.length - MAX_ITEMS} more)` : '';
 
     return `Data models: ${display.join(', ')}${suffix}`;
   }
@@ -129,17 +124,17 @@ export class ContextDistiller implements IContextDistiller {
     const parts: string[] = [];
 
     if (manifest.services.length > 0) {
-      const svcs = manifest.services.map(s => `${s.name}[${s.type}]@${s.path}`);
+      const svcs = manifest.services.map((s) => `${s.name}[${s.type}]@${s.path}`);
       parts.push(`Services: ${svcs.join(', ')}`);
     }
 
     if (manifest.databases.length > 0) {
-      const dbs = manifest.databases.map(d => `${d.name}[${d.engine}]`);
+      const dbs = manifest.databases.map((d) => `${d.name}[${d.engine}]`);
       parts.push(`Databases: ${dbs.join(', ')}`);
     }
 
     if (manifest.entities.length > 0) {
-      const ents = manifest.entities.map(e => `${e.name}[${e.type}]`);
+      const ents = manifest.entities.map((e) => `${e.name}[${e.type}]`);
       parts.push(`External entities: ${ents.join(', ')}`);
     }
 

@@ -88,9 +88,9 @@ describe('BackgroundQueue', () => {
   });
 
   it('throws on update for non-existent task', async () => {
-    await expect(queue.update('non-existent', { status: 'failed' }))
-      .rejects
-      .toThrow('BackgroundTask non-existent not found');
+    await expect(queue.update('non-existent', { status: 'failed' })).rejects.toThrow(
+      'BackgroundTask non-existent not found',
+    );
   });
 
   it('getAll returns all tasks sorted by queuedAt', async () => {

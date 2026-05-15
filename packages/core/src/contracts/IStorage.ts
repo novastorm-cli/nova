@@ -1,4 +1,11 @@
-import type { DependencyNode, SearchResult, EmbeddingRecord, ProjectAnalysis, HistoryEntry, Recipe } from '../models/types.js';
+import type {
+  DependencyNode,
+  SearchResult,
+  EmbeddingRecord,
+  ProjectAnalysis,
+  HistoryEntry,
+  Recipe,
+} from '../models/types.js';
 
 export interface INovaDir {
   /**
@@ -84,7 +91,10 @@ export interface IVectorStore {
   save(filePath: string): Promise<void>;
   upsert(record: EmbeddingRecord): void;
   remove(filePath: string): void;
-  search(queryEmbedding: number[], limit: number): Array<{ record: EmbeddingRecord; score: number }>;
+  search(
+    queryEmbedding: number[],
+    limit: number,
+  ): Array<{ record: EmbeddingRecord; score: number }>;
   getRecordCount(): number;
 }
 
@@ -94,7 +104,10 @@ export interface IEmbeddingService {
 }
 
 export interface IProjectAnalyzer {
-  analyze(projectPath: string, projectMap?: import('../models/types.js').ProjectMap): Promise<ProjectAnalysis>;
+  analyze(
+    projectPath: string,
+    projectMap?: import('../models/types.js').ProjectMap,
+  ): Promise<ProjectAnalysis>;
   getAnalysis(projectPath: string): Promise<ProjectAnalysis | null>;
 }
 

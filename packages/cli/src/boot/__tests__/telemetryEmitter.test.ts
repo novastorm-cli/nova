@@ -10,13 +10,18 @@ vi.mock('../../telemetry.js', () => ({
 
 // Mock child_process to avoid real git operations
 vi.mock('node:child_process', () => ({
-  execFile: (_cmd: string, _args: string[], _opts: unknown, cb: Function) => cb(new Error('no git')),
+  execFile: (_cmd: string, _args: string[], _opts: unknown, cb: Function) =>
+    cb(new Error('no git')),
 }));
 
 import { sendBootTelemetry } from '../TelemetryEmitter.js';
 
 describe('TelemetryEmitter', () => {
-  const defaultConfig = { telemetry: { enabled: true }, license: {}, apiKeys: { provider: 'deepseek', key: '' } };
+  const defaultConfig = {
+    telemetry: { enabled: true },
+    license: {},
+    apiKeys: { provider: 'deepseek', key: '' },
+  };
   const defaultLicense = { valid: true, devCount: 2, tier: 'free' as const };
 
   beforeEach(() => {

@@ -63,12 +63,14 @@ describe('PatternDetector', () => {
     it('should detect same action repeated >= 3 times in 10 minutes', () => {
       const now = Date.now();
       for (let i = 0; i < 4; i++) {
-        tracker.track(createEvent({
-          type: 'click',
-          url: '/page',
-          target: '#sort-btn',
-          timestamp: now - i * 1000,
-        }));
+        tracker.track(
+          createEvent({
+            type: 'click',
+            url: '/page',
+            target: '#sort-btn',
+            timestamp: now - i * 1000,
+          }),
+        );
       }
 
       const patterns = detector.detect(tracker);
@@ -80,12 +82,14 @@ describe('PatternDetector', () => {
     it('should not detect actions repeated < 3 times', () => {
       const now = Date.now();
       for (let i = 0; i < 2; i++) {
-        tracker.track(createEvent({
-          type: 'filter',
-          url: '/page',
-          target: '#filter-btn',
-          timestamp: now - i * 1000,
-        }));
+        tracker.track(
+          createEvent({
+            type: 'filter',
+            url: '/page',
+            target: '#filter-btn',
+            timestamp: now - i * 1000,
+          }),
+        );
       }
 
       const patterns = detector.detect(tracker);
@@ -97,8 +101,12 @@ describe('PatternDetector', () => {
   describe('slow_api detection', () => {
     it('should detect API calls consistently > 2s', () => {
       const now = Date.now();
-      tracker.track(createEvent({ type: 'api_call', url: '/api/users', duration: 3000, timestamp: now }));
-      tracker.track(createEvent({ type: 'api_call', url: '/api/users', duration: 2500, timestamp: now - 1000 }));
+      tracker.track(
+        createEvent({ type: 'api_call', url: '/api/users', duration: 3000, timestamp: now }),
+      );
+      tracker.track(
+        createEvent({ type: 'api_call', url: '/api/users', duration: 2500, timestamp: now - 1000 }),
+      );
 
       const patterns = detector.detect(tracker);
       const slow = patterns.filter((p) => p.type === 'slow_api');
@@ -108,8 +116,12 @@ describe('PatternDetector', () => {
 
     it('should not detect fast API calls', () => {
       const now = Date.now();
-      tracker.track(createEvent({ type: 'api_call', url: '/api/fast', duration: 100, timestamp: now }));
-      tracker.track(createEvent({ type: 'api_call', url: '/api/fast', duration: 200, timestamp: now - 1000 }));
+      tracker.track(
+        createEvent({ type: 'api_call', url: '/api/fast', duration: 100, timestamp: now }),
+      );
+      tracker.track(
+        createEvent({ type: 'api_call', url: '/api/fast', duration: 200, timestamp: now - 1000 }),
+      );
 
       const patterns = detector.detect(tracker);
       const slow = patterns.filter((p) => p.type === 'slow_api');
@@ -118,7 +130,9 @@ describe('PatternDetector', () => {
 
     it('should require at least 2 slow calls', () => {
       const now = Date.now();
-      tracker.track(createEvent({ type: 'api_call', url: '/api/once', duration: 5000, timestamp: now }));
+      tracker.track(
+        createEvent({ type: 'api_call', url: '/api/once', duration: 5000, timestamp: now }),
+      );
 
       const patterns = detector.detect(tracker);
       const slow = patterns.filter((p) => p.type === 'slow_api');
@@ -130,12 +144,14 @@ describe('PatternDetector', () => {
     it('should detect errors recurring >= 3 times', () => {
       const now = Date.now();
       for (let i = 0; i < 4; i++) {
-        tracker.track(createEvent({
-          type: 'error',
-          url: '/page',
-          target: 'TypeError: Cannot read property',
-          timestamp: now - i * 1000,
-        }));
+        tracker.track(
+          createEvent({
+            type: 'error',
+            url: '/page',
+            target: 'TypeError: Cannot read property',
+            timestamp: now - i * 1000,
+          }),
+        );
       }
 
       const patterns = detector.detect(tracker);
@@ -147,12 +163,14 @@ describe('PatternDetector', () => {
     it('should not detect errors occurring < 3 times', () => {
       const now = Date.now();
       for (let i = 0; i < 2; i++) {
-        tracker.track(createEvent({
-          type: 'error',
-          url: '/page',
-          target: 'RangeError: stack overflow',
-          timestamp: now - i * 1000,
-        }));
+        tracker.track(
+          createEvent({
+            type: 'error',
+            url: '/page',
+            target: 'RangeError: stack overflow',
+            timestamp: now - i * 1000,
+          }),
+        );
       }
 
       const patterns = detector.detect(tracker);

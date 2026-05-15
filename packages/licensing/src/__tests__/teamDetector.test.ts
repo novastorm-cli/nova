@@ -21,7 +21,13 @@ function addAuthor(cwd: string, email: string, name: string, file: string): void
   git(cwd, `-c user.email="${email}" -c user.name="${name}" commit -m "commit by ${name}"`);
 }
 
-function addAuthorWithDate(cwd: string, email: string, name: string, file: string, daysAgo: number): void {
+function addAuthorWithDate(
+  cwd: string,
+  email: string,
+  name: string,
+  file: string,
+  daysAgo: number,
+): void {
   writeFile(cwd, file, `authored by ${email}`);
   git(cwd, `add ${file}`);
   const date = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();

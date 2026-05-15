@@ -7,7 +7,7 @@ describe('StructuredLogger', () => {
   let writeSpy: any;
 
   beforeEach(() => {
-    writeSpy = vi.spyOn(process.stderr, 'write').mockImplementation((() => true));
+    writeSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   });
 
   afterEach(() => {

@@ -48,7 +48,13 @@ describe('ProjectMapApi', () => {
   it('returns project map data on GET /nova-api/project-map', async () => {
     const api = new ProjectMapApi();
     const nodes: DependencyNode[] = [
-      { filePath: 'src/a.ts', imports: ['src/b.ts'], exports: ['A'], type: 'component', keywords: ['a'] },
+      {
+        filePath: 'src/a.ts',
+        imports: ['src/b.ts'],
+        exports: ['A'],
+        type: 'component',
+        keywords: ['a'],
+      },
       { filePath: 'src/b.ts', imports: [], exports: ['B'], type: 'util', keywords: ['b'] },
     ];
     api.setGraphStore(makeGraphStore(nodes));

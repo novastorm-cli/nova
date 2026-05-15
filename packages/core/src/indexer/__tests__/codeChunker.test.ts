@@ -12,7 +12,16 @@ import { bar } from './bar';
 export function main() {}`;
 
     const chunks = chunker.chunkFile(code, 'src/index.ts', [
-      { name: 'main', filePath: 'src/index.ts', signature: 'function main()', purpose: 'main', lineStart: 4, lineEnd: 4, visibility: 'public', isAsync: false },
+      {
+        name: 'main',
+        filePath: 'src/index.ts',
+        signature: 'function main()',
+        purpose: 'main',
+        lineStart: 4,
+        lineEnd: 4,
+        visibility: 'public',
+        isAsync: false,
+      },
     ]);
 
     const importChunk = chunks.find((c) => c.type === 'imports');
@@ -24,8 +33,26 @@ export function main() {}`;
   it('creates method chunks from methods', () => {
     const code = `function a() {\n  return 1;\n}\nfunction b() {\n  return 2;\n}`;
     const methods: MethodInfo[] = [
-      { name: 'a', filePath: 'f.ts', signature: 'function a()', purpose: 'a', lineStart: 1, lineEnd: 3, visibility: 'public', isAsync: false },
-      { name: 'b', filePath: 'f.ts', signature: 'function b()', purpose: 'b', lineStart: 4, lineEnd: 6, visibility: 'public', isAsync: false },
+      {
+        name: 'a',
+        filePath: 'f.ts',
+        signature: 'function a()',
+        purpose: 'a',
+        lineStart: 1,
+        lineEnd: 3,
+        visibility: 'public',
+        isAsync: false,
+      },
+      {
+        name: 'b',
+        filePath: 'f.ts',
+        signature: 'function b()',
+        purpose: 'b',
+        lineStart: 4,
+        lineEnd: 6,
+        visibility: 'public',
+        isAsync: false,
+      },
     ];
 
     const chunks = chunker.chunkFile(code, 'f.ts', methods);

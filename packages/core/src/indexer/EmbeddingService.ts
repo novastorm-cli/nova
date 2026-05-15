@@ -60,7 +60,10 @@ class OpenAIEmbedding implements IEmbeddingService {
   private initPromise: Promise<void>;
   private model: string;
 
-  constructor(private readonly apiKey: string, model?: string) {
+  constructor(
+    private readonly apiKey: string,
+    model?: string,
+  ) {
     this.model = model ?? 'text-embedding-3-small';
     this.initPromise = this.init();
   }

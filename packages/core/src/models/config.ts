@@ -13,7 +13,7 @@ export interface NovaConfig {
   };
   apiKeys: {
     provider: 'openrouter' | 'anthropic' | 'openai' | 'ollama' | 'claude-cli' | 'deepseek';
-    key?: string | undefined;  // resolved from env or .nova/config.toml
+    key?: string | undefined; // resolved from env or .nova/config.toml
   };
   behavior: {
     autoCommit: boolean;
@@ -28,22 +28,38 @@ export interface NovaConfig {
   telemetry: {
     enabled: boolean;
   };
-  license?: {
-    key?: string | undefined;
-  } | undefined;
-  git?: {
-    allowProtectedBranchCommits?: boolean | undefined;
-  } | undefined;
-  rag?: {
-    embeddingProvider?: 'openai' | 'ollama' | 'tfidf' | undefined;
-  } | undefined;
+  license?:
+    | {
+        key?: string | undefined;
+      }
+    | undefined;
+  git?:
+    | {
+        allowProtectedBranchCommits?: boolean | undefined;
+      }
+    | undefined;
+  rag?:
+    | {
+        embeddingProvider?: 'openai' | 'ollama' | 'tfidf' | undefined;
+      }
+    | undefined;
 }
 
 export const DEFAULT_CONFIG: NovaConfig = {
   project: { devCommand: '', port: 3000 },
-  models: { micro: 'claude-haiku-4-5-20251001', standard: 'claude-sonnet-4-6', strong: 'claude-opus-4-6', local: false },
+  models: {
+    micro: 'claude-haiku-4-5-20251001',
+    standard: 'claude-sonnet-4-6',
+    strong: 'claude-opus-4-6',
+    local: false,
+  },
   apiKeys: { provider: 'openrouter' },
-  behavior: { autoCommit: false, confirmTasks: true, branchPrefix: 'nova/', passiveSuggestions: true },
+  behavior: {
+    autoCommit: false,
+    confirmTasks: true,
+    branchPrefix: 'nova/',
+    passiveSuggestions: true,
+  },
   voice: { enabled: true, engine: 'web' },
   telemetry: { enabled: true },
 };

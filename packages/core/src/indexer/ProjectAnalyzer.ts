@@ -34,13 +34,15 @@ export class ProjectAnalyzer implements IProjectAnalyzer {
       }
     }
 
-    const frontendSummary = frontendFiles.length > 0
-      ? `${frontendFiles.length} frontend files: ${this.summarizeFiles(frontendFiles)}`
-      : 'No frontend files detected';
+    const frontendSummary =
+      frontendFiles.length > 0
+        ? `${frontendFiles.length} frontend files: ${this.summarizeFiles(frontendFiles)}`
+        : 'No frontend files detected';
 
-    const backendSummary = backendFiles.length > 0
-      ? `${backendFiles.length} backend files: ${this.summarizeFiles(backendFiles)}`
-      : 'No backend files detected';
+    const backendSummary =
+      backendFiles.length > 0
+        ? `${backendFiles.length} backend files: ${this.summarizeFiles(backendFiles)}`
+        : 'No backend files detected';
 
     const analysis: ProjectAnalysis = {
       frontendSummary,
@@ -52,21 +54,14 @@ export class ProjectAnalyzer implements IProjectAnalyzer {
 
     // Save to .nova/analysis.json
     const novaPath = join(projectPath, '.nova');
-    await writeFile(
-      join(novaPath, ANALYSIS_FILE),
-      JSON.stringify(analysis, null, 2),
-      'utf-8',
-    );
+    await writeFile(join(novaPath, ANALYSIS_FILE), JSON.stringify(analysis, null, 2), 'utf-8');
 
     return analysis;
   }
 
   async getAnalysis(projectPath: string): Promise<ProjectAnalysis | null> {
     try {
-      const raw = await readFile(
-        join(projectPath, '.nova', ANALYSIS_FILE),
-        'utf-8',
-      );
+      const raw = await readFile(join(projectPath, '.nova', ANALYSIS_FILE), 'utf-8');
       return JSON.parse(raw) as ProjectAnalysis;
     } catch {
       return null;

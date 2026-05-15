@@ -26,10 +26,15 @@ export async function initCommand(): Promise<void> {
       config.project = { ...config.project!, frontend: frontendPath };
     }
 
-    const backendsInput = await rl.question('Do you have backend services? Specify paths separated by commas (leave empty to skip): ');
+    const backendsInput = await rl.question(
+      'Do you have backend services? Specify paths separated by commas (leave empty to skip): ',
+    );
     const backendsRaw = backendsInput.trim();
     if (backendsRaw) {
-      const backends = backendsRaw.split(',').map(s => s.trim()).filter(Boolean);
+      const backends = backendsRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (backends.length > 0) {
         config.project = { ...config.project!, backends };
       }

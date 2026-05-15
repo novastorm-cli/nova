@@ -88,7 +88,10 @@ export interface IValidator {
 }
 
 export class DiffError extends Error {
-  constructor(message: string, public readonly filePath?: string) {
+  constructor(
+    message: string,
+    public readonly filePath?: string,
+  ) {
     super(message);
     this.name = 'DiffError';
   }

@@ -11,8 +11,18 @@ type SettablePath = {
 };
 
 const SETTABLE_FIELDS: SettablePath[] = [
-  { path: 'apiKeys.provider', description: 'LLM provider', type: 'string', options: ['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli'] },
-  { path: 'apiKeys.key', description: 'API key (saved to .nova/config.toml)', type: 'string', secret: true },
+  {
+    path: 'apiKeys.provider',
+    description: 'LLM provider',
+    type: 'string',
+    options: ['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli'],
+  },
+  {
+    path: 'apiKeys.key',
+    description: 'API key (saved to .nova/config.toml)',
+    type: 'string',
+    secret: true,
+  },
   { path: 'models.micro', description: 'Micro model (cheapest/fastest)', type: 'string' },
   { path: 'models.standard', description: 'Standard model (balanced)', type: 'string' },
   { path: 'models.strong', description: 'Strong model (most capable)', type: 'string' },
@@ -25,7 +35,12 @@ const SETTABLE_FIELDS: SettablePath[] = [
   { path: 'behavior.branchPrefix', description: 'Git branch prefix', type: 'string' },
   { path: 'behavior.passiveSuggestions', description: 'Passive suggestions', type: 'boolean' },
   { path: 'voice.enabled', description: 'Voice enabled', type: 'boolean' },
-  { path: 'voice.engine', description: 'Voice engine', type: 'string', options: ['web', 'whisper'] },
+  {
+    path: 'voice.engine',
+    description: 'Voice engine',
+    type: 'string',
+    options: ['web', 'whisper'],
+  },
   { path: 'telemetry.enabled', description: 'Telemetry enabled', type: 'boolean' },
 ];
 
@@ -63,12 +78,16 @@ export function formatSettings(config: NovaConfig): string {
     }
 
     const value = getNestedValue(config as unknown as Record<string, unknown>, field.path);
-    const displayValue = value === undefined ? chalk.dim('(not set)')
-      : typeof value === 'string' && field.path.includes('key') && value.length > 8
-        ? chalk.yellow(value.slice(0, 4) + '...' + value.slice(-4))
-        : chalk.green(JSON.stringify(value));
+    const displayValue =
+      value === undefined
+        ? chalk.dim('(not set)')
+        : typeof value === 'string' && field.path.includes('key') && value.length > 8
+          ? chalk.yellow(value.slice(0, 4) + '...' + value.slice(-4))
+          : chalk.green(JSON.stringify(value));
 
-    lines.push(`  ${chalk.cyan(field.path.padEnd(28))} ${displayValue}  ${chalk.dim(field.description)}`);
+    lines.push(
+      `  ${chalk.cyan(field.path.padEnd(28))} ${displayValue}  ${chalk.dim(field.description)}`,
+    );
 
     if (field.options) {
       lines.push(`  ${''.padEnd(28)} ${chalk.dim(`options: ${field.options.join(', ')}`)}`);
@@ -112,7 +131,9 @@ export async function handleSettingsCommand(
   // Find field definition
   const field = SETTABLE_FIELDS.find((f) => f.path === key);
   if (!field) {
-    return chalk.red(`Unknown setting: ${key}\nAvailable: ${SETTABLE_FIELDS.map(f => f.path).join(', ')}`);
+    return chalk.red(
+      `Unknown setting: ${key}\nAvailable: ${SETTABLE_FIELDS.map((f) => f.path).join(', ')}`,
+    );
   }
 
   // Validate options
@@ -158,7 +179,9 @@ export async function handleSettingsCommand(
       const secretConfig: Record<string, unknown> = {};
       setNestedValue(secretConfig, key, parsedValue);
       await configReader.writeLocal(cwd, secretConfig);
-      return chalk.green(`${key} = ${JSON.stringify(parsedValue).slice(0, 4)}... (saved to .nova/config.toml)`);
+      return chalk.green(
+        `${key} = ${JSON.stringify(parsedValue).slice(0, 4)}... (saved to .nova/config.toml)`,
+      );
     }
     await configReader.write(cwd, config);
     return chalk.green(`${key} = ${JSON.stringify(parsedValue)} (saved to nova.toml)`);

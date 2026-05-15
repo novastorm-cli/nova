@@ -53,86 +53,86 @@ const PYTHON_FRAMEWORKS: ReadonlyArray<{ dep: string; framework: string }> = [
 
 const DEFAULT_PORTS: Record<string, number> = {
   'next.js': 3000,
-  'cra': 3000,
-  'nuxt': 3000,
-  'sveltekit': 5173,
-  'astro': 4321,
-  'vite': 5173,
-  'express': 3000,
-  'nest': 3000,
-  'fastify': 3000,
-  'koa': 3000,
-  'hapi': 3000,
-  'node': 3000,
-  'dotnet': 5000,
-  'django': 8000,
-  'fastapi': 8000,
-  'flask': 5000,
-  'rails': 3000,
-  'sinatra': 4567,
-  'ruby': 3000,
-  'laravel': 8000,
-  'symfony': 8000,
-  'php': 8000,
+  cra: 3000,
+  nuxt: 3000,
+  sveltekit: 5173,
+  astro: 4321,
+  vite: 5173,
+  express: 3000,
+  nest: 3000,
+  fastify: 3000,
+  koa: 3000,
+  hapi: 3000,
+  node: 3000,
+  dotnet: 5000,
+  django: 8000,
+  fastapi: 8000,
+  flask: 5000,
+  rails: 3000,
+  sinatra: 4567,
+  ruby: 3000,
+  laravel: 8000,
+  symfony: 8000,
+  php: 8000,
   'spring-boot': 8080,
-  'java': 8080,
-  'angular': 4200,
-  'gatsby': 8000,
-  'remix': 3000,
-  'solid': 3000,
-  'svelte': 5173,
-  'vue': 5173,
-  'react': 3000,
-  'electron': 3000,
-  'socketio': 3000,
-  'trpc': 3000,
-  'gin': 8080,
-  'echo': 8080,
-  'fiber': 3000,
-  'gorilla': 8080,
-  'beego': 8080,
-  'go': 8080,
-  'actix': 8080,
-  'axum': 3000,
-  'rocket': 8000,
-  'warp': 3030,
-  'tauri': 1420,
-  'rust': 8080,
-  'phoenix': 4000,
-  'elixir': 4000,
-  'deno': 8000,
-  'starlette': 8000,
-  'streamlit': 8501,
-  'gradio': 7860,
-  'tornado': 8888,
-  'sanic': 8000,
-  'aiohttp': 8080,
-  'litestar': 8000,
-  'uvicorn': 8000,
-  'scala': 9000,
-  'play': 9000,
-  'akka': 8080,
-  'kotlin': 8080,
-  'ktor': 8080,
-  'swift': 8080,
-  'vapor': 8080,
-  'flutter': 3000,
-  'dart': 8080,
-  'zig': 8080,
-  'haskell': 3000,
-  'clojure': 3000,
-  'cpp': 8080,
-  'c': 8080,
-  'nim': 8080,
-  'perl': 3000,
-  'mojolicious': 3000,
-  'r': 3838,
-  'shiny': 3838,
-  'plumber': 8000,
-  'julia': 8000,
-  'genie': 8000,
-  'ocaml': 8080,
-  'erlang': 8080,
+  java: 8080,
+  angular: 4200,
+  gatsby: 8000,
+  remix: 3000,
+  solid: 3000,
+  svelte: 5173,
+  vue: 5173,
+  react: 3000,
+  electron: 3000,
+  socketio: 3000,
+  trpc: 3000,
+  gin: 8080,
+  echo: 8080,
+  fiber: 3000,
+  gorilla: 8080,
+  beego: 8080,
+  go: 8080,
+  actix: 8080,
+  axum: 3000,
+  rocket: 8000,
+  warp: 3030,
+  tauri: 1420,
+  rust: 8080,
+  phoenix: 4000,
+  elixir: 4000,
+  deno: 8000,
+  starlette: 8000,
+  streamlit: 8501,
+  gradio: 7860,
+  tornado: 8888,
+  sanic: 8000,
+  aiohttp: 8080,
+  litestar: 8000,
+  uvicorn: 8000,
+  scala: 9000,
+  play: 9000,
+  akka: 8080,
+  kotlin: 8080,
+  ktor: 8080,
+  swift: 8080,
+  vapor: 8080,
+  flutter: 3000,
+  dart: 8080,
+  zig: 8080,
+  haskell: 3000,
+  clojure: 3000,
+  cpp: 8080,
+  c: 8080,
+  nim: 8080,
+  perl: 3000,
+  mojolicious: 3000,
+  r: 3838,
+  shiny: 3838,
+  plumber: 8000,
+  julia: 8000,
+  genie: 8000,
+  ocaml: 8080,
+  erlang: 8080,
 };
 
 export class StackDetector implements IStackDetector {
@@ -147,9 +147,30 @@ export class StackDetector implements IStackDetector {
 
     // Check all sources in parallel
     const [
-      pkgResult, hasDotnet, pythonFw, rubyFw, phpFw, javaFw, goFw, rustFw, elixirFw, hasDeno,
-      scalaFw, kotlinFw, swiftFw, dartFw, zigFw, haskellFw, clojureFw, cppFw, nimFw, perlFw,
-      rFw, juliaFw, ocamlFw, erlangFw,
+      pkgResult,
+      hasDotnet,
+      pythonFw,
+      rubyFw,
+      phpFw,
+      javaFw,
+      goFw,
+      rustFw,
+      elixirFw,
+      hasDeno,
+      scalaFw,
+      kotlinFw,
+      swiftFw,
+      dartFw,
+      zigFw,
+      haskellFw,
+      clojureFw,
+      cppFw,
+      nimFw,
+      perlFw,
+      rFw,
+      juliaFw,
+      ocamlFw,
+      erlangFw,
     ] = await Promise.all([
       this.detectFromPackageJson(projectPath),
       this.hasDotnet(projectPath),
@@ -197,7 +218,8 @@ export class StackDetector implements IStackDetector {
     if (zigFw) detected.push({ framework: 'zig', language: 'zig', typescript: false });
     if (haskellFw) detected.push({ framework: 'haskell', language: 'haskell', typescript: false });
     if (clojureFw) detected.push({ framework: clojureFw, language: 'clojure', typescript: false });
-    if (cppFw) detected.push({ framework: cppFw, language: cppFw === 'c' ? 'c' : 'cpp', typescript: false });
+    if (cppFw)
+      detected.push({ framework: cppFw, language: cppFw === 'c' ? 'c' : 'cpp', typescript: false });
     if (nimFw) detected.push({ framework: 'nim', language: 'nim', typescript: false });
     if (perlFw) detected.push({ framework: perlFw, language: 'perl', typescript: false });
     if (rFw) detected.push({ framework: rFw, language: 'r', typescript: false });
@@ -210,7 +232,11 @@ export class StackDetector implements IStackDetector {
       const dirFw = await this.detectFrameworkFromDirs(projectPath);
       if (dirFw) {
         const typescript = await this.hasTypescript(projectPath);
-        detected.push({ framework: dirFw, language: typescript ? 'typescript' : 'javascript', typescript });
+        detected.push({
+          framework: dirFw,
+          language: typescript ? 'typescript' : 'javascript',
+          typescript,
+        });
       }
     }
 
@@ -221,23 +247,90 @@ export class StackDetector implements IStackDetector {
     // Priority: frontend frameworks > backend frameworks > generic
     const PRIORITY = [
       // Frontend frameworks
-      'next.js', 'nuxt', 'sveltekit', 'angular', 'gatsby', 'remix',
-      'astro', 'vite', 'cra', 'solid', 'svelte', 'vue', 'react',
-      'electron', 'tauri',
+      'next.js',
+      'nuxt',
+      'sveltekit',
+      'angular',
+      'gatsby',
+      'remix',
+      'astro',
+      'vite',
+      'cra',
+      'solid',
+      'svelte',
+      'vue',
+      'react',
+      'electron',
+      'tauri',
       // Backend frameworks
-      'dotnet', 'django', 'fastapi', 'flask', 'starlette', 'streamlit',
-      'gradio', 'tornado', 'sanic', 'aiohttp', 'litestar', 'uvicorn',
-      'rails', 'sinatra', 'laravel', 'symfony', 'spring-boot',
-      'phoenix', 'gin', 'echo', 'fiber', 'gorilla', 'beego',
-      'actix', 'axum', 'rocket', 'warp',
-      'express', 'nest', 'fastify', 'koa', 'hapi', 'socketio', 'trpc',
+      'dotnet',
+      'django',
+      'fastapi',
+      'flask',
+      'starlette',
+      'streamlit',
+      'gradio',
+      'tornado',
+      'sanic',
+      'aiohttp',
+      'litestar',
+      'uvicorn',
+      'rails',
+      'sinatra',
+      'laravel',
+      'symfony',
+      'spring-boot',
+      'phoenix',
+      'gin',
+      'echo',
+      'fiber',
+      'gorilla',
+      'beego',
+      'actix',
+      'axum',
+      'rocket',
+      'warp',
+      'express',
+      'nest',
+      'fastify',
+      'koa',
+      'hapi',
+      'socketio',
+      'trpc',
       'deno',
-      'play', 'akka', 'ktor', 'vapor',
-      'flutter', 'mojolicious', 'shiny', 'plumber', 'genie',
+      'play',
+      'akka',
+      'ktor',
+      'vapor',
+      'flutter',
+      'mojolicious',
+      'shiny',
+      'plumber',
+      'genie',
       // Generic language fallbacks
-      'node', 'python', 'ruby', 'php', 'java', 'go', 'rust', 'elixir',
-      'scala', 'kotlin', 'swift', 'dart', 'zig', 'haskell', 'clojure',
-      'cpp', 'c', 'nim', 'perl', 'r', 'julia', 'ocaml', 'erlang',
+      'node',
+      'python',
+      'ruby',
+      'php',
+      'java',
+      'go',
+      'rust',
+      'elixir',
+      'scala',
+      'kotlin',
+      'swift',
+      'dart',
+      'zig',
+      'haskell',
+      'clojure',
+      'cpp',
+      'c',
+      'nim',
+      'perl',
+      'r',
+      'julia',
+      'ocaml',
+      'erlang',
     ];
 
     detected.sort((a, b) => {
@@ -292,13 +385,26 @@ export class StackDetector implements IStackDetector {
     if (framework === 'spring-boot') return './mvnw spring-boot:run';
 
     // Go frameworks
-    if (framework === 'go' || framework === 'gin' || framework === 'echo' || framework === 'fiber' || framework === 'gorilla' || framework === 'beego') {
+    if (
+      framework === 'go' ||
+      framework === 'gin' ||
+      framework === 'echo' ||
+      framework === 'fiber' ||
+      framework === 'gorilla' ||
+      framework === 'beego'
+    ) {
       return 'go run .';
     }
 
     // Rust frameworks
     if (framework === 'tauri') return 'cargo tauri dev';
-    if (framework === 'rust' || framework === 'actix' || framework === 'axum' || framework === 'rocket' || framework === 'warp') {
+    if (
+      framework === 'rust' ||
+      framework === 'actix' ||
+      framework === 'axum' ||
+      framework === 'rocket' ||
+      framework === 'warp'
+    ) {
       return 'cargo run';
     }
 
@@ -314,7 +420,15 @@ export class StackDetector implements IStackDetector {
     if (framework === 'gradio') return 'python app.py';
 
     // Generic python fallback
-    if (framework === 'python' || framework === 'starlette' || framework === 'tornado' || framework === 'sanic' || framework === 'aiohttp' || framework === 'litestar' || framework === 'uvicorn') {
+    if (
+      framework === 'python' ||
+      framework === 'starlette' ||
+      framework === 'tornado' ||
+      framework === 'sanic' ||
+      framework === 'aiohttp' ||
+      framework === 'litestar' ||
+      framework === 'uvicorn'
+    ) {
       return 'python main.py';
     }
 
@@ -355,7 +469,8 @@ export class StackDetector implements IStackDetector {
     if (framework === 'r') return 'Rscript -e "shiny::runApp()"';
 
     // Julia
-    if (framework === 'julia' || framework === 'genie') return 'julia --project=. -e "using Genie; up()"';
+    if (framework === 'julia' || framework === 'genie')
+      return 'julia --project=. -e "using Genie; up()"';
 
     // OCaml
     if (framework === 'ocaml') return 'dune exec';
@@ -391,7 +506,9 @@ export class StackDetector implements IStackDetector {
     try {
       pkg = JSON.parse(content) as PackageJson;
     } catch {
-      this.logger.warn('Warning: package.json contains invalid JSON. Detecting framework from directory structure.');
+      this.logger.warn(
+        'Warning: package.json contains invalid JSON. Detecting framework from directory structure.',
+      );
     }
 
     let frameworkName: string | undefined;
@@ -424,19 +541,20 @@ export class StackDetector implements IStackDetector {
       const entrySet = new Set(entries);
 
       // Next.js: .next/ or next.config.* or app/ with layout/page files
-      if (entrySet.has('.next') || entries.some(e => e.startsWith('next.config'))) return 'next.js';
+      if (entrySet.has('.next') || entries.some((e) => e.startsWith('next.config')))
+        return 'next.js';
 
       // Nuxt: .nuxt/ or nuxt.config.*
-      if (entrySet.has('.nuxt') || entries.some(e => e.startsWith('nuxt.config'))) return 'nuxt';
+      if (entrySet.has('.nuxt') || entries.some((e) => e.startsWith('nuxt.config'))) return 'nuxt';
 
       // SvelteKit: svelte.config.*
-      if (entries.some(e => e.startsWith('svelte.config'))) return 'sveltekit';
+      if (entries.some((e) => e.startsWith('svelte.config'))) return 'sveltekit';
 
       // Astro: astro.config.*
-      if (entries.some(e => e.startsWith('astro.config'))) return 'astro';
+      if (entries.some((e) => e.startsWith('astro.config'))) return 'astro';
 
       // Vite: vite.config.*
-      if (entries.some(e => e.startsWith('vite.config'))) return 'vite';
+      if (entries.some((e) => e.startsWith('vite.config'))) return 'vite';
 
       // Angular: angular.json
       if (entrySet.has('angular.json')) return 'angular';
@@ -535,7 +653,8 @@ export class StackDetector implements IStackDetector {
     if (!content) return null;
 
     // Skip if Spring Boot is detected (handled by detectJava)
-    if (content.includes('spring-boot') || content.includes('org.springframework.boot')) return null;
+    if (content.includes('spring-boot') || content.includes('org.springframework.boot'))
+      return null;
 
     // Must have Kotlin indicators
     if (!content.includes('kotlin')) return null;
@@ -595,7 +714,11 @@ export class StackDetector implements IStackDetector {
     if (makefile) {
       // Only detect as C/C++ if Makefile contains compilation patterns
       if (/\b(gcc|g\+\+|clang|clang\+\+|cc|c\+\+)\b/.test(makefile)) {
-        if (/\bg\+\+\b/.test(makefile) || /\bclang\+\+\b/.test(makefile) || /\bc\+\+\b/.test(makefile)) {
+        if (
+          /\bg\+\+\b/.test(makefile) ||
+          /\bclang\+\+\b/.test(makefile) ||
+          /\bc\+\+\b/.test(makefile)
+        ) {
           return 'cpp';
         }
         return 'c';
@@ -677,10 +800,7 @@ export class StackDetector implements IStackDetector {
     return 'typescript' in allDeps;
   }
 
-  private async readPortFromConfig(
-    stack: StackInfo,
-    projectPath: string,
-  ): Promise<number | null> {
+  private async readPortFromConfig(stack: StackInfo, projectPath: string): Promise<number | null> {
     try {
       if (stack.framework === 'next.js') {
         return await this.readPortFromNextConfig(projectPath);
@@ -735,9 +855,7 @@ export class StackDetector implements IStackDetector {
   }
 
   private async readPortFromLaunchSettings(projectPath: string): Promise<number | null> {
-    const content = await this.readFileSafe(
-      join(projectPath, 'Properties', 'launchSettings.json'),
-    );
+    const content = await this.readFileSafe(join(projectPath, 'Properties', 'launchSettings.json'));
     if (!content) return null;
 
     // Extract port from applicationUrl
@@ -823,11 +941,18 @@ export class StackDetector implements IStackDetector {
     for (const name of ['build.gradle', 'build.gradle.kts']) {
       const gradleContent = await this.readFileSafe(join(projectPath, name));
       if (gradleContent) {
-        if (gradleContent.includes('spring-boot') || gradleContent.includes('org.springframework.boot')) {
+        if (
+          gradleContent.includes('spring-boot') ||
+          gradleContent.includes('org.springframework.boot')
+        ) {
           return 'spring-boot';
         }
         // Skip pure Kotlin projects (handled by detectKotlin)
-        if (name === 'build.gradle.kts' && gradleContent.includes('kotlin') && !gradleContent.includes('java')) {
+        if (
+          name === 'build.gradle.kts' &&
+          gradleContent.includes('kotlin') &&
+          !gradleContent.includes('java')
+        ) {
           return null;
         }
         return 'java';

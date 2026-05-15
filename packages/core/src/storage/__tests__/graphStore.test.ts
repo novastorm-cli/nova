@@ -90,10 +90,7 @@ describe('GraphStore', () => {
 
   it('removeNode() removes a node by filePath', async () => {
     const store = await createStore();
-    await store.save([
-      makeNode({ filePath: 'src/a.ts' }),
-      makeNode({ filePath: 'src/b.ts' }),
-    ]);
+    await store.save([makeNode({ filePath: 'src/a.ts' }), makeNode({ filePath: 'src/b.ts' })]);
 
     await store.removeNode('src/a.ts');
     const loaded = await store.load();
@@ -133,9 +130,7 @@ describe('GraphStore', () => {
 
   it('getImports() returns the imports array for a node', async () => {
     const store = await createStore();
-    await store.save([
-      makeNode({ filePath: 'src/a.ts', imports: ['src/b.ts', 'src/c.ts'] }),
-    ]);
+    await store.save([makeNode({ filePath: 'src/a.ts', imports: ['src/b.ts', 'src/c.ts'] })]);
 
     const imports = await store.getImports('src/a.ts');
     expect(imports).toEqual(['src/b.ts', 'src/c.ts']);
@@ -152,7 +147,11 @@ describe('GraphStore', () => {
   it('search() finds nodes by keyword case-insensitive', async () => {
     const store = await createStore();
     await store.save([
-      makeNode({ filePath: 'src/UserService.ts', keywords: ['user', 'auth'], exports: ['UserService'] }),
+      makeNode({
+        filePath: 'src/UserService.ts',
+        keywords: ['user', 'auth'],
+        exports: ['UserService'],
+      }),
       makeNode({ filePath: 'src/utils.ts', keywords: ['helper'], exports: ['formatDate'] }),
     ]);
 

@@ -54,9 +54,7 @@ export class Validator implements IValidator {
     return { cmd: 'tsc', baseArgs: [] };
   }
 
-  private async runTsc(
-    projectPath: string,
-  ): Promise<ValidationResult['errors']> {
+  private async runTsc(projectPath: string): Promise<ValidationResult['errors']> {
     const { cmd, baseArgs } = this.resolveTsc(projectPath);
     const args = [...baseArgs, '--noEmit'];
 
@@ -69,7 +67,11 @@ export class Validator implements IValidator {
     } catch (error: unknown) {
       // If tsc binary is not found at all, skip the check
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('ENOENT') || message.includes('not found') || message.includes('This is not the tsc command')) {
+      if (
+        message.includes('ENOENT') ||
+        message.includes('not found') ||
+        message.includes('This is not the tsc command')
+      ) {
         return [];
       }
       return this.parseTscOutput(this.getStdout(error));
@@ -167,9 +169,7 @@ export class Validator implements IValidator {
     return errors;
   }
 
-  private async runBuild(
-    projectPath: string,
-  ): Promise<ValidationResult['errors']> {
+  private async runBuild(projectPath: string): Promise<ValidationResult['errors']> {
     const pkgPath = join(projectPath, 'package.json');
     if (!existsSync(pkgPath)) return [];
 
@@ -199,14 +199,14 @@ export class Validator implements IValidator {
 
   private getStdout(error: unknown): string {
     if (error && typeof error === 'object' && 'stdout' in error) {
-      return String((error).stdout);
+      return String(error.stdout);
     }
     return error instanceof Error ? error.message : String(error);
   }
 
   private getStderr(error: unknown): string {
     if (error && typeof error === 'object' && 'stderr' in error) {
-      return String((error).stderr);
+      return String(error.stderr);
     }
     return this.getStdout(error);
   }

@@ -14,7 +14,9 @@ function createMockHistoryStore(): IHistoryStore {
     getRecent: vi.fn(async (limit: number) => entries.slice(0, limit)),
     getSince: vi.fn(async (ts: number) => entries.filter((e) => e.startedAt >= ts)),
     getByTaskId: vi.fn(async (taskId: string) => entries.find((e) => e.taskId === taskId) ?? null),
-    clear: vi.fn(async () => { entries.length = 0; }),
+    clear: vi.fn(async () => {
+      entries.length = 0;
+    }),
   };
 }
 

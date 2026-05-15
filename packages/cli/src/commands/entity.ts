@@ -1,6 +1,13 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { ManifestStore, type ManifestService, type ManifestDatabase, type ManifestEntity, type ServiceType, type EntityType } from '@novastorm-ai/core';
+import {
+  ManifestStore,
+  type ManifestService,
+  type ManifestDatabase,
+  type ManifestEntity,
+  type ServiceType,
+  type EntityType,
+} from '@novastorm-ai/core';
 import { NovaDir } from '@novastorm-ai/core';
 import { StructuredLogger } from '@novastorm-ai/core';
 
@@ -48,42 +55,73 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
 
     if (kind === 'service') {
       const name = (await rl.question('Name? ')).trim();
-      if (!name) { logger.error('Name is required.'); return; }
+      if (!name) {
+        logger.error('Name is required.');
+        return;
+      }
 
-      const typeRaw = (await rl.question(`Role? (${SERVICE_TYPES.join(' / ')}) `)).trim().toLowerCase();
+      const typeRaw = (await rl.question(`Role? (${SERVICE_TYPES.join(' / ')}) `))
+        .trim()
+        .toLowerCase();
       if (!SERVICE_TYPES.includes(typeRaw as ServiceType)) {
         logger.error(`Invalid role. Choose from: ${SERVICE_TYPES.join(', ')}`);
         return;
       }
 
       const path = (await rl.question('Path? ')).trim();
-      if (!path) { logger.error('Path is required.'); return; }
+      if (!path) {
+        logger.error('Path is required.');
+        return;
+      }
 
       const framework = (await rl.question('Framework? (optional) ')).trim() || undefined;
       const language = (await rl.question('Language? (optional) ')).trim() || undefined;
 
-      const service: ManifestService = { name, type: typeRaw as ServiceType, path, ...(framework ? { framework } : {}), ...(language ? { language } : {}) };
+      const service: ManifestService = {
+        name,
+        type: typeRaw as ServiceType,
+        path,
+        ...(framework ? { framework } : {}),
+        ...(language ? { language } : {}),
+      };
       await store.addService(cwd, service);
       logger.info(`Added service "${name}" to .nova/manifest.toml`);
-
     } else if (kind === 'database') {
       const name = (await rl.question('Name? ')).trim();
-      if (!name) { logger.error('Name is required.'); return; }
+      if (!name) {
+        logger.error('Name is required.');
+        return;
+      }
 
-      const engine = (await rl.question('Engine? (postgresql / mysql / sqlite / mongodb / redis) ')).trim();
-      if (!engine) { logger.error('Engine is required.'); return; }
+      const engine = (
+        await rl.question('Engine? (postgresql / mysql / sqlite / mongodb / redis) ')
+      ).trim();
+      if (!engine) {
+        logger.error('Engine is required.');
+        return;
+      }
 
       const schemaPath = (await rl.question('Schema path? (optional) ')).trim() || undefined;
-      const connectionEnv = (await rl.question('Connection env var? (optional) ')).trim() || undefined;
+      const connectionEnv =
+        (await rl.question('Connection env var? (optional) ')).trim() || undefined;
 
-      await store.addDatabase(cwd, { name, engine, ...(schemaPath ? { schema_path: schemaPath } : {}), ...(connectionEnv ? { connection_env: connectionEnv } : {}) });
+      await store.addDatabase(cwd, {
+        name,
+        engine,
+        ...(schemaPath ? { schema_path: schemaPath } : {}),
+        ...(connectionEnv ? { connection_env: connectionEnv } : {}),
+      });
       logger.info(`Added database "${name}" to .nova/manifest.toml`);
-
     } else if (kind === 'entity') {
       const name = (await rl.question('Name? ')).trim();
-      if (!name) { logger.error('Name is required.'); return; }
+      if (!name) {
+        logger.error('Name is required.');
+        return;
+      }
 
-      const typeRaw = (await rl.question(`Type? (${ENTITY_TYPES.join(' / ')}) `)).trim().toLowerCase();
+      const typeRaw = (await rl.question(`Type? (${ENTITY_TYPES.join(' / ')}) `))
+        .trim()
+        .toLowerCase();
       if (!ENTITY_TYPES.includes(typeRaw as EntityType)) {
         logger.error(`Invalid type. Choose from: ${ENTITY_TYPES.join(', ')}`);
         return;
@@ -91,12 +129,21 @@ async function entityAdd(cwd: string, store: ManifestStore): Promise<void> {
 
       const description = (await rl.question('Description? (optional) ')).trim() || undefined;
       const filesRaw = (await rl.question('Files? (comma-separated, optional) ')).trim();
-      const files = filesRaw ? filesRaw.split(',').map(f => f.trim()).filter(Boolean) : undefined;
+      const files = filesRaw
+        ? filesRaw
+            .split(',')
+            .map((f) => f.trim())
+            .filter(Boolean)
+        : undefined;
 
-      const entity: ManifestEntity = { name, type: typeRaw as EntityType, ...(description ? { description } : {}), ...(files ? { files } : {}) };
+      const entity: ManifestEntity = {
+        name,
+        type: typeRaw as EntityType,
+        ...(description ? { description } : {}),
+        ...(files ? { files } : {}),
+      };
       await store.addEntity(cwd, entity);
       logger.info(`Added entity "${name}" to .nova/manifest.toml`);
-
     } else {
       logger.error('Unknown type. Choose: service, database, entity');
     }
@@ -144,11 +191,18 @@ async function entityList(cwd: string, store: ManifestStore): Promise<void> {
     }
   }
 
-  if (manifest.boundaries.writable?.length || manifest.boundaries.readonly?.length || manifest.boundaries.ignored?.length) {
+  if (
+    manifest.boundaries.writable?.length ||
+    manifest.boundaries.readonly?.length ||
+    manifest.boundaries.ignored?.length
+  ) {
     logger.info('\nBoundaries:');
-    if (manifest.boundaries.writable?.length) logger.info(`  Writable: ${manifest.boundaries.writable.join(', ')}`);
-    if (manifest.boundaries.readonly?.length) logger.info(`  Readonly: ${manifest.boundaries.readonly.join(', ')}`);
-    if (manifest.boundaries.ignored?.length) logger.info(`  Ignored:  ${manifest.boundaries.ignored.join(', ')}`);
+    if (manifest.boundaries.writable?.length)
+      logger.info(`  Writable: ${manifest.boundaries.writable.join(', ')}`);
+    if (manifest.boundaries.readonly?.length)
+      logger.info(`  Readonly: ${manifest.boundaries.readonly.join(', ')}`);
+    if (manifest.boundaries.ignored?.length)
+      logger.info(`  Ignored:  ${manifest.boundaries.ignored.join(', ')}`);
   }
 
   const total = manifest.services.length + manifest.databases.length + manifest.entities.length;

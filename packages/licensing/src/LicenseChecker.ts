@@ -25,7 +25,10 @@ function validateKeyFormat(key: string): boolean {
   return computeChecksum(body) === checksum;
 }
 
-async function validateKeyOnline(key: string, devCount: number): Promise<{ valid: boolean; tier?: string; maxDevs?: number } | null> {
+async function validateKeyOnline(
+  key: string,
+  devCount: number,
+): Promise<{ valid: boolean; tier?: string; maxDevs?: number } | null> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -77,8 +80,7 @@ export class LicenseChecker implements ILicenseChecker {
         valid: false,
         tier: 'company',
         devCount,
-        message:
-          'Invalid license key format. Get a valid key at https://cli.novastorm.ai/#pricing',
+        message: 'Invalid license key format. Get a valid key at https://cli.novastorm.ai/#pricing',
       };
     }
 

@@ -1,4 +1,10 @@
-import type { Manifest, ManifestService, ManifestDatabase, ManifestEntity, ManifestBoundaries } from '../models/manifest.js';
+import type {
+  Manifest,
+  ManifestService,
+  ManifestDatabase,
+  ManifestEntity,
+  ManifestBoundaries,
+} from '../models/manifest.js';
 
 export interface IManifestStore {
   load(projectPath: string): Promise<Manifest | null>;

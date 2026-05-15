@@ -61,7 +61,12 @@ describe('FullstackGraphBuilder', () => {
     const dir = await setup();
     const builder = new FullstackGraphBuilder(dir);
     const components: ComponentInfo[] = [
-      { name: 'UserTable', filePath: 'src/UserTable.tsx', type: 'component', exports: ['UserTable'] },
+      {
+        name: 'UserTable',
+        filePath: 'src/UserTable.tsx',
+        type: 'component',
+        exports: ['UserTable'],
+      },
       { name: 'Dashboard', filePath: 'src/Dashboard.tsx', type: 'page', exports: ['default'] },
     ];
 
@@ -107,22 +112,27 @@ describe('FullstackGraphBuilder', () => {
   it('detects frontend->backend edges from fetch calls', async () => {
     const dir = await setup();
     const compFile = path.join(dir, 'UserList.tsx');
-    await fsp.writeFile(compFile, `
+    await fsp.writeFile(
+      compFile,
+      `
       export function UserList() {
         const res = await fetch('/api/users');
         return <div />;
       }
-    `);
+    `,
+    );
 
     const builder = new FullstackGraphBuilder(dir);
-    const graph = await builder.build(makeProjectMap({
-      components: [
-        { name: 'UserList', filePath: compFile, type: 'component', exports: ['UserList'] },
-      ],
-      endpoints: [
-        { method: 'GET', path: '/api/users', filePath: 'app/api/users/route.ts', handler: 'GET' },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        components: [
+          { name: 'UserList', filePath: compFile, type: 'component', exports: ['UserList'] },
+        ],
+        endpoints: [
+          { method: 'GET', path: '/api/users', filePath: 'app/api/users/route.ts', handler: 'GET' },
+        ],
+      }),
+    );
 
     const fetchEdges = graph.edges.filter((e) => e.type === 'fetches');
     expect(fetchEdges).toHaveLength(1);
@@ -133,21 +143,31 @@ describe('FullstackGraphBuilder', () => {
   it('detects frontend->backend edges from axios calls', async () => {
     const dir = await setup();
     const compFile = path.join(dir, 'CreateUser.tsx');
-    await fsp.writeFile(compFile, `
+    await fsp.writeFile(
+      compFile,
+      `
       export function CreateUser() {
         axios.post('/api/users', data);
       }
-    `);
+    `,
+    );
 
     const builder = new FullstackGraphBuilder(dir);
-    const graph = await builder.build(makeProjectMap({
-      components: [
-        { name: 'CreateUser', filePath: compFile, type: 'component', exports: ['CreateUser'] },
-      ],
-      endpoints: [
-        { method: 'POST', path: '/api/users', filePath: 'app/api/users/route.ts', handler: 'POST' },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        components: [
+          { name: 'CreateUser', filePath: compFile, type: 'component', exports: ['CreateUser'] },
+        ],
+        endpoints: [
+          {
+            method: 'POST',
+            path: '/api/users',
+            filePath: 'app/api/users/route.ts',
+            handler: 'POST',
+          },
+        ],
+      }),
+    );
 
     const fetchEdges = graph.edges.filter((e) => e.type === 'fetches');
     expect(fetchEdges).toHaveLength(1);
@@ -157,22 +177,32 @@ describe('FullstackGraphBuilder', () => {
   it('detects frontend->backend edges from useSWR calls', async () => {
     const dir = await setup();
     const compFile = path.join(dir, 'Profile.tsx');
-    await fsp.writeFile(compFile, `
+    await fsp.writeFile(
+      compFile,
+      `
       export function Profile() {
         const { data } = useSWR('/api/profile');
         return <div>{data}</div>;
       }
-    `);
+    `,
+    );
 
     const builder = new FullstackGraphBuilder(dir);
-    const graph = await builder.build(makeProjectMap({
-      components: [
-        { name: 'Profile', filePath: compFile, type: 'component', exports: ['Profile'] },
-      ],
-      endpoints: [
-        { method: 'GET', path: '/api/profile', filePath: 'app/api/profile/route.ts', handler: 'GET' },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        components: [
+          { name: 'Profile', filePath: compFile, type: 'component', exports: ['Profile'] },
+        ],
+        endpoints: [
+          {
+            method: 'GET',
+            path: '/api/profile',
+            filePath: 'app/api/profile/route.ts',
+            handler: 'GET',
+          },
+        ],
+      }),
+    );
 
     const fetchEdges = graph.edges.filter((e) => e.type === 'fetches');
     expect(fetchEdges).toHaveLength(1);
@@ -181,22 +211,23 @@ describe('FullstackGraphBuilder', () => {
   it('detects backend->database edges from Prisma queries', async () => {
     const dir = await setup();
     const apiFile = path.join(dir, 'route.ts');
-    await fsp.writeFile(apiFile, `
+    await fsp.writeFile(
+      apiFile,
+      `
       export async function GET() {
         const users = await prisma.user.findMany();
         return Response.json(users);
       }
-    `);
+    `,
+    );
 
     const builder = new FullstackGraphBuilder(dir);
-    const graph = await builder.build(makeProjectMap({
-      endpoints: [
-        { method: 'GET', path: '/api/users', filePath: apiFile, handler: 'GET' },
-      ],
-      models: [
-        { name: 'User', filePath: 'prisma/schema.prisma', fields: ['id', 'email'] },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        endpoints: [{ method: 'GET', path: '/api/users', filePath: apiFile, handler: 'GET' }],
+        models: [{ name: 'User', filePath: 'prisma/schema.prisma', fields: ['id', 'email'] }],
+      }),
+    );
 
     const queryEdges = graph.edges.filter((e) => e.type === 'queries');
     expect(queryEdges).toHaveLength(1);
@@ -207,21 +238,22 @@ describe('FullstackGraphBuilder', () => {
   it('detects backend->database edges from Django ORM', async () => {
     const dir = await setup();
     const apiFile = path.join(dir, 'views.py');
-    await fsp.writeFile(apiFile, `
+    await fsp.writeFile(
+      apiFile,
+      `
       def get_users(request):
           users = User.objects.filter(active=True)
           return JsonResponse(list(users))
-    `);
+    `,
+    );
 
     const builder = new FullstackGraphBuilder(dir);
-    const graph = await builder.build(makeProjectMap({
-      endpoints: [
-        { method: 'GET', path: '/api/users', filePath: apiFile, handler: 'get_users' },
-      ],
-      models: [
-        { name: 'User', filePath: 'models.py' },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        endpoints: [{ method: 'GET', path: '/api/users', filePath: apiFile, handler: 'get_users' }],
+        models: [{ name: 'User', filePath: 'models.py' }],
+      }),
+    );
 
     const queryEdges = graph.edges.filter((e) => e.type === 'queries');
     expect(queryEdges).toHaveLength(1);
@@ -230,22 +262,23 @@ describe('FullstackGraphBuilder', () => {
   it('detects backend->database edges from Entity Framework', async () => {
     const dir = await setup();
     const apiFile = path.join(dir, 'UsersController.cs');
-    await fsp.writeFile(apiFile, `
+    await fsp.writeFile(
+      apiFile,
+      `
       public async Task<IActionResult> GetUsers() {
           var users = await _context.Users.ToListAsync();
           return Ok(users);
       }
-    `);
+    `,
+    );
 
     const builder = new FullstackGraphBuilder(dir);
-    const graph = await builder.build(makeProjectMap({
-      endpoints: [
-        { method: 'GET', path: '/api/users', filePath: apiFile, handler: 'GetUsers' },
-      ],
-      models: [
-        { name: 'User', filePath: 'Models/User.cs', fields: ['Id', 'Email'] },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        endpoints: [{ method: 'GET', path: '/api/users', filePath: apiFile, handler: 'GetUsers' }],
+        models: [{ name: 'User', filePath: 'Models/User.cs', fields: ['Id', 'Email'] }],
+      }),
+    );
 
     const queryEdges = graph.edges.filter((e) => e.type === 'queries');
     expect(queryEdges).toHaveLength(1);
@@ -271,13 +304,25 @@ describe('FullstackGraphBuilder', () => {
       keywords: [],
     });
 
-    const graph = await builder.build(makeProjectMap({
-      components: [
-        { name: 'Dashboard', filePath: 'src/Dashboard.tsx', type: 'page', exports: ['Dashboard'] },
-        { name: 'UserTable', filePath: 'src/UserTable.tsx', type: 'component', exports: ['UserTable'] },
-      ],
-      dependencies: deps,
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        components: [
+          {
+            name: 'Dashboard',
+            filePath: 'src/Dashboard.tsx',
+            type: 'page',
+            exports: ['Dashboard'],
+          },
+          {
+            name: 'UserTable',
+            filePath: 'src/UserTable.tsx',
+            type: 'component',
+            exports: ['UserTable'],
+          },
+        ],
+        dependencies: deps,
+      }),
+    );
 
     const renderEdges = graph.edges.filter((e) => e.type === 'renders');
     expect(renderEdges).toHaveLength(1);
@@ -312,9 +357,7 @@ describe('FullstackGraphBuilder', () => {
   it('model name matching is case-insensitive and handles plurals', async () => {
     const dir = await setup();
     const builder = new FullstackGraphBuilder(dir);
-    const models: ModelInfo[] = [
-      { name: 'User', filePath: 'models/User.ts' },
-    ];
+    const models: ModelInfo[] = [{ name: 'User', filePath: 'models/User.ts' }];
 
     expect(builder.matchModelNameToModel('user', models)?.name).toBe('User');
     expect(builder.matchModelNameToModel('Users', models)?.name).toBe('User');
@@ -326,14 +369,26 @@ describe('FullstackGraphBuilder', () => {
     const dir = await setup();
     const builder = new FullstackGraphBuilder(dir);
 
-    const graph = await builder.build(makeProjectMap({
-      components: [
-        { name: 'Missing', filePath: '/nonexistent/path/Missing.tsx', type: 'component', exports: ['Missing'] },
-      ],
-      endpoints: [
-        { method: 'GET', path: '/api/test', filePath: '/nonexistent/path/route.ts', handler: 'GET' },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        components: [
+          {
+            name: 'Missing',
+            filePath: '/nonexistent/path/Missing.tsx',
+            type: 'component',
+            exports: ['Missing'],
+          },
+        ],
+        endpoints: [
+          {
+            method: 'GET',
+            path: '/api/test',
+            filePath: '/nonexistent/path/route.ts',
+            handler: 'GET',
+          },
+        ],
+      }),
+    );
 
     // Nodes should still be created even if files can't be read
     expect(graph.nodes).toHaveLength(2);
@@ -345,22 +400,25 @@ describe('FullstackGraphBuilder', () => {
     const dir = await setup();
     const compFile = path.join(dir, 'UserList.tsx');
     // Two fetch calls to the same endpoint
-    await fsp.writeFile(compFile, `
+    await fsp.writeFile(
+      compFile,
+      `
       export function UserList() {
         fetch('/api/users');
         fetch('/api/users');
       }
-    `);
+    `,
+    );
 
     const builder = new FullstackGraphBuilder(dir);
-    const graph = await builder.build(makeProjectMap({
-      components: [
-        { name: 'UserList', filePath: compFile, type: 'component', exports: ['UserList'] },
-      ],
-      endpoints: [
-        { method: 'GET', path: '/api/users', filePath: 'route.ts', handler: 'GET' },
-      ],
-    }));
+    const graph = await builder.build(
+      makeProjectMap({
+        components: [
+          { name: 'UserList', filePath: compFile, type: 'component', exports: ['UserList'] },
+        ],
+        endpoints: [{ method: 'GET', path: '/api/users', filePath: 'route.ts', handler: 'GET' }],
+      }),
+    );
 
     const fetchEdges = graph.edges.filter((e) => e.type === 'fetches');
     expect(fetchEdges).toHaveLength(1);
@@ -370,7 +428,7 @@ describe('FullstackGraphBuilder', () => {
     it('extracts fetch calls with template literals', () => {
       const dir = '/tmp';
       const builder = new FullstackGraphBuilder(dir);
-      const content = "fetch(`/api/users/${id}`)";
+      const content = 'fetch(`/api/users/${id}`)';
       const calls = builder.extractApiCalls(content);
       expect(calls.length).toBeGreaterThanOrEqual(1);
       expect(calls[0]!.url).toContain('/api/users/');

@@ -12,10 +12,7 @@ export class GitManager implements IGitManager {
 
   async createBranch(prefix: string): Promise<string> {
     if (await this.hasUncommittedChanges()) {
-      throw new GitError(
-        'Uncommitted changes detected. Call stash() first.',
-        'git checkout -b',
-      );
+      throw new GitError('Uncommitted changes detected. Call stash() first.', 'git checkout -b');
     }
 
     const timestamp = Math.floor(Date.now() / 1000);
@@ -64,10 +61,7 @@ export class GitManager implements IGitManager {
   }
 
   async getDiff(commitHash: string): Promise<string> {
-    const { stdout } = await this.run('git', [
-      'diff',
-      `${commitHash}^..${commitHash}`,
-    ]);
+    const { stdout } = await this.run('git', ['diff', `${commitHash}^..${commitHash}`]);
     return stdout;
   }
 
@@ -75,18 +69,13 @@ export class GitManager implements IGitManager {
     const separator = '---COMMIT_SEP---';
     const fieldSep = '---FIELD_SEP---';
     const format = [
-      '%H',   // full hash
-      '%s',   // subject
-      '%ae',  // author email
-      '%aI',  // author date ISO
+      '%H', // full hash
+      '%s', // subject
+      '%ae', // author email
+      '%aI', // author date ISO
     ].join(fieldSep);
 
-    const args = [
-      'log',
-      `--format=${separator}${format}`,
-      '--name-only',
-      '-n', '50',
-    ];
+    const args = ['log', `--format=${separator}${format}`, '--name-only', '-n', '50'];
 
     if (branch) {
       args.push(branch);
@@ -111,7 +100,10 @@ export class GitManager implements IGitManager {
       const message = fields[1]!;
       const author = fields[2]!;
       const dateStr = fields[3]!;
-      const files = lines.slice(1).map((l) => l.trim()).filter(Boolean);
+      const files = lines
+        .slice(1)
+        .map((l) => l.trim())
+        .filter(Boolean);
 
       commits.push({
         hash: hash.substring(0, 7),
@@ -132,10 +124,7 @@ export class GitManager implements IGitManager {
 
   async getDevCount(): Promise<number> {
     const { stdout } = await this.run('git', ['log', '--format=%ae']);
-    const emails = stdout
-      .trim()
-      .split('\n')
-      .filter(Boolean);
+    const emails = stdout.trim().split('\n').filter(Boolean);
     return new Set(emails).size;
   }
 
@@ -152,15 +141,11 @@ export class GitManager implements IGitManager {
     await this.run('git', ['stash', 'pop']);
   }
 
-  private async run(
-    command: string,
-    args: string[],
-  ): Promise<{ stdout: string; stderr: string }> {
+  private async run(command: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
     try {
       return await execFileAsync(command, args, { cwd: this.cwd });
     } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       throw new GitError(message, `${command} ${args.join(' ')}`);
     }
   }

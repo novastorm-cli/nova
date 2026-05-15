@@ -46,7 +46,10 @@ export class TeamDetector implements ITeamDetector {
             return;
           }
 
-          const rawEmails = stdout.trim().split('\n').filter((line) => line.length > 0);
+          const rawEmails = stdout
+            .trim()
+            .split('\n')
+            .filter((line) => line.length > 0);
           const normalizedEmails = rawEmails.map(normalizeEmail);
 
           const humanEmails = new Set<string>();

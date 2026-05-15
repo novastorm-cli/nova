@@ -12,7 +12,8 @@ export interface ScaffoldOption {
 export const SCAFFOLD_PRESETS: ScaffoldOption[] = [
   {
     label: 'Next.js + TypeScript',
-    command: 'npx create-next-app@latest . --typescript --tailwind --eslint --app --use-npm --no-git --no-src-dir --yes',
+    command:
+      'npx create-next-app@latest . --typescript --tailwind --eslint --app --use-npm --no-git --no-src-dir --yes',
     needsInstall: false,
   },
   {
@@ -27,7 +28,8 @@ export const SCAFFOLD_PRESETS: ScaffoldOption[] = [
   },
   {
     label: 'Astro',
-    command: 'npm create astro@latest . -- --template basics --install --no-git --typescript strict --yes',
+    command:
+      'npm create astro@latest . -- --template basics --install --no-git --typescript strict --yes',
     needsInstall: false,
   },
   {
@@ -42,7 +44,8 @@ export const SCAFFOLD_PRESETS: ScaffoldOption[] = [
   },
   {
     label: 'Express + TypeScript',
-    command: 'npm init -y && npm install express && npm install -D typescript @types/express @types/node tsx',
+    command:
+      'npm init -y && npm install express && npm install -D typescript @types/express @types/node tsx',
     needsInstall: false,
   },
 ];
@@ -54,7 +57,11 @@ export class ProjectScaffolder {
    * @param command - shell command to execute
    * @param needsInstall - whether to run `npm install` after
    */
-  async scaffold(projectPath: string, command: string, needsInstall: boolean = false): Promise<void> {
+  async scaffold(
+    projectPath: string,
+    command: string,
+    needsInstall: boolean = false,
+  ): Promise<void> {
     await mkdir(projectPath, { recursive: true });
 
     // Clean up directories that conflict with scaffolders (e.g. .next/ from a previous run)

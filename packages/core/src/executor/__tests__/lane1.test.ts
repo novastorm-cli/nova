@@ -5,7 +5,8 @@ import path from 'node:path';
 import type { TaskItem, ProjectMap, StackInfo, ExecutionResult } from '../../models/types.js';
 import type { ILane1Executor } from '../../contracts/IExecutor.js';
 
-const { Lane1Executor, parseTextChange, parseConfigChange, parsePropertyChange } = await import('../Lane1Executor.js');
+const { Lane1Executor, parseTextChange, parseConfigChange, parsePropertyChange } =
+  await import('../Lane1Executor.js');
 
 function createTaskItem(overrides: Partial<TaskItem> = {}): TaskItem {
   return {
@@ -298,17 +299,27 @@ describe('Lane1Executor', () => {
 // ============================================================
 
 describe('parseTextChange', () => {
-  it('parses "change placeholder from \'X\' to \'Y\'"', () => {
+  it("parses \"change placeholder from 'X' to 'Y'\"", () => {
     const result = parseTextChange("change placeholder from 'Search...' to 'Find items...'");
-    expect(result).toEqual({ type: 'text', attribute: 'placeholder', from: 'Search...', to: 'Find items...' });
+    expect(result).toEqual({
+      type: 'text',
+      attribute: 'placeholder',
+      from: 'Search...',
+      to: 'Find items...',
+    });
   });
 
   it('parses "set placeholder to \'X\'"', () => {
     const result = parseTextChange("set placeholder to 'Enter email'");
-    expect(result).toEqual({ type: 'text', attribute: 'placeholder', from: null, to: 'Enter email' });
+    expect(result).toEqual({
+      type: 'text',
+      attribute: 'placeholder',
+      from: null,
+      to: 'Enter email',
+    });
   });
 
-  it('parses "change label from \'X\' to \'Y\'"', () => {
+  it("parses \"change label from 'X' to 'Y'\"", () => {
     const result = parseTextChange("change label from 'Name' to 'Full Name'");
     expect(result).toEqual({ type: 'text', attribute: 'label', from: 'Name', to: 'Full Name' });
   });
@@ -318,12 +329,12 @@ describe('parseTextChange', () => {
     expect(result).toEqual({ type: 'text', attribute: 'title', from: null, to: 'Dashboard' });
   });
 
-  it('parses "change text \'X\' to \'Y\'"', () => {
+  it("parses \"change text 'X' to 'Y'\"", () => {
     const result = parseTextChange("change text 'Submit' to 'Send'");
     expect(result).toEqual({ type: 'text', from: 'Submit', to: 'Send' });
   });
 
-  it('parses "replace \'X\' with \'Y\'"', () => {
+  it("parses \"replace 'X' with 'Y'\"", () => {
     const result = parseTextChange("replace 'Hello World' with 'Welcome'");
     expect(result).toEqual({ type: 'text', from: 'Hello World', to: 'Welcome' });
   });

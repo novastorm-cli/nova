@@ -5,9 +5,7 @@ export class PromptBuilder implements IPromptBuilder {
   private ragSnippets: string[] = [];
 
   setRagSnippets(snippets: Array<{ filePath: string; chunkText: string }>): void {
-    this.ragSnippets = snippets.map(
-      (s) => `--- ${s.filePath} ---\n${s.chunkText}`,
-    );
+    this.ragSnippets = snippets.map((s) => `--- ${s.filePath} ---\n${s.chunkText}`);
   }
 
   buildAnalysisPrompt(observation: Observation, projectMap: ProjectMap): Message[] {
@@ -73,24 +71,32 @@ export class PromptBuilder implements IPromptBuilder {
 
       if (m.services.length > 0) {
         for (const s of m.services) {
-          manifestParts.push(`  Service: ${s.name} [${s.type}] at ${s.path}${s.framework ? ` (${s.framework})` : ''}`);
+          manifestParts.push(
+            `  Service: ${s.name} [${s.type}] at ${s.path}${s.framework ? ` (${s.framework})` : ''}`,
+          );
         }
       }
 
       if (m.databases.length > 0) {
         for (const d of m.databases) {
-          manifestParts.push(`  Database: ${d.name} [${d.engine}]${d.connection_env ? ` env=${d.connection_env}` : ''}`);
+          manifestParts.push(
+            `  Database: ${d.name} [${d.engine}]${d.connection_env ? ` env=${d.connection_env}` : ''}`,
+          );
         }
       }
 
       if (m.entities.length > 0) {
         for (const e of m.entities) {
-          manifestParts.push(`  Entity: ${e.name} [${e.type}]${e.description ? ` — ${e.description}` : ''}`);
+          manifestParts.push(
+            `  Entity: ${e.name} [${e.type}]${e.description ? ` — ${e.description}` : ''}`,
+          );
         }
       }
 
       if (m.boundaries.writable?.length) {
-        manifestParts.push(`  CRITICAL: Only modify files within writable boundaries: ${m.boundaries.writable.join(', ')}`);
+        manifestParts.push(
+          `  CRITICAL: Only modify files within writable boundaries: ${m.boundaries.writable.join(', ')}`,
+        );
       }
       if (m.boundaries.readonly?.length) {
         manifestParts.push(`  Readonly (do NOT modify): ${m.boundaries.readonly.join(', ')}`);
@@ -108,9 +114,7 @@ export class PromptBuilder implements IPromptBuilder {
     // Combine into single user message for Claude CLI compatibility
     const combined = `${systemContent}\n\n---\n\n${userParts.join('\n\n')}\n\nRespond with ONLY a JSON array. Start with [`;
 
-    return [
-      { role: 'user', content: combined },
-    ];
+    return [{ role: 'user', content: combined }];
   }
 
   buildDecomposePrompt(task: TaskItem, projectMap: ProjectMap): Message[] {
@@ -129,9 +133,10 @@ export class PromptBuilder implements IPromptBuilder {
       '- Respond ONLY with a valid JSON array. No markdown, no explanation.',
     ].join('\n');
 
-    const fileList = task.files.length > 0
-      ? `Affected files:\n${task.files.map((f) => `- ${f}`).join('\n')}`
-      : 'No specific files identified yet.';
+    const fileList =
+      task.files.length > 0
+        ? `Affected files:\n${task.files.map((f) => `- ${f}`).join('\n')}`
+        : 'No specific files identified yet.';
 
     const userContent = [
       `Task to decompose: "${task.description}"`,
@@ -140,8 +145,6 @@ export class PromptBuilder implements IPromptBuilder {
     ].join('\n\n');
 
     const combined = `${systemContent}\n\n---\n\n${userContent}\n\nRespond with ONLY a JSON array. Start with [`;
-    return [
-      { role: 'user', content: combined },
-    ];
+    return [{ role: 'user', content: combined }];
   }
 }

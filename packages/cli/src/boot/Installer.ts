@@ -81,9 +81,7 @@ export async function ensureDependencies(
 
   // ── Install failed — handle recovery ────────────────────────────────
   if (isNonInteractive(options)) {
-    logger.debug(
-      'Non-interactive mode — skipping install recovery. Run "npm install" manually.',
-    );
+    logger.debug('Non-interactive mode — skipping install recovery. Run "npm install" manually.');
     return;
   }
 

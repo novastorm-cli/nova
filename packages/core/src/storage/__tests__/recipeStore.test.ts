@@ -21,9 +21,7 @@ function makeRecipe(overrides: Partial<Recipe> = {}): Recipe {
           action: 'create',
         },
       ],
-      variables: [
-        { name: 'name', description: 'Name', required: true },
-      ],
+      variables: [{ name: 'name', description: 'Name', required: true }],
     },
     tags: ['test'],
     usageCount: 0,

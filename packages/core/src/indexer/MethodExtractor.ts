@@ -1,8 +1,10 @@
 import type { MethodInfo, MethodVisibility } from '../models/types.js';
 
 const FUNCTION_REGEX = /^(\s*)(?:export\s+)?(?:(async)\s+)?function\s+(\w+)\s*(\([^)]*\))/gm;
-const ARROW_CONST_REGEX = /^(\s*)(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:(async)\s+)?\([^)]*\)\s*(?::\s*\S+\s*)?=>/gm;
-const CLASS_METHOD_REGEX = /^(\s+)(?:(public|private|protected)\s+)?(?:(static)\s+)?(?:(async)\s+)?(\w+)\s*(\([^)]*\))/gm;
+const ARROW_CONST_REGEX =
+  /^(\s*)(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:(async)\s+)?\([^)]*\)\s*(?::\s*\S+\s*)?=>/gm;
+const CLASS_METHOD_REGEX =
+  /^(\s+)(?:(public|private|protected)\s+)?(?:(static)\s+)?(?:(async)\s+)?(\w+)\s*(\([^)]*\))/gm;
 const CLASS_REGEX = /^(?:export\s+)?class\s+(\w+)/gm;
 const JSDOC_REGEX = /\/\*\*\s*([\s\S]*?)\s*\*\//g;
 
@@ -106,9 +108,7 @@ export class MethodExtractor {
       // Skip constructor-like or getter/setter noise
       if (name === 'constructor' || name === 'get' || name === 'set') continue;
 
-      const className = classRanges.find(
-        (c) => lineStart >= c.start && lineStart <= c.end,
-      )?.name;
+      const className = classRanges.find((c) => lineStart >= c.start && lineStart <= c.end)?.name;
 
       methods.push({
         name,

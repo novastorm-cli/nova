@@ -21,7 +21,10 @@ export class CodeChunker {
     const importLines: string[] = [];
     let importEnd = 0;
     for (let i = 0; i < lines.length; i++) {
-      if (/^\s*(import|require)\b/.test(lines[i]!) || (importLines.length > 0 && /^\s*[}),]/.test(lines[i]!))) {
+      if (
+        /^\s*(import|require)\b/.test(lines[i]!) ||
+        (importLines.length > 0 && /^\s*[}),]/.test(lines[i]!))
+      ) {
         importLines.push(lines[i]!);
         importEnd = i;
       } else if (importLines.length > 0 && !lines[i]!.trim()) {
@@ -131,8 +134,12 @@ export class CodeChunker {
 
     for (let i = startIdx; i < lines.length; i++) {
       for (const ch of lines[i]!) {
-        if (ch === '{') { depth++; foundOpen = true; }
-        else if (ch === '}') { depth--; }
+        if (ch === '{') {
+          depth++;
+          foundOpen = true;
+        } else if (ch === '}') {
+          depth--;
+        }
       }
       if (foundOpen && depth === 0) return i + 1;
     }

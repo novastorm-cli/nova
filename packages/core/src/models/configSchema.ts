@@ -31,15 +31,21 @@ export const NovaConfigSchema = z.object({
   telemetry: z.object({
     enabled: z.boolean(),
   }),
-  license: z.object({
-    key: z.string().optional(),
-  }).optional(),
-  git: z.object({
-    allowProtectedBranchCommits: z.boolean().optional(),
-  }).optional(),
-  rag: z.object({
-    embeddingProvider: z.enum(['openai', 'ollama', 'tfidf']).optional(),
-  }).optional(),
+  license: z
+    .object({
+      key: z.string().optional(),
+    })
+    .optional(),
+  git: z
+    .object({
+      allowProtectedBranchCommits: z.boolean().optional(),
+    })
+    .optional(),
+  rag: z
+    .object({
+      embeddingProvider: z.enum(['openai', 'ollama', 'tfidf']).optional(),
+    })
+    .optional(),
 }) satisfies z.ZodType<NovaConfig>;
 
 export function parseNovaConfig(raw: unknown): NovaConfig {

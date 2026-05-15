@@ -39,7 +39,10 @@ export interface IConfigReader {
 }
 
 export class ConfigError extends Error {
-  constructor(message: string, public readonly field?: string) {
+  constructor(
+    message: string,
+    public readonly field?: string,
+  ) {
     super(message);
     this.name = 'ConfigError';
   }

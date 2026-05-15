@@ -57,15 +57,10 @@ export class DiffApplier implements IDiffApplier {
       return '';
     }
 
-    const lines: string[] = [
-      `--- a/${filePath}`,
-      `+++ b/${filePath}`,
-    ];
+    const lines: string[] = [`--- a/${filePath}`, `+++ b/${filePath}`];
 
     for (const hunk of hunks) {
-      lines.push(
-        `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`,
-      );
+      lines.push(`@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`);
       for (const line of hunk.lines) {
         switch (line.type) {
           case 'context':
@@ -178,8 +173,7 @@ export class DiffApplier implements IDiffApplier {
     }
 
     // Insert lines (adjust indices for removals)
-    const removesBefore = (idx: number): number =>
-      toRemove.filter((r) => r <= idx).length;
+    const removesBefore = (idx: number): number => toRemove.filter((r) => r <= idx).length;
 
     for (let i = 0; i < toInsert.length; i++) {
       const adjustedIdx = toInsert[i]!.index - removesBefore(toInsert[i]!.index) + i;

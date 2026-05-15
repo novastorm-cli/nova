@@ -148,9 +148,7 @@ describe('FullstackGraphStore', () => {
 
   it('getPathFromFrontendToDb() returns empty for non-frontend node', async () => {
     const graph: FullstackGraph = {
-      nodes: [
-        makeNode({ id: 'route.ts:GET', layer: 'backend', type: 'api_endpoint' }),
-      ],
+      nodes: [makeNode({ id: 'route.ts:GET', layer: 'backend', type: 'api_endpoint' })],
       edges: [],
     };
 
@@ -207,9 +205,7 @@ describe('FullstackGraphStore', () => {
         makeNode({ id: 'a.tsx:A', filePath: 'a.tsx', layer: 'frontend' }),
         makeNode({ id: 'b.ts:B', filePath: 'b.ts', layer: 'backend' }),
       ],
-      edges: [
-        makeEdge({ from: 'a.tsx:A', to: 'b.ts:B', type: 'fetches' }),
-      ],
+      edges: [makeEdge({ from: 'a.tsx:A', to: 'b.ts:B', type: 'fetches' })],
     };
 
     await store.save(graph);

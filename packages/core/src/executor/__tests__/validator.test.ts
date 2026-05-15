@@ -61,11 +61,7 @@ describe('Validator', () => {
     it('skips tsc check when no tsconfig.json exists', async () => {
       // Plain JS project - no tsconfig.json
       const jsFile = 'app.js';
-      fs.writeFileSync(
-        path.join(tmpDir, jsFile),
-        'const x = 1;\nconsole.log(x);\n',
-        'utf-8',
-      );
+      fs.writeFileSync(path.join(tmpDir, jsFile), 'const x = 1;\nconsole.log(x);\n', 'utf-8');
 
       const result = await validator.validate(tmpDir, [jsFile]);
 

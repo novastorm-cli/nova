@@ -95,11 +95,7 @@ describe('CodeValidator', () => {
       await writeTsConfig();
 
       // Pre-existing file with errors — written to disk but NOT passed to validateFiles
-      await writeFile(
-        join(tmpDir, 'legacy.ts'),
-        'const broken: string = 999;\n',
-        'utf-8',
-      );
+      await writeFile(join(tmpDir, 'legacy.ts'), 'const broken: string = 999;\n', 'utf-8');
 
       // Generated file that is valid
       const cleanFile = await createFile(

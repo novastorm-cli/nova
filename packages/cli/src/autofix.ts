@@ -70,8 +70,7 @@ export class ErrorAutoFixer {
    */
   handleOutput(output: string): void {
     const hasError =
-      ERROR_PATTERNS.some((p) => p.test(output)) ||
-      IMAGE_PATTERNS.some((p) => p.test(output));
+      ERROR_PATTERNS.some((p) => p.test(output)) || IMAGE_PATTERNS.some((p) => p.test(output));
 
     if (!hasError) return;
     if (this.isFixing) {
@@ -115,7 +114,9 @@ export class ErrorAutoFixer {
     }
 
     if (this.fixAttempts > this.MAX_FIX_ATTEMPTS) {
-      this.logger.warn(`[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`);
+      this.logger.warn(
+        `[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`,
+      );
       this.cooldownUntil = Date.now() + 60_000; // 1 minute cooldown
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
       return;
@@ -147,9 +148,7 @@ export class ErrorAutoFixer {
   }
 
   private async fixImageError(errorOutput: string): Promise<void> {
-    this.logger.warn(
-      '[Nova] Detected image loading error — replacing with placeholders',
-    );
+    this.logger.warn('[Nova] Detected image loading error — replacing with placeholders');
     this.wsServer.sendEvent({
       type: 'status',
       data: {
@@ -188,7 +187,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.llmClient,
       this.gitManager,
       this.eventBus,
-      1,  // maxFixIterations — single pass for auto-fix
+      1, // maxFixIterations — single pass for auto-fix
       this.microModel,
       undefined, // agentPromptLoader
       undefined, // pathGuard
@@ -213,7 +212,10 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
       this.logger.error(`[Nova] Failed to fix image errors: ${result.error}`);
-      const failEvent = { type: 'task_failed' as const, data: { taskId: task.id, error: result.error ?? 'Image fix failed' } };
+      const failEvent = {
+        type: 'task_failed' as const,
+        data: { taskId: task.id, error: result.error ?? 'Image fix failed' },
+      };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
@@ -221,9 +223,7 @@ Error: ${errorOutput.slice(0, 300)}`;
   }
 
   private async fixCompilationError(errorOutput: string): Promise<void> {
-    this.logger.warn(
-      '[Nova] Detected compilation error — attempting auto-fix',
-    );
+    this.logger.warn('[Nova] Detected compilation error — attempting auto-fix');
     this.wsServer.sendEvent({
       type: 'status',
       data: { message: 'Compilation error detected. Auto-fixing...' },
@@ -303,7 +303,10 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
       this.logger.error(`[Nova] Auto-fix failed: ${result.error}`);
-      const failEvent = { type: 'task_failed' as const, data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' } };
+      const failEvent = {
+        type: 'task_failed' as const,
+        data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' },
+      };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
@@ -328,7 +331,7 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.llmClient,
       this.gitManager,
       this.eventBus,
-      1,  // maxFixIterations — single pass for auto-fix
+      1, // maxFixIterations — single pass for auto-fix
       this.microModel,
       undefined, // agentPromptLoader
       undefined, // pathGuard
@@ -350,7 +353,9 @@ Error: ${errorOutput.slice(0, 300)}`;
       const { join } = await import('node:path');
       const nextCache = join(this.projectPath, '.next', 'cache');
       rmSync(nextCache, { recursive: true, force: true });
-    } catch { /* cache dir may not exist */ }
+    } catch {
+      /* cache dir may not exist */
+    }
 
     if (result.success) {
       this.logger.info('[Nova] Compilation error fixed automatically');
@@ -361,7 +366,10 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
       this.logger.error(`[Nova] Auto-fix failed: ${result.error}`);
-      const failEvent = { type: 'task_failed' as const, data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' } };
+      const failEvent = {
+        type: 'task_failed' as const,
+        data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' },
+      };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });

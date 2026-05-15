@@ -27,10 +27,7 @@ export class RouteExtractor implements IRouteExtractor {
   // Next.js App Router
   // ---------------------------------------------------------------------------
 
-  private async extractNextAppRoutes(
-    projectPath: string,
-    routes: RouteInfo[],
-  ): Promise<void> {
+  private async extractNextAppRoutes(projectPath: string, routes: RouteInfo[]): Promise<void> {
     const appDir = join(projectPath, 'app');
     const srcAppDir = join(projectPath, 'src', 'app');
 
@@ -90,10 +87,7 @@ export class RouteExtractor implements IRouteExtractor {
   // Next.js Pages Router
   // ---------------------------------------------------------------------------
 
-  private async extractNextPagesRoutes(
-    projectPath: string,
-    routes: RouteInfo[],
-  ): Promise<void> {
+  private async extractNextPagesRoutes(projectPath: string, routes: RouteInfo[]): Promise<void> {
     const pagesDir = join(projectPath, 'pages');
     const srcPagesDir = join(projectPath, 'src', 'pages');
 
@@ -140,10 +134,7 @@ export class RouteExtractor implements IRouteExtractor {
   // React Router (Vite / CRA)
   // ---------------------------------------------------------------------------
 
-  private async extractReactRouterRoutes(
-    projectPath: string,
-    routes: RouteInfo[],
-  ): Promise<void> {
+  private async extractReactRouterRoutes(projectPath: string, routes: RouteInfo[]): Promise<void> {
     const srcDir = join(projectPath, 'src');
     const files = await this.readDirRecursive(srcDir);
     if (files.length === 0) return;
@@ -174,10 +165,7 @@ export class RouteExtractor implements IRouteExtractor {
   // .NET
   // ---------------------------------------------------------------------------
 
-  private async extractDotnetRoutes(
-    projectPath: string,
-    routes: RouteInfo[],
-  ): Promise<void> {
+  private async extractDotnetRoutes(projectPath: string, routes: RouteInfo[]): Promise<void> {
     const files = await this.readDirRecursive(projectPath);
 
     for (const filePath of files) {
@@ -229,9 +217,7 @@ export class RouteExtractor implements IRouteExtractor {
 
     for (const method of httpMethods) {
       // Match: export async function GET, export function GET, export const GET
-      const regex = new RegExp(
-        `export\\s+(?:async\\s+)?(?:function|const)\\s+${method}\\b`,
-      );
+      const regex = new RegExp(`export\\s+(?:async\\s+)?(?:function|const)\\s+${method}\\b`);
       if (regex.test(content)) {
         methods.push(method);
       }
@@ -327,7 +313,8 @@ export class RouteExtractor implements IRouteExtractor {
         .filter((e) => e.isFile())
         .map((e) => {
           // In Node 20+ with recursive, parentPath/path gives the directory
-          const parent = (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
+          const parent =
+            (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
           return join(parent, e.name);
         });
     } catch {

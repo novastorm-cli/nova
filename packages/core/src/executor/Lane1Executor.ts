@@ -16,15 +16,52 @@ function extractClassFromSnapshot(domSnapshot: string): string | null {
 }
 
 const CSS_PROPERTY_NAMES: ReadonlySet<string> = new Set([
-  'color', 'font', 'font-size', 'font-weight', 'font-family',
-  'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
-  'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
-  'display', 'visibility', 'opacity', 'border', 'border-radius',
-  'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
-  'gap', 'background', 'background-color', 'align', 'text-align',
-  'flex', 'flex-direction', 'justify-content', 'align-items',
-  'position', 'top', 'bottom', 'left', 'right', 'z-index',
-  'overflow', 'cursor', 'transition', 'transform', 'box-shadow',
+  'color',
+  'font',
+  'font-size',
+  'font-weight',
+  'font-family',
+  'margin',
+  'margin-top',
+  'margin-bottom',
+  'margin-left',
+  'margin-right',
+  'padding',
+  'padding-top',
+  'padding-bottom',
+  'padding-left',
+  'padding-right',
+  'display',
+  'visibility',
+  'opacity',
+  'border',
+  'border-radius',
+  'width',
+  'height',
+  'min-width',
+  'min-height',
+  'max-width',
+  'max-height',
+  'gap',
+  'background',
+  'background-color',
+  'align',
+  'text-align',
+  'flex',
+  'flex-direction',
+  'justify-content',
+  'align-items',
+  'position',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'z-index',
+  'overflow',
+  'cursor',
+  'transition',
+  'transform',
+  'box-shadow',
 ]);
 
 /**
@@ -41,15 +78,15 @@ export function parsePropertyChange(
   description: string,
 ): { property: string; from: string | null; to: string } | null {
   // Pattern: "<property>: <value> to <property>: <value>" — strongest signal, always CSS
-  const colonMatch =
-    /(\w[\w-]*):\s*(\S+)\s+to\s+\1:\s*(\S+)/i.exec(description);
+  const colonMatch = /(\w[\w-]*):\s*(\S+)\s+to\s+\1:\s*(\S+)/i.exec(description);
   if (colonMatch) {
     return { property: colonMatch[1]!, from: colonMatch[2]!, to: colonMatch[3]! };
   }
 
   // Pattern: "change/set <property> from <value> to <value>"
-  const fromToMatch =
-    /(?:change|set|update)\s+([\w-]+)\s+from\s+(\S+)\s+to\s+(\S+)/i.exec(description);
+  const fromToMatch = /(?:change|set|update)\s+([\w-]+)\s+from\s+(\S+)\s+to\s+(\S+)/i.exec(
+    description,
+  );
   if (fromToMatch && CSS_PROPERTY_NAMES.has(fromToMatch[1]!.toLowerCase())) {
     return { property: fromToMatch[1]!, from: fromToMatch[2]!, to: fromToMatch[3]! };
   }
@@ -87,26 +124,38 @@ export interface TextChange {
  *   "replace 'Hello World' with 'Welcome'"
  */
 export function parseTextChange(description: string): TextChange | null {
-  const TEXT_ATTRIBUTES = new Set([
-    'placeholder', 'label', 'title', 'alt', 'aria-label', 'text',
-  ]);
+  const TEXT_ATTRIBUTES = new Set(['placeholder', 'label', 'title', 'alt', 'aria-label', 'text']);
 
   // Pattern: "change/set/update <attribute> from '<from>' to '<to>'"
-  const attrFromTo = /(?:change|set|update)\s+([\w-]+)\s+from\s+['"]([^'"]+)['"]\s+to\s+['"]([^'"]+)['"]/i.exec(description);
+  const attrFromTo =
+    /(?:change|set|update)\s+([\w-]+)\s+from\s+['"]([^'"]+)['"]\s+to\s+['"]([^'"]+)['"]/i.exec(
+      description,
+    );
   if (attrFromTo && TEXT_ATTRIBUTES.has(attrFromTo[1]!.toLowerCase())) {
     const attr = attrFromTo[1]!.toLowerCase();
-    return { type: 'text', attribute: attr === 'text' ? undefined : attr, from: attrFromTo[2]!, to: attrFromTo[3]! };
+    return {
+      type: 'text',
+      attribute: attr === 'text' ? undefined : attr,
+      from: attrFromTo[2]!,
+      to: attrFromTo[3]!,
+    };
   }
 
   // Pattern: "change/set/update <attribute> to '<to>'"
   const attrTo = /(?:change|set|update)\s+([\w-]+)\s+to\s+['"]([^'"]+)['"]/i.exec(description);
   if (attrTo && TEXT_ATTRIBUTES.has(attrTo[1]!.toLowerCase())) {
     const attr = attrTo[1]!.toLowerCase();
-    return { type: 'text', attribute: attr === 'text' ? undefined : attr, from: null, to: attrTo[2]! };
+    return {
+      type: 'text',
+      attribute: attr === 'text' ? undefined : attr,
+      from: null,
+      to: attrTo[2]!,
+    };
   }
 
   // Pattern: "change text 'Submit' to 'Send'"
-  const textFromTo = /(?:change|set|update)\s+text\s+['"]([^'"]+)['"]\s+to\s+['"]([^'"]+)['"]/i.exec(description);
+  const textFromTo =
+    /(?:change|set|update)\s+text\s+['"]([^'"]+)['"]\s+to\s+['"]([^'"]+)['"]/i.exec(description);
   if (textFromTo) {
     return { type: 'text', from: textFromTo[1]!, to: textFromTo[2]! };
   }
@@ -136,20 +185,55 @@ export interface ConfigChange {
  */
 export function parseConfigChange(description: string): ConfigChange | null {
   const CSS_PROPERTIES = new Set([
-    'color', 'font', 'font-size', 'font-weight', 'font-family',
-    'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
-    'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
-    'display', 'visibility', 'opacity', 'border', 'border-radius',
-    'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
-    'gap', 'background', 'background-color', 'align', 'text-align',
-    'flex', 'flex-direction', 'justify-content', 'align-items',
-    'position', 'top', 'bottom', 'left', 'right', 'z-index',
-    'overflow', 'cursor', 'transition', 'transform', 'box-shadow',
+    'color',
+    'font',
+    'font-size',
+    'font-weight',
+    'font-family',
+    'margin',
+    'margin-top',
+    'margin-bottom',
+    'margin-left',
+    'margin-right',
+    'padding',
+    'padding-top',
+    'padding-bottom',
+    'padding-left',
+    'padding-right',
+    'display',
+    'visibility',
+    'opacity',
+    'border',
+    'border-radius',
+    'width',
+    'height',
+    'min-width',
+    'min-height',
+    'max-width',
+    'max-height',
+    'gap',
+    'background',
+    'background-color',
+    'align',
+    'text-align',
+    'flex',
+    'flex-direction',
+    'justify-content',
+    'align-items',
+    'position',
+    'top',
+    'bottom',
+    'left',
+    'right',
+    'z-index',
+    'overflow',
+    'cursor',
+    'transition',
+    'transform',
+    'box-shadow',
   ]);
 
-  const TEXT_ATTRIBUTES = new Set([
-    'placeholder', 'label', 'title', 'alt', 'aria-label', 'text',
-  ]);
+  const TEXT_ATTRIBUTES = new Set(['placeholder', 'label', 'title', 'alt', 'aria-label', 'text']);
 
   // Pattern: "change/set/update <key> from <from> to <to>"
   const fromTo = /(?:change|set|update)\s+([\w-]+)\s+from\s+(\S+)\s+to\s+(\S+)/i.exec(description);
@@ -393,28 +477,21 @@ export class Lane1Executor implements ILane1Executor {
               );
               let newStyle: string;
               if (propRegex.test(oldStyle)) {
-                newStyle = oldStyle.replace(
-                  propRegex,
-                  `${change.property}: '${change.to}'`,
-                );
+                newStyle = oldStyle.replace(propRegex, `${change.property}: '${change.to}'`);
               } else {
                 newStyle = `${oldStyle}, ${change.property}: '${change.to}'`;
               }
               const beforeStyle = afterTag.slice(0, styleMatch.index);
-              const afterStyle = afterTag.slice(
-                styleMatch.index + styleMatch[0].length,
-              );
+              const afterStyle = afterTag.slice(styleMatch.index + styleMatch[0].length);
               const newOpening = beforeStyle + `style={${newStyle}}` + afterStyle;
-              content =
-                prefix.slice(0, lastOpenTag) + newOpening + content.slice(textIdx);
+              content = prefix.slice(0, lastOpenTag) + newOpening + content.slice(textIdx);
             } else {
               // Add a new style attribute — insert it right after the tag name
               const tagNameMatch = /^<(\w+)/.exec(afterTag);
               if (tagNameMatch) {
                 const insertAt = lastOpenTag + tagNameMatch[0].length;
                 const newStyle = ` style={{ ${change.property}: '${change.to}' }}`;
-                content =
-                  content.slice(0, insertAt) + newStyle + content.slice(insertAt);
+                content = content.slice(0, insertAt) + newStyle + content.slice(insertAt);
               }
             }
 
@@ -435,10 +512,7 @@ export class Lane1Executor implements ILane1Executor {
 
     // If we have a CSS class, narrow scope to that class's block
     if (cssClass) {
-      const classPattern = new RegExp(
-        `\\.${this.escapeRegex(cssClass)}\\s*\\{([^}]*)\\}`,
-        'g',
-      );
+      const classPattern = new RegExp(`\\.${this.escapeRegex(cssClass)}\\s*\\{([^}]*)\\}`, 'g');
       let matched = false;
 
       content = content.replace(classPattern, (fullMatch, block: string) => {
@@ -491,10 +565,7 @@ export class Lane1Executor implements ILane1Executor {
     return null;
   }
 
-  private async applyTextChange(
-    filePath: string,
-    change: TextChange,
-  ): Promise<string | null> {
+  private async applyTextChange(filePath: string, change: TextChange): Promise<string | null> {
     let content: string;
     try {
       content = await readFile(filePath, 'utf-8');
@@ -512,20 +583,14 @@ export class Lane1Executor implements ILane1Executor {
       if (change.from) {
         const fromEscaped = this.escapeRegex(change.from);
         // Match both single and double quotes
-        const pattern = new RegExp(
-          `(${attrName}\\s*=\\s*)(['"])${fromEscaped}\\2`,
-          'g',
-        );
+        const pattern = new RegExp(`(${attrName}\\s*=\\s*)(['"])${fromEscaped}\\2`, 'g');
         content = content.replace(pattern, (_match, prefix: string, quote: string) => {
           replaced = true;
           return `${prefix}${quote}${change.to}${quote}`;
         });
       } else {
         // No 'from' — replace any value for this attribute
-        const pattern = new RegExp(
-          `(${attrName}\\s*=\\s*)(['"])([^'"]*?)\\2`,
-          'g',
-        );
+        const pattern = new RegExp(`(${attrName}\\s*=\\s*)(['"])([^'"]*?)\\2`, 'g');
         content = content.replace(pattern, (_match, prefix: string, quote: string) => {
           replaced = true;
           return `${prefix}${quote}${change.to}${quote}`;
@@ -553,10 +618,7 @@ export class Lane1Executor implements ILane1Executor {
     return null;
   }
 
-  private async applyConfigChange(
-    filePath: string,
-    change: ConfigChange,
-  ): Promise<string | null> {
+  private async applyConfigChange(filePath: string, change: ConfigChange): Promise<string | null> {
     let content: string;
     try {
       content = await readFile(filePath, 'utf-8');
@@ -596,10 +658,7 @@ export class Lane1Executor implements ILane1Executor {
     } else if (ext === '.toml') {
       // TOML: key = "value" or key = value
       const keyEscaped = this.escapeRegex(change.key);
-      const pattern = new RegExp(
-        `^(${keyEscaped}\\s*=\\s*)(.+)$`,
-        'gm',
-      );
+      const pattern = new RegExp(`^(${keyEscaped}\\s*=\\s*)(.+)$`, 'gm');
       content = content.replace(pattern, (fullMatch, prefix: string, value: string) => {
         const trimmed = value.trim();
         if (change.from !== null) {
@@ -617,10 +676,7 @@ export class Lane1Executor implements ILane1Executor {
     } else if (ext === '.yaml' || ext === '.yml') {
       // YAML: key: value
       const keyEscaped = this.escapeRegex(change.key);
-      const pattern = new RegExp(
-        `^(\\s*${keyEscaped}\\s*:\\s*)(.+)$`,
-        'gm',
-      );
+      const pattern = new RegExp(`^(\\s*${keyEscaped}\\s*:\\s*)(.+)$`, 'gm');
       content = content.replace(pattern, (fullMatch, prefix: string, value: string) => {
         const trimmed = value.trim();
         if (change.from !== null && trimmed !== change.from) {
@@ -634,10 +690,7 @@ export class Lane1Executor implements ILane1Executor {
     } else if (filePath.endsWith('.env')) {
       // .env: KEY=value
       const keyEscaped = this.escapeRegex(change.key);
-      const pattern = new RegExp(
-        `^(${keyEscaped}\\s*=\\s*)(.*)$`,
-        'gm',
-      );
+      const pattern = new RegExp(`^(${keyEscaped}\\s*=\\s*)(.*)$`, 'gm');
       content = content.replace(pattern, (fullMatch, prefix: string, value: string) => {
         if (change.from !== null && value.trim() !== change.from) return fullMatch;
         replaced = true;

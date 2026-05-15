@@ -26,7 +26,7 @@ export class CodeValidator {
     options?: { skipTsc?: boolean; skipImportCheck?: boolean },
   ): Promise<ValidationError[]> {
     const errors: ValidationError[] = [];
-    const generatedPaths = new Set(files.map(f => f.path));
+    const generatedPaths = new Set(files.map((f) => f.path));
 
     // 1. TypeScript check
     if (!options?.skipTsc) {
@@ -40,19 +40,21 @@ export class CodeValidator {
       await this.loadInstalledDeps();
     }
 
-    const fileErrors = await Promise.all(files.map(async (file) => {
-      const result: ValidationError[] = [];
+    const fileErrors = await Promise.all(
+      files.map(async (file) => {
+        const result: ValidationError[] = [];
 
-      if (!options?.skipImportCheck) {
-        const importErrors = this.checkImportsSync(file.path, file.content);
-        result.push(...importErrors);
-      }
+        if (!options?.skipImportCheck) {
+          const importErrors = this.checkImportsSync(file.path, file.content);
+          result.push(...importErrors);
+        }
 
-      const relErrors = this.checkRelativeImports(file.path, file.content, generatedPaths);
-      result.push(...relErrors);
+        const relErrors = this.checkRelativeImports(file.path, file.content, generatedPaths);
+        result.push(...relErrors);
 
-      return result;
-    }));
+        return result;
+      }),
+    );
 
     for (const fileErrs of fileErrors) {
       errors.push(...fileErrs);
@@ -94,7 +96,11 @@ export class CodeValidator {
       // tsc exits with code 1 on errors, output is in stdout/stderr
       const output = this.getOutput(err);
       // If tsc/npx not found, skip
-      if (output.includes('ENOENT') || output.includes('not found') || output.includes('This is not the tsc command')) {
+      if (
+        output.includes('ENOENT') ||
+        output.includes('not found') ||
+        output.includes('This is not the tsc command')
+      ) {
         return [];
       }
       if (output) {
@@ -152,9 +158,17 @@ export class CodeValidator {
     const installedDeps = this.installedDepsCache ?? new Set<string>();
 
     const safePackages = new Set([
-      'react', 'react-dom', 'next', 'next/link', 'next/image',
-      'next/font', 'next/font/google', 'next/navigation', 'next/headers',
-      'next/server', 'next/dynamic',
+      'react',
+      'react-dom',
+      'next',
+      'next/link',
+      'next/image',
+      'next/font',
+      'next/font/google',
+      'next/navigation',
+      'next/headers',
+      'next/server',
+      'next/dynamic',
     ]);
 
     const lines = content.split('\n');

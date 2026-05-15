@@ -12,10 +12,7 @@ vi.mock('@inquirer/prompts', () => ({
 }));
 
 vi.mock('@novastorm-ai/core', async () => {
-  const actual =
-    await vi.importActual<typeof import('@novastorm-ai/core')>(
-      '@novastorm-ai/core',
-    );
+  const actual = await vi.importActual<typeof import('@novastorm-ai/core')>('@novastorm-ai/core');
   return {
     ...actual,
     ProviderFactory: vi.fn(),
@@ -81,10 +78,7 @@ async function setupMocksForInvalidKeyThenValid(
 }
 
 /** Set up mocks for invalid-key-then-skip scenario. */
-async function setupMocksForInvalidKeyThenSkip(
-  providerValue: string,
-  badKey: string,
-) {
+async function setupMocksForInvalidKeyThenSkip(providerValue: string, badKey: string) {
   const prompts = await import('@inquirer/prompts');
   vi.mocked(prompts.select).mockResolvedValue(providerValue);
   vi.mocked(prompts.password).mockResolvedValue(badKey);
@@ -297,8 +291,7 @@ describe('Setup wizard', () => {
     const content = await fs.readFile(installIdPath, 'utf-8');
     const trimmed = content.trim();
 
-    const uuidV4Pattern =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const uuidV4Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     expect(trimmed).toMatch(uuidV4Pattern);
   });
 
@@ -354,9 +347,7 @@ describe('Setup wizard', () => {
     const content = await fs.readFile(userConfigPath, 'utf-8');
     expect(content).toContain('enabled = false');
 
-    expect(prompts.confirm).toHaveBeenCalledWith(
-      expect.objectContaining({ default: false }),
-    );
+    expect(prompts.confirm).toHaveBeenCalledWith(expect.objectContaining({ default: false }));
   });
 
   it('telemetry opt-in yes writes enabled = true', async () => {

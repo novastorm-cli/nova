@@ -67,7 +67,6 @@ export class Brain implements IBrain {
         this.logger.debug(`Brain: sending to LLM${attemptLabel}...`);
         this.status(`Sending to AI${attemptLabel}...`);
 
-         
         const response = useVision
           ? await this.llm.chatWithVision(messages, [observation.screenshot], {
               responseFormat: 'json',

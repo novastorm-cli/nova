@@ -12,28 +12,32 @@ export interface BrowserObservation {
   currentUrl: string;
   consoleErrors?: string[] | undefined;
   timestamp: number;
-  gestureContext?: {
-    gestures: Array<{
-      type: string;
-      startTime: number;
-      endTime: number;
-      elements: Array<{
-        tagName: string;
-        selector: string;
-        domSnippet: string;
-        role: string;
-      }>;
-      region?: { x: number; y: number; width: number; height: number } | undefined;
-    }>;
-    summary: string;
-  } | undefined;
-  selectedArea?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    screenshotBase64?: string | undefined;
-  } | undefined;
+  gestureContext?:
+    | {
+        gestures: Array<{
+          type: string;
+          startTime: number;
+          endTime: number;
+          elements: Array<{
+            tagName: string;
+            selector: string;
+            domSnippet: string;
+            role: string;
+          }>;
+          region?: { x: number; y: number; width: number; height: number } | undefined;
+        }>;
+        summary: string;
+      }
+    | undefined;
+  selectedArea?:
+    | {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        screenshotBase64?: string | undefined;
+      }
+    | undefined;
 }
 
 type EventCallback = (event: NovaEvent) => void;

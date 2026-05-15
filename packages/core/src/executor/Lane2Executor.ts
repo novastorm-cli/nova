@@ -3,12 +3,7 @@ import type { ILane2Executor } from '../contracts/IExecutor.js';
 import type { IGitManager } from '../contracts/IGitManager.js';
 import type { IPathGuard } from '../contracts/IPathGuard.js';
 import type { LlmClient } from '../contracts/ILlmClient.js';
-import type {
-  TaskItem,
-  ProjectMap,
-  ExecutionResult,
-  MiniContext,
-} from '../models/types.js';
+import type { TaskItem, ProjectMap, ExecutionResult, MiniContext } from '../models/types.js';
 import { CommitQueue } from '../git/CommitQueue.js';
 import { DiffApplier } from './DiffApplier.js';
 import { addLineNumbers } from './fileBlocks.js';

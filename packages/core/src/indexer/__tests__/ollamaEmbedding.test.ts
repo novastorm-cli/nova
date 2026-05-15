@@ -32,10 +32,10 @@ describe('OllamaEmbedding', () => {
     let callCount = 0;
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       callCount++;
-      return new Response(
-        JSON.stringify({ embedding: [callCount * 0.1, callCount * 0.2] }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ embedding: [callCount * 0.1, callCount * 0.2] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     });
 
     const service = new OllamaEmbedding();
@@ -52,10 +52,10 @@ describe('OllamaEmbedding', () => {
       if (attempt < 3) {
         throw new Error('Connection refused');
       }
-      return new Response(
-        JSON.stringify({ embedding: [0.5] }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ embedding: [0.5] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     });
 
     const service = new OllamaEmbedding();

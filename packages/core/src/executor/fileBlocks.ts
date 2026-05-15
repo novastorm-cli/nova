@@ -26,7 +26,7 @@ function sanitizePath(filePath: string): string | null {
   const sanitized = filePath.replace(/^\/+/, '');
   // Reject path traversal
   const segments = sanitized.split(/[\\/]/);
-  if (segments.some(s => s === '..')) {
+  if (segments.some((s) => s === '..')) {
     return null;
   }
   return sanitized;

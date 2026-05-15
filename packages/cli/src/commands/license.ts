@@ -8,10 +8,7 @@ const KEY_PATTERN = /^NOVA-([A-Z2-7]+)-([a-f0-9]{4})$/;
 const VALIDATE_ENDPOINT = 'https://cli-api.novastorm.ai/v1/license/validate';
 const TIMEOUT_MS = 5_000;
 
-export async function licenseCommand(
-  subcommand?: string,
-  key?: string,
-): Promise<void> {
+export async function licenseCommand(subcommand?: string, key?: string): Promise<void> {
   const cwd = process.cwd();
   const configReader = new ConfigReader();
   const config = await configReader.read(cwd);
@@ -63,11 +60,7 @@ async function showStatus(
   logger.info('');
 }
 
-async function activateKey(
-  cwd: string,
-  configReader: ConfigReader,
-  key: string,
-): Promise<void> {
+async function activateKey(cwd: string, configReader: ConfigReader, key: string): Promise<void> {
   // Validate format locally
   if (!KEY_PATTERN.test(key)) {
     logger.error('Invalid key format. Expected: NOVA-{BASE32}-{CHECKSUM}');

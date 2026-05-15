@@ -183,10 +183,7 @@ async function validateApiKey(provider: Provider, apiKey: string): Promise<boole
  * @param projectPath - path to the project directory (defaults to cwd)
  * @param opts - setup options
  */
-export async function runSetup(
-  projectPath?: string,
-  opts: SetupOptions = {},
-): Promise<void> {
+export async function runSetup(projectPath?: string, opts: SetupOptions = {}): Promise<void> {
   const cwd = projectPath ?? process.cwd();
   const nonInteractive = isNonInteractive(opts);
 
@@ -199,11 +196,10 @@ export async function runSetup(
     await fs.mkdir(novaDir, { recursive: true });
 
     const localConfigPath = path.join(novaDir, LOCAL_CONFIG);
-    await fs.writeFile(
-      localConfigPath,
-      tomlStringify(buildLocalConfig(provider)),
-      { encoding: 'utf-8', mode: 0o600 },
-    );
+    await fs.writeFile(localConfigPath, tomlStringify(buildLocalConfig(provider)), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
     logger.debug(`Saved ${provider} config to ${localConfigPath}`);
 
     const configReader = new ConfigReader();
@@ -269,11 +265,10 @@ export async function runSetup(
   await fs.mkdir(novaDir, { recursive: true });
 
   const localConfigPath = path.join(novaDir, LOCAL_CONFIG);
-  await fs.writeFile(
-    localConfigPath,
-    tomlStringify(buildLocalConfig(provider, apiKey)),
-    { encoding: 'utf-8', mode: 0o600 },
-  );
+  await fs.writeFile(localConfigPath, tomlStringify(buildLocalConfig(provider, apiKey)), {
+    encoding: 'utf-8',
+    mode: 0o600,
+  });
   logger.info(`\nSaved provider config to ${localConfigPath}`);
 
   // Create nova.toml if it doesn't exist

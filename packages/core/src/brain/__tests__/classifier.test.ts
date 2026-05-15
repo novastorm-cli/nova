@@ -49,7 +49,9 @@ describe('LaneClassifier', () => {
 
   describe('Lane 3 — multi-file or new page/endpoint/component', () => {
     it('classifies adding a page with API across multiple files as lane 3', () => {
-      expect(classifier.classify('add user management page with API', ['page.tsx', 'route.ts'])).toBe(3);
+      expect(
+        classifier.classify('add user management page with API', ['page.tsx', 'route.ts']),
+      ).toBe(3);
     });
 
     it('classifies creating a new component with no files as lane 3', () => {

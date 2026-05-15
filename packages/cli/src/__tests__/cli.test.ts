@@ -7,10 +7,7 @@ import * as os from 'node:os';
 
 const execFileAsync = promisify(execFile);
 
-const CLI_BIN = path.resolve(
-  import.meta.dirname,
-  '../../bin/nova.ts',
-);
+const CLI_BIN = path.resolve(import.meta.dirname, '../../bin/nova.ts');
 
 /**
  * Run the CLI binary.
@@ -46,10 +43,7 @@ describe('CLI binary (nova)', () => {
   // skip: times out in CI
   it.skip('nova --version outputs version matching package.json', async () => {
     const pkgJson = JSON.parse(
-      await fs.readFile(
-        path.resolve(import.meta.dirname, '../../package.json'),
-        'utf-8',
-      ),
+      await fs.readFile(path.resolve(import.meta.dirname, '../../package.json'), 'utf-8'),
     );
     const { stdout } = await runCli(['--version']);
     expect(stdout.trim()).toBe(pkgJson.version);

@@ -51,9 +51,7 @@ export class GraphStore implements IGraphStore {
 
   async getImporters(filePath: string): Promise<string[]> {
     const nodes = await this.load();
-    return nodes
-      .filter((n) => n.imports.includes(filePath))
-      .map((n) => n.filePath);
+    return nodes.filter((n) => n.imports.includes(filePath)).map((n) => n.filePath);
   }
 
   async getImports(filePath: string): Promise<string[]> {

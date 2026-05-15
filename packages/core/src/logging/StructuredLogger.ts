@@ -11,12 +11,9 @@ export class StructuredLogger implements ILogger {
   private readonly isTTY: boolean;
   private readonly baseContext: Record<string, unknown>;
 
-  constructor(
-    options?: StructuredLoggerOptions,
-    baseContext?: Record<string, unknown>,
-  ) {
+  constructor(options?: StructuredLoggerOptions, baseContext?: Record<string, unknown>) {
     this.minLevel = options?.minLevel ?? LogLevel.INFO;
-    this.isTTY = options?.isTTY ?? (process.stderr?.isTTY ?? false);
+    this.isTTY = options?.isTTY ?? process.stderr?.isTTY ?? false;
     this.baseContext = baseContext ?? {};
   }
 
@@ -71,18 +68,16 @@ export class StructuredLogger implements ILogger {
 
   private writeTTY(level: LogLevel, message: string, context: Record<string, unknown>): void {
     const colors: Record<number, string> = {
-      [LogLevel.DEBUG]: '\x1b[90m',  // gray
-      [LogLevel.INFO]: '\x1b[36m',   // cyan
-      [LogLevel.WARN]: '\x1b[33m',   // yellow
-      [LogLevel.ERROR]: '\x1b[31m',  // red
+      [LogLevel.DEBUG]: '\x1b[90m', // gray
+      [LogLevel.INFO]: '\x1b[36m', // cyan
+      [LogLevel.WARN]: '\x1b[33m', // yellow
+      [LogLevel.ERROR]: '\x1b[31m', // red
     };
     const reset = '\x1b[0m';
     const color = colors[level] ?? '';
     const levelName = LogLevel[level]?.padEnd(5) ?? 'UNKNOWN';
 
-    const contextStr = Object.keys(context).length > 0
-      ? ` ${JSON.stringify(context)}`
-      : '';
+    const contextStr = Object.keys(context).length > 0 ? ` ${JSON.stringify(context)}` : '';
 
     process.stderr.write(`${color}${levelName}${reset} ${message}${contextStr}\n`);
   }

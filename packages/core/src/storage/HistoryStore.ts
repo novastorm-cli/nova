@@ -13,11 +13,7 @@ export class HistoryStore implements IHistoryStore {
   async append(entry: HistoryEntry): Promise<void> {
     await mkdir(this.historyPath, { recursive: true });
     const fileName = `${entry.startedAt}-${entry.id}.json`;
-    await writeFile(
-      join(this.historyPath, fileName),
-      JSON.stringify(entry, null, 2),
-      'utf-8',
-    );
+    await writeFile(join(this.historyPath, fileName), JSON.stringify(entry, null, 2), 'utf-8');
   }
 
   async getAll(): Promise<HistoryEntry[]> {

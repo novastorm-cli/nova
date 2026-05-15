@@ -15,10 +15,11 @@ export class NovaLogger {
     const action = observation.transcript ?? 'click';
     const screenshotSize = observation.screenshot?.length ?? 0;
     const url = observation.currentUrl || '(unknown)';
-    this.logger.info(
-      `${PREFIX} 📡 Observation: "${action}" at ${url}`,
-      { screenshotSize, hasDom: !!observation.domSnapshot, errors: observation.consoleErrors?.length ?? 0 },
-    );
+    this.logger.info(`${PREFIX} 📡 Observation: "${action}" at ${url}`, {
+      screenshotSize,
+      hasDom: !!observation.domSnapshot,
+      errors: observation.consoleErrors?.length ?? 0,
+    });
   }
 
   logAnalyzing(transcript?: string): void {

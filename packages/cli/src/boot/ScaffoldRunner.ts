@@ -121,9 +121,7 @@ export async function runScaffold(
       };
     }
 
-    logger.error(
-      'Dev command is required. Add [project] devCommand = "..." to nova.toml',
-    );
+    logger.error('Dev command is required. Add [project] devCommand = "..." to nova.toml');
     process.exit(1);
   }
 

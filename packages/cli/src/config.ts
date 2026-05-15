@@ -366,10 +366,7 @@ export class ConfigReader implements IConfigReader {
     // DEFAULT_CONFIG.models exactly), swap in the provider's models so
     // that e.g. DeepSeek doesn't receive Anthropic model names.
     const resolvedProvider = (merged['apiKeys'] as Record<string, unknown>)['provider'];
-    if (
-      typeof resolvedProvider === 'string' &&
-      resolvedProvider in PROVIDER_MODEL_DEFAULTS
-    ) {
+    if (typeof resolvedProvider === 'string' && resolvedProvider in PROVIDER_MODEL_DEFAULTS) {
       const mergedModels = merged['models'] as Record<string, unknown>;
       const defaultModels = DEFAULT_CONFIG.models;
       if (

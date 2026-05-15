@@ -19,7 +19,9 @@ export async function statusCommand(): Promise<void> {
 
   logger.info('--- Novastorm Status ---');
   logger.info('');
-  logger.info(`Stack:    provider=${config.apiKeys.provider}, micro=${config.models.micro}, standard=${config.models.standard}, strong=${config.models.strong}`);
+  logger.info(
+    `Stack:    provider=${config.apiKeys.provider}, micro=${config.models.micro}, standard=${config.models.standard}, strong=${config.models.strong}`,
+  );
   logger.info(`Port:     ${config.project.port}`);
   logger.info(`Dev cmd:  ${config.project.devCommand || '(not set)'}`);
   logger.info('');
