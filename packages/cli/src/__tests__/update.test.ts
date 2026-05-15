@@ -35,6 +35,8 @@ let consoleLogSpy: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let consoleErrorSpy: any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+let processStderrSpy: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let processExitSpy: any;
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -120,9 +122,21 @@ function mockInstallOtherFailure(exitCode = 1) {
   );
 }
 
-/** Collect all console output since mock setup */
+/** Collect all output since mock setup (console + stderr) */
 function allOutput(): string {
-  return [...consoleLogSpy.mock.calls, ...consoleErrorSpy.mock.calls].flat().join('\n');
+  const consoleOutput = [...consoleLogSpy.mock.calls, ...consoleErrorSpy.mock.calls]
+    .flat()
+    .join('\n');
+  const stderrOutput = processStderrSpy.mock.calls
+    .map((call: unknown[]) => {
+      const chunk = call[0];
+      if (typeof chunk === 'string') return chunk;
+      if (Buffer.isBuffer(chunk)) return chunk.toString('utf-8');
+      if (chunk instanceof Uint8Array) return new TextDecoder().decode(chunk);
+      return '';
+    })
+    .join('');
+  return consoleOutput + stderrOutput;
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
@@ -134,10 +148,21 @@ describe('nova update — EACCES handling', () => {
     mockReadFileSync.mockReset();
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // Capture stderr writes since the implementation uses StructuredLogger + ora
+    // which both write to process.stderr, not console.log/error.
+    processStderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation((
+      ..._args: unknown[]
+    ): boolean => {
+      // Call the callback if one is provided (Node.js overloaded write signature)
+      const lastArg = _args[_args.length - 1];
+      if (typeof lastArg === 'function') {
+        (lastArg as (err?: Error | null) => void)();
+      }
+      return true;
+    });
     processExitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
       throw new Error('process.exit called');
-    }) as any);
+    }));
     // Default: current version is "0.1.0" so "1.0.0" triggers an update
     mockCurrentVersion('0.1.0');
   });
@@ -145,6 +170,7 @@ describe('nova update — EACCES handling', () => {
   afterEach(() => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+    processStderrSpy.mockRestore();
     processExitSpy.mockRestore();
   });
 
