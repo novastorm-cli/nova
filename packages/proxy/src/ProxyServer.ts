@@ -2,13 +2,13 @@ import http from 'node:http';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import fs from 'node:fs';
-import httpProxy from 'http-proxy';
+import { createProxyServer as createHttpProxy } from 'http-proxy-3';
 import type { IProxyServer } from '@novastorm-ai/core';
 import { generateNonce, modifyEnforcementCsp } from './csp.js';
 
 export class ProxyServer implements IProxyServer {
   private server: http.Server | null = null;
-  private proxy: httpProxy | null = null;
+  private proxy: ReturnType<typeof createHttpProxy> | null = null;
   private running = false;
   private host: string = '127.0.0.1';
   private sessionToken: string | null = null;
@@ -65,7 +65,7 @@ export class ProxyServer implements IProxyServer {
       return;
     }
 
-    this.proxy = httpProxy.createProxyServer({
+    this.proxy = createHttpProxy({
       target: `http://localhost:${targetPort}`,
       selfHandleResponse: true,
     });
