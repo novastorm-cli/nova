@@ -244,10 +244,55 @@ export async function updateCommand(): Promise<void> {
   process.exit(result.exitCode);
 }
 
-let updateBannerInterval: ReturnType<typeof setInterval> | null = null;
+// ── Update check throttle (once per 24h) ─────────────────────────────────
+
+const UPDATE_CHECK_FILE = 'update-check';
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Returns `true` if the update check should be skipped because the last
+ * check was less than 24 hours ago.  Writes a fresh timestamp on every
+ * successful read so the file acts as a last-checked marker.
+ *
+ * The file lives in `~/.nova/update-check` alongside `~/.nova/install-id`
+ * and `~/.nova/config.toml`.
+ */
+async function shouldThrottleUpdateCheck(): Promise<boolean> {
+  try {
+    const { homedir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { readFile, writeFile, mkdir } = await import('node:fs/promises');
+
+    const novaDir = join(homedir(), '.nova');
+    const checkFile = join(novaDir, UPDATE_CHECK_FILE);
+
+    const now = Date.now();
+
+    try {
+      const raw = await readFile(checkFile, 'utf-8');
+      const lastCheck = parseInt(raw.trim(), 10);
+      if (!isNaN(lastCheck) && now - lastCheck < TWENTY_FOUR_HOURS_MS) {
+        return true; // throttled — less than 24h since last check
+      }
+    } catch {
+      // File doesn't exist or is corrupt — proceed with check
+    }
+
+    // Update timestamp
+    await mkdir(novaDir, { recursive: true });
+    await writeFile(checkFile, String(now), 'utf-8');
+    return false;
+  } catch {
+    // If we can't read/write, proceed with the check (fail open)
+    return false;
+  }
+}
 
 export async function checkForUpdates(currentVersion: string): Promise<void> {
   try {
+    // ── Throttle: at most one check per 24 hours ─────────────────────
+    if (await shouldThrottleUpdateCheck()) return;
+
     const latest = await getLatestVersion();
     if (!latest || !isNewer(latest, currentVersion)) return;
 
@@ -263,20 +308,11 @@ export async function checkForUpdates(currentVersion: string): Promise<void> {
     const plain = msg.replace(/\x1b\[[0-9;]*m/g, '');
     const x = Math.max(columns - plain.length - 1, 0);
 
-    function renderBanner() {
-      if (!process.stdout.isTTY) return;
-      // Save cursor, move to bottom-right, print, restore cursor
-      process.stdout.write(`\x1b7\x1b[${rows};${x}H${msg}\x1b8`);
-    }
+    if (!process.stdout.isTTY) return;
 
-    // Render immediately and refresh every 5s (in case terminal redraws)
-    renderBanner();
-    updateBannerInterval = setInterval(renderBanner, 5_000);
-
-    // Clean up on exit
-    process.on('exit', () => {
-      if (updateBannerInterval) clearInterval(updateBannerInterval);
-    });
+    // Render once — no interval (don't leave dangling timers)
+    // Save cursor, move to bottom-right, print, restore cursor
+    process.stdout.write(`\x1b7\x1b[${rows};${x}H${msg}\x1b8`);
   } catch {
     // Silent
   }

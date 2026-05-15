@@ -150,19 +150,19 @@ describe('nova update — EACCES handling', () => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // Capture stderr writes since the implementation uses StructuredLogger + ora
     // which both write to process.stderr, not console.log/error.
-    processStderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation((
-      ..._args: unknown[]
-    ): boolean => {
-      // Call the callback if one is provided (Node.js overloaded write signature)
-      const lastArg = _args[_args.length - 1];
-      if (typeof lastArg === 'function') {
-        (lastArg as (err?: Error | null) => void)();
-      }
-      return true;
-    });
-    processExitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+    processStderrSpy = vi
+      .spyOn(process.stderr, 'write')
+      .mockImplementation((..._args: unknown[]): boolean => {
+        // Call the callback if one is provided (Node.js overloaded write signature)
+        const lastArg = _args[_args.length - 1];
+        if (typeof lastArg === 'function') {
+          (lastArg as (err?: Error | null) => void)();
+        }
+        return true;
+      });
+    processExitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit called');
-    }));
+    });
     // Default: current version is "0.1.0" so "1.0.0" triggers an update
     mockCurrentVersion('0.1.0');
   });
@@ -400,5 +400,23 @@ describe('nova update — EACCES handling', () => {
     expect(processExitSpy).not.toHaveBeenCalled();
     // Should not attempt install
     expect(mockExecFile).not.toHaveBeenCalled();
+  });
+});
+
+// ── checkForUpdates throttling (once per 24h) ────────────────────────────
+
+describe('checkForUpdates — 24h throttle', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+    mockReadFileSync.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('checkForUpdates is exported and callable', async () => {
+    const mod = await importUpdateModule();
+    expect(mod.checkForUpdates).toBeInstanceOf(Function);
   });
 });
