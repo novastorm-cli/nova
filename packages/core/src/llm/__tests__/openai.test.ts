@@ -159,8 +159,9 @@ describe('OpenAIProvider', () => {
       }
     });
 
-    it('HTTP 429 retries (maxAttempts=3) then throws ProviderError', async () => {
+    it('HTTP 429 retries (maxAttempts=4, 3 retries) then throws ProviderError', async () => {
       mockCompletionsCreate
+        .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined))
         .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined))
         .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined))
         .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined));
@@ -170,9 +171,10 @@ describe('OpenAIProvider', () => {
       await expect(provider.chat(userMessages)).rejects.toThrow(ProviderError);
 
       const elapsed = Date.now() - start;
-      expect(elapsed).toBeGreaterThanOrEqual(900);
-      expect(mockCompletionsCreate).toHaveBeenCalledTimes(3);
-    }, 10_000);
+      // 3 retries: 1s + 2s + 4s ≈ 7s (with real timers), should be at least 6s
+      expect(elapsed).toBeGreaterThanOrEqual(6000);
+      expect(mockCompletionsCreate).toHaveBeenCalledTimes(4);
+    }, 15_000);
 
     it('HTTP 429 retries once and succeeds on second attempt', async () => {
       mockCompletionsCreate

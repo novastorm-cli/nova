@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 import { BaseProvider } from './BaseProvider.js';
+import type { BaseProviderOptions } from './BaseProvider.js';
 
 const DEFAULT_MODEL = 'gpt-4o';
 const DEFAULT_MAX_TOKENS = 4096;
@@ -17,8 +18,9 @@ export class OpenAIProvider extends BaseProvider {
     baseURL?: string,
     providerName = 'openai',
     defaultModel = DEFAULT_MODEL,
+    baseOptions?: BaseProviderOptions,
   ) {
-    super();
+    super(baseOptions);
     this.client = new OpenAI({
       apiKey,
       ...(baseURL ? { baseURL } : {}),

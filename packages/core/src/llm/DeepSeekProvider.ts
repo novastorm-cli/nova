@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { BaseProvider } from './BaseProvider.js';
+import type { BaseProviderOptions } from './BaseProvider.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { streamWithRetry } from './retry.js';
@@ -13,6 +14,8 @@ const ALLOWED_MODELS = new Set(['deepseek-v4-pro', 'deepseek-v4-flash']);
 export interface DeepSeekConfig {
   apiKey: string;
   model?: string;
+  /** Options forwarded to BaseProvider (eventBus, fallbackModel, etc.). */
+  baseOptions?: BaseProviderOptions;
 }
 
 export class DeepSeekProvider extends BaseProvider {
@@ -24,7 +27,10 @@ export class DeepSeekProvider extends BaseProvider {
   protected readonly defaultModel: string;
 
   constructor(config: DeepSeekConfig) {
-    super();
+    super({
+      ...config.baseOptions,
+      model: config.model ?? config.baseOptions?.model ?? DEFAULT_MODEL,
+    });
     const model = config.model ?? DEFAULT_MODEL;
 
     if (!ALLOWED_MODELS.has(model)) {
@@ -180,6 +186,7 @@ export class DeepSeekProvider extends BaseProvider {
       (e) => this.isRetryable(e),
       (e) => this.isAbort(e),
       (e) => this.toProviderError(e),
+      this.buildRetryOptions(),
     )) {
       const parsed = this.parseStreamChunk(rawChunk);
       if (parsed) {

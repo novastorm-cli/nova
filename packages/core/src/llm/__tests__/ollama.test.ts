@@ -178,8 +178,13 @@ describe('OllamaProvider', () => {
       }
     });
 
-    it('HTTP 429 retries (maxAttempts=3) then throws ProviderError', async () => {
+    it('HTTP 429 retries (maxAttempts=4, 3 retries) then throws ProviderError', async () => {
       fetchMock
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          text: async () => 'Rate limited',
+        })
         .mockResolvedValueOnce({
           ok: false,
           status: 429,
@@ -201,9 +206,9 @@ describe('OllamaProvider', () => {
       await expect(provider.chat(userMessages)).rejects.toThrow(ProviderError);
 
       const elapsed = Date.now() - start;
-      expect(elapsed).toBeGreaterThanOrEqual(900);
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-    }, 10_000);
+      expect(elapsed).toBeGreaterThanOrEqual(6000);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    }, 15_000);
 
     it('HTTP 429 retries once and succeeds on second attempt', async () => {
       fetchMock

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/types.js';
 import { ProviderError } from '../contracts/ILlmClient.js';
 import { BaseProvider } from './BaseProvider.js';
+import type { BaseProviderOptions } from './BaseProvider.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const DEFAULT_MAX_TOKENS = 4096;
@@ -15,8 +16,8 @@ export class AnthropicProvider extends BaseProvider {
   protected readonly providerName = 'anthropic';
   private readonly client: Anthropic;
 
-  constructor(apiKey: string) {
-    super();
+  constructor(apiKey: string, baseOptions?: BaseProviderOptions) {
+    super(baseOptions);
     this.client = new Anthropic({ apiKey });
   }
 

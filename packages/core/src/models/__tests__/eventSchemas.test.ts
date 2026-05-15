@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NovaEventSchema, parseNovaEvent } from '../eventSchemas.js';
+import { parseNovaEvent } from '../eventSchemas.js';
 
 describe('NovaEventSchema', () => {
   it('should parse observation event', () => {
@@ -34,38 +34,48 @@ describe('NovaEventSchema', () => {
   });
 
   it('should parse task_completed event', () => {
-    expect(() => parseNovaEvent({
-      type: 'task_completed',
-      data: { taskId: '1', diff: '+line', commitHash: 'abc1234' },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'task_completed',
+        data: { taskId: '1', diff: '+line', commitHash: 'abc1234' },
+      }),
+    ).not.toThrow();
   });
 
   it('should parse task_failed event', () => {
-    expect(() => parseNovaEvent({
-      type: 'task_failed',
-      data: { taskId: '1', error: 'something broke' },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'task_failed',
+        data: { taskId: '1', error: 'something broke' },
+      }),
+    ).not.toThrow();
   });
 
   it('should parse file_changed event', () => {
-    expect(() => parseNovaEvent({
-      type: 'file_changed',
-      data: { filePath: 'src/index.ts', source: 'nova' },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'file_changed',
+        data: { filePath: 'src/index.ts', source: 'nova' },
+      }),
+    ).not.toThrow();
   });
 
   it('should parse index_updated event', () => {
-    expect(() => parseNovaEvent({
-      type: 'index_updated',
-      data: { filesChanged: ['a.ts', 'b.ts'] },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'index_updated',
+        data: { filesChanged: ['a.ts', 'b.ts'] },
+      }),
+    ).not.toThrow();
   });
 
   it('should parse status event', () => {
-    expect(() => parseNovaEvent({
-      type: 'status',
-      data: { message: 'working...' },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'status',
+        data: { message: 'working...' },
+      }),
+    ).not.toThrow();
   });
 
   it('should parse confirm event', () => {
@@ -77,24 +87,48 @@ describe('NovaEventSchema', () => {
   });
 
   it('should parse llm_chunk event', () => {
-    expect(() => parseNovaEvent({
-      type: 'llm_chunk',
-      data: { text: 'hello', phase: 'code' },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'llm_chunk',
+        data: { text: 'hello', phase: 'code' },
+      }),
+    ).not.toThrow();
   });
 
   it('should parse secrets_required event', () => {
-    expect(() => parseNovaEvent({
-      type: 'secrets_required',
-      data: { envVars: ['API_KEY'], taskId: '1' },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'secrets_required',
+        data: { envVars: ['API_KEY'], taskId: '1' },
+      }),
+    ).not.toThrow();
   });
 
   it('should parse analysis_complete event', () => {
-    expect(() => parseNovaEvent({
-      type: 'analysis_complete',
-      data: { fileCount: 10, methodCount: 50 },
-    })).not.toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'analysis_complete',
+        data: { fileCount: 10, methodCount: 50 },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse provider_retry event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'provider_retry',
+        data: { attempt: 1, waitMs: 1000, reason: 'rate_limit' },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse provider_fallback event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'provider_fallback',
+        data: { fromModel: 'gpt-4o', toModel: 'gpt-4o-mini', reason: 'All retries exhausted' },
+      }),
+    ).not.toThrow();
   });
 
   it('should reject invalid event type', () => {
@@ -106,9 +140,11 @@ describe('NovaEventSchema', () => {
   });
 
   it('should reject event with wrong data shape', () => {
-    expect(() => parseNovaEvent({
-      type: 'task_completed',
-      data: { taskId: 123 }, // taskId should be string, missing diff and commitHash
-    })).toThrow();
+    expect(() =>
+      parseNovaEvent({
+        type: 'task_completed',
+        data: { taskId: 123 }, // taskId should be string, missing diff and commitHash
+      }),
+    ).toThrow();
   });
 });

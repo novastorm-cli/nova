@@ -164,8 +164,9 @@ describe('AnthropicProvider', () => {
       }
     });
 
-    it('HTTP 429 retries (maxAttempts=3) then throws ProviderError', async () => {
+    it('HTTP 429 retries (maxAttempts=4, 3 retries) then throws ProviderError', async () => {
       mockCreate
+        .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined))
         .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined))
         .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined))
         .mockRejectedValueOnce(new APIError(429, undefined, 'Rate limited', undefined));
@@ -175,9 +176,9 @@ describe('AnthropicProvider', () => {
       await expect(provider.chat(userMessages)).rejects.toThrow(ProviderError);
 
       const elapsed = Date.now() - start;
-      expect(elapsed).toBeGreaterThanOrEqual(900);
-      expect(mockCreate).toHaveBeenCalledTimes(3);
-    }, 10_000);
+      expect(elapsed).toBeGreaterThanOrEqual(6000);
+      expect(mockCreate).toHaveBeenCalledTimes(4);
+    }, 15_000);
 
     it('HTTP 429 retries once and succeeds on second attempt', async () => {
       mockCreate

@@ -1,18 +1,28 @@
+export interface RetryAttemptInfo {
+  attempt: number;
+  waitMs: number;
+  reason: string;
+}
+
 export interface RetryOptions {
   maxAttempts?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;
   jitterFactor?: number;
+  onRetry?: (info: RetryAttemptInfo) => void;
 }
 
-const DEFAULT_OPTIONS: Required<RetryOptions> = {
+const DEFAULT_OPTIONS = {
   maxAttempts: 3,
   baseDelayMs: 1000,
   maxDelayMs: 30_000,
   jitterFactor: 0.2,
 };
 
-function computeDelay(attempt: number, options: Required<RetryOptions>): number {
+function computeDelay(
+  attempt: number,
+  options: { baseDelayMs: number; maxDelayMs: number; jitterFactor: number },
+): number {
   const exponential = options.baseDelayMs * Math.pow(2, attempt);
   const capped = Math.min(exponential, options.maxDelayMs);
   const jitter = capped * options.jitterFactor * (Math.random() * 2 - 1);
@@ -30,7 +40,12 @@ export async function executeWithRetry<T>(
   handleError: (err: unknown) => never,
   options?: RetryOptions,
 ): Promise<T> {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = {
+    maxAttempts: options?.maxAttempts ?? DEFAULT_OPTIONS.maxAttempts,
+    baseDelayMs: options?.baseDelayMs ?? DEFAULT_OPTIONS.baseDelayMs,
+    maxDelayMs: options?.maxDelayMs ?? DEFAULT_OPTIONS.maxDelayMs,
+    jitterFactor: options?.jitterFactor ?? DEFAULT_OPTIONS.jitterFactor,
+  };
 
   for (let attempt = 0; attempt < opts.maxAttempts; attempt++) {
     try {
@@ -38,7 +53,15 @@ export async function executeWithRetry<T>(
     } catch (err) {
       if (shouldAbort(err)) handleError(err);
       if (!shouldRetry(err) || attempt === opts.maxAttempts - 1) handleError(err);
-      await delay(computeDelay(attempt, opts));
+
+      const delayMs = computeDelay(attempt, opts);
+      const reason = err instanceof Error ? err.message : String(err);
+
+      if (options?.onRetry) {
+        options.onRetry({ attempt: attempt + 1, waitMs: Math.round(delayMs), reason });
+      }
+
+      await delay(delayMs);
     }
   }
 
@@ -53,7 +76,12 @@ export async function* streamWithRetry<T>(
   handleError: (err: unknown) => never,
   options?: RetryOptions,
 ): AsyncIterable<T> {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = {
+    maxAttempts: options?.maxAttempts ?? DEFAULT_OPTIONS.maxAttempts,
+    baseDelayMs: options?.baseDelayMs ?? DEFAULT_OPTIONS.baseDelayMs,
+    maxDelayMs: options?.maxDelayMs ?? DEFAULT_OPTIONS.maxDelayMs,
+    jitterFactor: options?.jitterFactor ?? DEFAULT_OPTIONS.jitterFactor,
+  };
 
   for (let attempt = 0; attempt < opts.maxAttempts; attempt++) {
     try {
@@ -62,7 +90,15 @@ export async function* streamWithRetry<T>(
     } catch (err) {
       if (shouldAbort(err)) handleError(err);
       if (!shouldRetry(err) || attempt === opts.maxAttempts - 1) handleError(err);
-      await delay(computeDelay(attempt, opts));
+
+      const delayMs = computeDelay(attempt, opts);
+      const reason = err instanceof Error ? err.message : String(err);
+
+      if (options?.onRetry) {
+        options.onRetry({ attempt: attempt + 1, waitMs: Math.round(delayMs), reason });
+      }
+
+      await delay(delayMs);
     }
   }
 }

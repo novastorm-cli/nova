@@ -43,6 +43,11 @@ export type NovaEvent =
       };
     }
   | { type: 'confirm_tasks'; data: { taskIds: string[] } }
-  | { type: 'fsm_transition'; task_id: string; prev: string; next: string; ts: number };
+  | { type: 'fsm_transition'; task_id: string; prev: string; next: string; ts: number }
+  | { type: 'provider_retry'; data: { attempt: number; waitMs: number; reason: string } }
+  | {
+      type: 'provider_fallback';
+      data: { fromModel: string; toModel: string; reason: string };
+    };
 
 export type NovaEventType = NovaEvent['type'];
