@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join, relative, posix, extname } from 'node:path';
 import type { IProjectIndexer } from '../contracts/IIndexer.js';
 import type {
@@ -16,20 +16,19 @@ import { NovaDir, GraphStore } from '../storage/index.js';
 import { ManifestStore } from '../storage/ManifestStore.js';
 import type { Manifest } from '../models/manifest.js';
 import { ContextDistiller } from './ContextDistiller.js';
+import { FileWalker } from './FileWalker.js';
+import { HashCache } from './HashCache.js';
+import { LruCache } from './LruCache.js';
+import type { ILogger } from '../contracts/ILogger.js';
 
 const IMPORT_REGEX = /import.*from\s+['"](.+)['"]/g;
 const REQUIRE_REGEX = /require\s*\(\s*['"](.+)['"]\s*\)/g;
 
-const SCANNABLE_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
-]);
-
-const IGNORED_DIRS = new Set([
-  'node_modules', '.next', '.nuxt', 'dist', 'build', '.git', '.nova',
-]);
+const SCANNABLE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 
 const MODEL_REGEX = /export\s+(?:interface|type|class)\s+(\w+)/g;
-const MODEL_FIELD_REGEX = /(?:interface|type)\s+\w+\s*(?:=\s*)?{([^}]*)}/;
+
+const BATCH_SIZE = 50;
 
 export class ProjectIndexer implements IProjectIndexer {
   private readonly stackDetector = new StackDetector();
@@ -40,18 +39,34 @@ export class ProjectIndexer implements IProjectIndexer {
   private readonly distiller = new ContextDistiller();
   private readonly manifestStore = new ManifestStore();
 
+  /** LRU cache for lazy file content loading (max 256 files) */
+  readonly contentCache = new LruCache(256);
+
+  private readonly logger: ILogger | null;
+  private readonly fileWalker: FileWalker;
+
   private projectPath = '';
   private graphStore: GraphStore | null = null;
+  private hashCache: HashCache | null = null;
 
-  async index(projectPath: string, config?: { frontend?: string; backends?: string[] }): Promise<ProjectMap> {
+  constructor(logger?: ILogger) {
+    this.logger = logger ?? null;
+    this.fileWalker = new FileWalker(this.logger ?? undefined);
+  }
+
+  async index(
+    projectPath: string,
+    config?: { frontend?: string; backends?: string[] },
+  ): Promise<ProjectMap> {
     this.projectPath = projectPath;
 
     // Ensure .nova directory exists
     await this.novaDir.init(projectPath);
     const novaPath = this.novaDir.getPath(projectPath);
     this.graphStore = new GraphStore(novaPath);
+    this.hashCache = new HashCache(novaPath);
 
-    // Run all extractors in parallel
+    // Run all extractors in parallel (they do their own file scanning)
     const stack = await this.stackDetector.detectStack(projectPath);
     const [devCommand, port, routes, components, endpoints] = await Promise.all([
       this.stackDetector.detectDevCommand(stack, projectPath),
@@ -64,123 +79,70 @@ export class ProjectIndexer implements IProjectIndexer {
     // Load manifest if available
     const manifest = await this.manifestStore.load(projectPath);
 
-    // Build dependency graph and file contexts
-    let allFiles: string[];
-    if (manifest?.services && manifest.services.length > 0) {
-      // Manifest services take priority
-      const dirs = manifest.services.map(s => join(projectPath, s.path));
-      const results = await Promise.all(dirs.map(d => this.readDirRecursive(d)));
-      allFiles = results.flat();
-    } else if (config?.frontend || config?.backends) {
-      // Scan only specified directories
-      const dirs: string[] = [];
-      if (config.frontend) dirs.push(join(projectPath, config.frontend));
-      for (const b of config.backends ?? []) dirs.push(join(projectPath, b));
-      const results = await Promise.all(dirs.map(d => this.readDirRecursive(d)));
-      allFiles = results.flat();
-    } else {
-      allFiles = await this.readDirRecursive(projectPath);
-    }
+    // Build dependency graph and file contexts using the streaming walker
+    const { files, cappedAt } = await this.collectScannableFiles(projectPath, config, manifest);
 
-    // Filter out ignored files from manifest boundaries
-    if (manifest?.boundaries?.ignored && manifest.boundaries.ignored.length > 0) {
-      const picomatch = (await import('picomatch')).default;
-      const isIgnored = picomatch(manifest.boundaries.ignored);
-      allFiles = allFiles.filter(f => {
-        const rel = this.toPosix(relative(projectPath, f));
-        return !isIgnored(rel);
-      });
-    }
-    const scannableFiles = allFiles.filter((f) => {
-      const ext = extname(f);
-      return SCANNABLE_EXTENSIONS.has(ext);
+    this.logger?.debug('Indexer: discovered files', {
+      fileCount: files.length,
+      cappedAt: cappedAt ?? 0,
+      component: 'ProjectIndexer',
     });
 
-    const dependencies: DependencyGraph = new Map();
-    const fileContexts = new Map<string, MiniContext>();
-    const models: ModelInfo[] = [];
+    // Compute the content hash from file metadata
+    const currentHash = HashCache.computeHash(
+      files.map((f) => ({
+        relPath: f.relPath,
+        mtimeMs: f.mtimeMs,
+        size: f.size,
+      })),
+    );
 
-    // Read all files in parallel (batched to avoid fd exhaustion)
-    const BATCH_SIZE = 50;
-    const fileContents = new Map<string, string>();
-    for (let i = 0; i < scannableFiles.length; i += BATCH_SIZE) {
-      const batch = scannableFiles.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(batch.map(async (absPath) => {
-        const content = await this.readFileSafe(absPath);
-        return [absPath, content] as const;
-      }));
-      for (const [absPath, content] of results) {
-        if (content) fileContents.set(absPath, content);
-      }
-    }
+    // Try warm start: if hash matches, skip content reads
+    const cached = await this.hashCache.load();
+    const hashMatch = cached !== null && cached.hash === currentHash;
 
-    for (const [absPath, content] of fileContents) {
-      const rel = this.toPosix(relative(projectPath, absPath));
+    let dependencies: DependencyGraph;
+    let fileContexts: Map<string, MiniContext>;
+    let models: ModelInfo[] = [];
 
-      // Extract imports
-      const imports = this.extractImports(content);
-
-      // Extract exports
-      const exports = this.extractExports(content);
-
-      // Classify file type
-      const type = this.classifyFile(rel, components, endpoints);
-
-      // Detect keywords (top-level identifiers)
-      const keywords = this.extractKeywords(content);
-
-      // Find matching route
-      const route = routes.find((r) => r.filePath === rel)?.path;
-
-      const node: DependencyNode = {
-        filePath: rel,
-        imports,
-        exports,
-        type,
-        ...(route && { route }),
-        keywords,
-      };
-
-      dependencies.set(rel, node);
-
-      // Build MiniContext
-      fileContexts.set(rel, {
-        filePath: rel,
-        content,
-        importedTypes: '', // Populated in second pass
+    if (hashMatch) {
+      this.logger?.info('Indexer: hash cache hit -- skipping content reads', {
+        fileCount: files.length,
+        component: 'ProjectIndexer',
       });
 
-      // Detect models (interfaces/types that look like data models)
-      this.extractModels(content, rel, models);
-    }
+      // Load dependency graph from disk (saved on previous run)
+      const savedNodes = await this.graphStore.load();
+      dependencies = new Map(savedNodes.map((n) => [n.filePath, n]));
 
-    // Second pass: populate importedTypes in fileContexts
-    // Pre-compute type definitions cache to avoid running the same regex per file repeatedly
-    const TYPE_DEF_REGEX = /export\s+(?:interface|type)\s+\w+[^}]*}/g;
-    const typeDefsCache = new Map<string, string[]>();
-    for (const [filePath, ctx] of fileContexts) {
-      const matches = ctx.content.match(TYPE_DEF_REGEX);
-      if (matches) typeDefsCache.set(filePath, matches);
-    }
-
-    for (const [filePath, ctx] of fileContexts) {
-      const node = dependencies.get(filePath);
-      if (!node) continue;
-
-      const importedTypes: string[] = [];
-      for (const imp of node.imports) {
-        const cached = typeDefsCache.get(imp);
-        if (cached) {
-          importedTypes.push(...cached);
-        }
+      // Create lazy file contexts (content empty — filled on demand via LRU)
+      fileContexts = new Map<string, MiniContext>();
+      for (const { relPath } of files) {
+        fileContexts.set(relPath, {
+          filePath: relPath,
+          content: '', // Content lazy-loaded via getFileContent()
+          importedTypes: '', // Populated from graph if needed
+        });
       }
 
-      ctx.importedTypes = importedTypes.join('\n');
-    }
+      // Populate importedTypes from saved graph (no content reads needed)
+      this.populateImportedTypesFromGraph(dependencies, fileContexts);
+    } else {
+      this.logger?.debug('Indexer: hash cache miss -- reading file contents', {
+        fileCount: files.length,
+        component: 'ProjectIndexer',
+      });
 
-    // Save graph to store
-    const nodeArray = Array.from(dependencies.values());
-    await this.graphStore.save(nodeArray);
+      // Full content reads
+      const result = await this.buildGraphAndContexts(files, routes, components, endpoints);
+
+      dependencies = result.dependencies;
+      fileContexts = result.fileContexts;
+      models = result.models;
+
+      // Save graph to disk
+      await this.graphStore.save(Array.from(dependencies.values()));
+    }
 
     // Build project map
     const projectMap: ProjectMap = {
@@ -197,10 +159,18 @@ export class ProjectIndexer implements IProjectIndexer {
       frontend: config?.frontend,
       backends: config?.backends,
       manifest: manifest ?? undefined,
+      ...(cappedAt !== undefined ? { cappedAt } : {}),
     };
 
-    // Generate compressed context
+    // Generate compressed context (may trigger LRU loads for content)
     projectMap.compressedContext = this.distiller.distill(projectMap);
+
+    // Save hash cache for next warm start
+    await this.hashCache.save({
+      hash: currentHash,
+      fileCount: files.length,
+      timestamp: Date.now(),
+    });
 
     return projectMap;
   }
@@ -209,9 +179,7 @@ export class ProjectIndexer implements IProjectIndexer {
     if (!this.graphStore || !this.projectPath) return;
 
     const existingNodes = await this.graphStore.load();
-    const graph: DependencyGraph = new Map(
-      existingNodes.map((n) => [n.filePath, n]),
-    );
+    const graph: DependencyGraph = new Map(existingNodes.map((n) => [n.filePath, n]));
 
     // Find direct dependents of changed files
     const filesToReindex = new Set<string>(
@@ -235,8 +203,12 @@ export class ProjectIndexer implements IProjectIndexer {
         // File was deleted
         await this.graphStore.removeNode(relPath);
         graph.delete(relPath);
+        this.contentCache.set(relPath, '');
         continue;
       }
+
+      // Cache the content in LRU
+      this.contentCache.set(relPath, content);
 
       const imports = this.extractImports(content);
       const exports = this.extractExports(content);
@@ -254,6 +226,229 @@ export class ProjectIndexer implements IProjectIndexer {
       };
 
       await this.graphStore.upsertNode(node);
+    }
+
+    // Invalidate hash cache on update (contents changed)
+    if (this.hashCache) {
+      try {
+        await this.hashCache.save({
+          hash: 'invalidated-by-update',
+          fileCount: 0,
+          timestamp: 0,
+        });
+      } catch {
+        // best effort
+      }
+    }
+  }
+
+  /**
+   * Returns file content, using the LRU cache for lazy loading.
+   * On cache miss, reads from disk and populates the cache.
+   */
+  async getFileContent(absPath: string, relPath: string): Promise<string | null> {
+    const cached = this.contentCache.get(relPath);
+    if (cached !== undefined) return cached || null;
+
+    const content = await this.readFileSafe(absPath);
+    if (content) {
+      this.contentCache.set(relPath, content);
+      return content;
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // File collection (streaming, gitignore-aware)
+  // ---------------------------------------------------------------------------
+
+  private async collectScannableFiles(
+    projectPath: string,
+    config?: { frontend?: string; backends?: string[] },
+    manifest?: Manifest | null,
+  ): Promise<{
+    files: Array<{ absPath: string; relPath: string; mtimeMs: number; size: number }>;
+    cappedAt?: number;
+  }> {
+    // Manifest services take priority
+    if (manifest?.services && manifest.services.length > 0) {
+      const results: Array<{ absPath: string; relPath: string; mtimeMs: number; size: number }> =
+        [];
+      for (const service of manifest.services) {
+        const walkResult = await this.fileWalker.walk(join(projectPath, service.path));
+        results.push(...walkResult.files);
+      }
+      return { files: this.filterScannable(results), cappedAt: undefined };
+    }
+
+    // Config-specified directories
+    if (config?.frontend || config?.backends) {
+      const dirs: string[] = [];
+      if (config.frontend) dirs.push(join(projectPath, config.frontend));
+      for (const b of config.backends ?? []) dirs.push(join(projectPath, b));
+
+      const results: Array<{ absPath: string; relPath: string; mtimeMs: number; size: number }> =
+        [];
+      for (const dir of dirs) {
+        const walkResult = await this.fileWalker.walk(dir);
+        results.push(...walkResult.files);
+      }
+      return { files: this.filterScannable(results), cappedAt: undefined };
+    }
+
+    // Default: walk entire project
+    const walkResult = await this.fileWalker.walk(projectPath);
+    let filtered = this.filterScannable(walkResult.files);
+
+    // Apply manifest boundaries filtering
+    if (manifest?.boundaries?.ignored && manifest.boundaries.ignored.length > 0) {
+      const picomatch = (await import('picomatch')).default;
+      const isIgnored = picomatch(manifest.boundaries.ignored);
+      filtered = filtered.filter((f) => !isIgnored(f.relPath));
+    }
+
+    return { files: filtered, cappedAt: walkResult.cappedAt };
+  }
+
+  private filterScannable(
+    files: Array<{ absPath: string; relPath: string; mtimeMs: number; size: number }>,
+  ): Array<{ absPath: string; relPath: string; mtimeMs: number; size: number }> {
+    return files.filter((f) => {
+      const ext = extname(f.relPath);
+      return SCANNABLE_EXTENSIONS.has(ext);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Graph and context building (full content reads)
+  // ---------------------------------------------------------------------------
+
+  private async buildGraphAndContexts(
+    files: Array<{ absPath: string; relPath: string; mtimeMs: number; size: number }>,
+    routes: Array<{ path: string; filePath: string; type: string }>,
+    components: Array<{ filePath: string; type: string }>,
+    endpoints: Array<{ filePath: string }>,
+  ): Promise<{
+    dependencies: DependencyGraph;
+    fileContexts: Map<string, MiniContext>;
+    models: ModelInfo[];
+  }> {
+    const dependencies: DependencyGraph = new Map();
+    const fileContexts = new Map<string, MiniContext>();
+    const models: ModelInfo[] = [];
+
+    // Read all files in batches to avoid fd exhaustion
+    const fileContents = new Map<string, string>();
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(
+        batch.map(async ({ absPath, relPath }) => {
+          const content = await this.readFileSafe(absPath);
+          if (content) {
+            this.contentCache.set(relPath, content);
+          }
+          return [relPath, content] as const;
+        }),
+      );
+      for (const [relPath, content] of results) {
+        if (content) fileContents.set(relPath, content);
+      }
+    }
+
+    for (const { relPath } of files) {
+      const content = fileContents.get(relPath);
+      if (!content) continue;
+
+      // Extract imports
+      const imports = this.extractImports(content);
+
+      // Extract exports
+      const exports = this.extractExports(content);
+
+      // Classify file type
+      const type = this.classifyFile(relPath, components, endpoints);
+
+      // Detect keywords (top-level identifiers)
+      const keywords = this.extractKeywords(content);
+
+      // Find matching route
+      const route = routes.find((r) => r.filePath === relPath)?.path;
+
+      const node: DependencyNode = {
+        filePath: relPath,
+        imports,
+        exports,
+        type,
+        ...(route && { route }),
+        keywords,
+      };
+
+      dependencies.set(relPath, node);
+
+      // Build MiniContext
+      fileContexts.set(relPath, {
+        filePath: relPath,
+        content,
+        importedTypes: '', // Populated in second pass
+      });
+
+      // Detect models
+      this.extractModels(content, relPath, models);
+    }
+
+    // Second pass: populate importedTypes in fileContexts
+    this.populateImportedTypes(dependencies, fileContexts);
+
+    return { dependencies, fileContexts, models };
+  }
+
+  // ---------------------------------------------------------------------------
+  // importedTypes population
+  // ---------------------------------------------------------------------------
+
+  private populateImportedTypes(
+    dependencies: DependencyGraph,
+    fileContexts: Map<string, MiniContext>,
+  ): void {
+    const TYPE_DEF_REGEX = /export\s+(?:interface|type)\s+\w+[^}]*}/g;
+    const typeDefsCache = new Map<string, string[]>();
+
+    for (const [filePath, ctx] of fileContexts) {
+      if (!ctx.content) continue;
+      const matches = ctx.content.match(TYPE_DEF_REGEX);
+      if (matches) typeDefsCache.set(filePath, matches);
+    }
+
+    for (const [filePath, ctx] of fileContexts) {
+      const node = dependencies.get(filePath);
+      if (!node) continue;
+
+      const importedTypes: string[] = [];
+      for (const imp of node.imports) {
+        const cached = typeDefsCache.get(imp);
+        if (cached) {
+          importedTypes.push(...cached);
+        }
+      }
+
+      ctx.importedTypes = importedTypes.join('\n');
+    }
+  }
+
+  /**
+   * Populates importedTypes from the dependency graph alone (no content reads).
+   * Used during warm start when file contents are skipped.
+   */
+  private populateImportedTypesFromGraph(
+    dependencies: DependencyGraph,
+    fileContexts: Map<string, MiniContext>,
+  ): void {
+    // On warm start, we skip content reads — importedTypes remain empty
+    // Callers should use getFileContent() to lazily load content when needed
+    for (const [filePath, ctx] of fileContexts) {
+      const node = dependencies.get(filePath);
+      if (!node) continue;
+      ctx.importedTypes = '';
     }
   }
 
@@ -289,7 +484,8 @@ export class ProjectIndexer implements IProjectIndexer {
 
   private extractExports(content: string): string[] {
     const exports: string[] = [];
-    const regex = /export\s+(?:async\s+)?(?:function|const|class|let|var|enum|type|interface)\s+(\w+)/g;
+    const regex =
+      /export\s+(?:async\s+)?(?:function|const|class|let|var|enum|type|interface)\s+(\w+)/g;
 
     let match: RegExpExecArray | null;
     while ((match = regex.exec(content)) !== null) {
@@ -350,9 +546,7 @@ export class ProjectIndexer implements IProjectIndexer {
       }
 
       // Try to extract fields
-      const blockRegex = new RegExp(
-        `(?:interface|type)\\s+${name}\\s*(?:=\\s*)?\\{([^}]*)\\}`,
-      );
+      const blockRegex = new RegExp(`(?:interface|type)\\s+${name}\\s*(?:=\\s*)?\\{([^}]*)\\}`);
       const blockMatch = content.match(blockRegex);
       const fields: string[] = [];
 
@@ -422,9 +616,7 @@ export class ProjectIndexer implements IProjectIndexer {
 
   private normalizeImportPath(specifier: string): string {
     // Remove file extension if present, then strip leading ./
-    let normalized = specifier
-      .replace(/\.(tsx?|jsx?|mjs|cjs)$/, '')
-      .replace(/\/index$/, '');
+    const normalized = specifier.replace(/\.(tsx?|jsx?|mjs|cjs)$/, '').replace(/\/index$/, '');
 
     // Keep the relative path as-is for now; the graph stores relative paths from project root
     return normalized;
@@ -437,27 +629,6 @@ export class ProjectIndexer implements IProjectIndexer {
   // ---------------------------------------------------------------------------
   // File system helpers
   // ---------------------------------------------------------------------------
-
-  private async readDirRecursive(dir: string): Promise<string[]> {
-    try {
-      const entries = await readdir(dir, { withFileTypes: true, recursive: true });
-      return entries
-        .filter((e) => {
-          if (!e.isFile()) return false;
-          // Skip ignored directories
-          const parent = (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
-          const rel = relative(dir, parent);
-          const parts = rel.split(/[\\/]/);
-          return !parts.some((p) => IGNORED_DIRS.has(p));
-        })
-        .map((e) => {
-          const parent = (e as { parentPath?: string }).parentPath ?? (e as { path?: string }).path ?? dir;
-          return join(parent, e.name);
-        });
-    } catch {
-      return [];
-    }
-  }
 
   private async readFileSafe(filePath: string): Promise<string | null> {
     try {

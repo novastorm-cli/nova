@@ -78,6 +78,8 @@ export interface ProjectMap {
   frontend?: string;
   backends?: string[];
   manifest?: Manifest;
+  /** If set, the indexer hit the file cap and only indexed a subset */
+  cappedAt?: number;
 }
 
 // ============================================================

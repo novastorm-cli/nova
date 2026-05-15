@@ -25,13 +25,14 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@iarna/toml": "^2.2.5",
+    "globby": "^16.2.0",
     "openai": "^4.77.0",
     "picomatch": "^4.0.2",
     "zod": "^3.25.0"
   },
   "devDependencies": {
     "@types/picomatch": "^3.0.1",
-    "typescript": "^5.7.0",
-    "tsup": "^8.4.0"
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0"
   }
 }
