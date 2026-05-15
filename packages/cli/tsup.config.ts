@@ -46,7 +46,11 @@ export default defineConfig({
   ],
   banner({ format }) {
     if (format === 'esm') {
-      return { js: '' };
+      return {
+        js: `import { createRequire as __cr } from 'node:module';
+const require = __cr(import.meta.url);
+`,
+      };
     }
     return {};
   },
