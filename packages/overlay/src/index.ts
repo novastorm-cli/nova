@@ -514,26 +514,10 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     // Skip if inside Nova root (extra safety)
     if (interactive.closest('#nova-root')) return;
 
-    // Skip if element has React/framework event handlers attached
-    const hasFrameworkHandler = Object.keys(interactive).some(
-      (k) =>
-        k.startsWith('__reactFiber') ||
-        k.startsWith('__reactEvents') ||
-        k.startsWith('__reactProps') ||
-        k.startsWith('__vue') ||
-        k.startsWith('__svelte'),
-    );
-    if (hasFrameworkHandler && interactive.getAttribute('onclick') === null) {
-      // Element has React/Vue/Svelte handler — check if it has an onClick prop
-      const reactProps = Object.keys(interactive).find((k) => k.startsWith('__reactProps'));
-      if (reactProps && (interactive as unknown as Record<string, unknown>)[reactProps]) {
-        const props = (interactive as unknown as Record<string, unknown>)[reactProps] as Record<
-          string,
-          unknown
-        >;
-        if (typeof props.onClick === 'function') return; // Has React onClick — not a dead click
-      }
-    }
+    // Do NOT skip elements with React/framework handlers — the time-based
+    // observation (checking for DOM changes after 1500ms) is the correct way
+    // to distinguish real handlers from no-ops.  A React button with an
+    // onClick={noop} handler should still trigger dead-click detection.
 
     // Cooldown: skip if same element was suggested recently
     const lastSuggested = deadClickSuggested.get(interactive);
