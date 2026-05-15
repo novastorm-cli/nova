@@ -1,9 +1,9 @@
-# Nova Architect — Quick Start
+# Novastorm — Quick Start
 
 ## 1. Install
 
 ```bash
-npm install -g nova-architect
+npm install -g @novastorm-ai/cli
 ```
 
 ## 2. Setup AI Provider
@@ -16,6 +16,20 @@ Choose one:
 - **Claude CLI** — free if you have Claude Max/Pro subscription
 - **OpenRouter** — cheapest pay-per-token option
 - **Ollama** — completely free, runs locally
+- **DeepSeek** — cost-effective OpenAI-compatible provider
+
+### Model Tiers
+
+Nova uses three model tiers to balance speed, cost, and quality:
+
+| Tier | Used for | Config field |
+|------|----------|--------------|
+| **micro** | CSS tweaks, simple text changes | `models.micro` |
+| **standard** | Single-file edits, new components | `models.standard` |
+| **strong** | Refactoring, migrations, complex changes | `models.strong` |
+
+> **Note:** `models.fast` was renamed to `models.standard` in v1.0.0. The old name still works
+> as a deprecated alias but will be removed in v2.0.
 
 ## 3. Start
 
@@ -72,7 +86,7 @@ Nova shows tasks → confirm with "Execute" button or press Y in terminal → co
 | Cancel tasks | N in terminal or Cancel button |
 | Undo last change | Type `undo` in terminal |
 | Check status | `/status` in terminal |
-| Change settings | `/settings models.fast gpt-4o` |
+| Change settings | `/settings models.standard gpt-4o` |
 | Open project map | Option+M |
 
 ---

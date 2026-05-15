@@ -1,4 +1,4 @@
-# Nova Architect — Configuration Reference
+# Novastorm — Configuration Reference
 
 Nova uses three config files with different purposes:
 
@@ -129,18 +129,22 @@ backends = ["backend", "api"]  # Backend directories
 
 ```toml
 [models]
-fast = "claude-sonnet-4-6"         # Used for Lane 1-3 tasks
-strong = "claude-opus-4-6"          # Used for Lane 4 (refactoring)
-local = false                       # Prefer local models via Ollama
+micro = "claude-haiku-4-5-20251001"    # Cheapest / fastest model
+standard = "claude-sonnet-4-6"         # Balanced model (replaces `fast`)
+strong = "claude-opus-4-6"             # Most capable model
+local = false                          # Prefer local models via Ollama
 ```
+
+> **Deprecated:** `models.fast` is an alias for `models.standard`. On first read
+> Nova migrates the value and prints a one-time deprecation warning (removal in v2.0).
 
 **Model selection by lane:**
 
 | Lane | Task type | Model used |
 |------|-----------|------------|
 | 1 | CSS/style (regex) | None (no AI call) |
-| 2 | Single-file edit | `fast` |
-| 3 | Multi-file generation | `fast` |
+| 2 | Single-file edit | `standard` |
+| 3 | Multi-file generation | `standard` |
 | 4 | Refactoring | `strong` |
 
 ### [behavior]
@@ -269,8 +273,9 @@ Change settings without restarting Nova:
 /settings                              # View all settings
 /settings apiKeys.provider anthropic   # Change provider
 /settings apiKeys.key sk-ant-...       # Change API key (saved to .nova/config.toml)
-/settings models.fast gpt-4o           # Change fast model
+/settings models.standard gpt-4o           # Change standard model
 /settings models.strong claude-opus-4-6 # Change strong model
+/settings models.micro gpt-4o-mini      # Change micro model
 /settings project.port 3002            # Change port
 /settings behavior.autoCommit true     # Enable auto-commit
 /settings voice.engine whisper         # Switch to Whisper

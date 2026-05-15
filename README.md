@@ -73,6 +73,20 @@ nova setup
 - **Claude CLI** — free with Claude Max/Pro subscription
 - **OpenRouter** — pay-per-token
 - **Ollama** — completely free, runs locally
+- **DeepSeek** — cost-effective OpenAI-compatible provider
+
+### Model Tiers
+
+Nova uses three model tiers to balance speed, cost, and quality:
+
+| Tier | Used for | Config field |
+|------|----------|--------------|
+| **micro** | CSS tweaks, simple text changes | `models.micro` |
+| **standard** | Single-file edits, new components | `models.standard` |
+| **strong** | Refactoring, migrations, complex changes | `models.strong` |
+
+> `models.fast` was renamed to `models.standard` in v1.0.0 — still works as a deprecated alias
+> until v2.0. See [MIGRATION.md](MIGRATION.md) for upgrade notes.
 
 ## Usage
 
@@ -110,6 +124,7 @@ packages/
 - [Examples](docs/EXAMPLES.md)
 - [Tips & Tricks](docs/TIPS_AND_TRICKS.md)
 - [FAQ](docs/FAQ.md)
+- [Migration to v1.0](MIGRATION.md)
 
 ## License
 

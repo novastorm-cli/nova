@@ -1,4 +1,4 @@
-# Nova Architect — Tips, Tricks & Advanced Features
+# Novastorm — Tips, Tricks & Advanced Features
 
 ## Voice & Gesture Power-User Tips
 
@@ -87,7 +87,7 @@ Click a marked element again to remove its number. The remaining elements renumb
 | `revert` / `undo` | Revert last commit |
 | `/status` | Stack, port, connected clients, AI model, pending tasks |
 | `/settings` | View all config |
-| `/settings models.fast gpt-4o` | Change setting (applied immediately) |
+| `/settings models.standard gpt-4o` | Change setting (applied immediately) |
 | `/map` | Open project map in browser |
 | `/help` | Show commands |
 
@@ -106,7 +106,7 @@ Settings changed via `/settings` apply **instantly** — no restart needed:
 ```
 /settings apiKeys.provider anthropic
 /settings apiKeys.key sk-ant-...
-/settings models.fast claude-haiku-4-5-20251001
+/settings models.standard claude-haiku-4-5-20251001
 /settings behavior.autoCommit true
 /settings voice.engine whisper
 ```
@@ -151,8 +151,8 @@ This replaces the default system prompt entirely. Keep the output format instruc
 | Lane | When | Speed | Model |
 |------|------|-------|-------|
 | **1** | CSS-only: colors, fonts, margins, padding, opacity | Instant (regex) | None |
-| **2** | Single-file code change | Fast | Fast model |
-| **3** | Multi-file, new components, API endpoints | Medium | Fast model |
+| **2** | Single-file code change | Fast | Standard model |
+| **3** | Multi-file, new components, API endpoints | Medium | Standard model |
 | **4** | Refactoring, migrations, redesigns | Slow | Strong model |
 
 **Keywords that trigger Lane 4:** refactor, migrate, rewrite, redesign, restructure, upgrade.
