@@ -401,6 +401,17 @@ nova setup -p ollama
 
 ## Troubleshooting
 
+### Run `nova doctor` first
+
+When things don't work, start with diagnostics:
+
+```bash
+nova doctor
+```
+
+Checks provider connectivity, Node version, Git, port availability, and `.nova/` writability.
+Finds common issues before you spend time debugging. For CI, use `nova doctor --json`.
+
 ### "AI is thinking..." stuck
 
 - Check terminal for errors

@@ -262,6 +262,38 @@ Override config via environment:
 | `NOVA_API_KEY` | `apiKeys.key` | `sk-ant-api03-...` |
 | `NOVA_LICENSE_KEY` | `license.key` | `NOVA-XXXXX-XXXX` |
 | `NOVA_TELEMETRY` | `telemetry.enabled` | `false` |
+| `NOVA_NON_INTERACTIVE` | Behavior | `1` (skip all prompts) |
+| `NOVA_QUIET` | Banner | `1` (suppress banner) |
+| `NO_COLOR` | Output | `1` (disable color) |
+
+### Non-interactive / CI mode
+
+Set `NOVA_NON_INTERACTIVE=1` to run Nova in CI or scripts without any interactive prompts.
+All prompts default to their safe choice. Combine with `--no-open` and `--yes`:
+
+```bash
+NOVA_NON_INTERACTIVE=1 nova --no-open --yes --no-telemetry
+```
+
+## Security & Network Binding
+
+By default, Nova's proxy binds to **127.0.0.1 (localhost only)** — it is inaccessible from other
+devices on the network. A per-session token is generated on each startup and embedded in the
+browser overlay. WebSocket connections are rejected without this token.
+
+To bind to a different address, use the `--host` flag:
+
+```bash
+# Allow LAN access (e.g., testing from a phone)
+nova --host 0.0.0.0
+
+# Bind to IPv6 loopback only
+nova --host ::1
+```
+
+When binding to a non-loopback address, Nova prints a yellow warning at startup.
+The default is safe for development — change only when you need
+remote access.
 
 ---
 

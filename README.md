@@ -16,6 +16,9 @@ npm install -g @novastorm-ai/cli
 # Setup AI provider
 nova setup
 
+# Verify your setup
+nova doctor
+
 # Start in your project directory
 cd my-project
 nova
@@ -70,8 +73,10 @@ Novastorm is stack-agnostic. It scans your project and adapts:
 nova setup
 ```
 
+- **Anthropic** — direct Claude API, lowest latency
+- **OpenAI** — GPT-4o and other GPT models
 - **Claude CLI** — free with Claude Max/Pro subscription
-- **OpenRouter** — pay-per-token
+- **OpenRouter** — pay-per-token, access to all models
 - **Ollama** — completely free, runs locally
 - **DeepSeek** — cost-effective OpenAI-compatible provider
 
@@ -100,6 +105,49 @@ Nova uses three model tiers to balance speed, cost, and quality:
 | Undo last change | Type `undo` in terminal |
 | Open project map | `Option+M` |
 | Read the manifesto | `nova bible --read` |
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--no-open` | Don't open browser on startup (useful for CI/headless) |
+| `--yes` | Skip all interactive prompts, use safe defaults |
+| `--port <N>` | Override dev server port (default: auto-detected) |
+| `--proxy-port <N>` | Override proxy server port (default: dev port + 1) |
+| `--host <addr>` | Proxy bind address (default: `127.0.0.1`) |
+| `--no-telemetry` | Disable telemetry for this run |
+
+### Environment Variables
+
+| Variable | Effect |
+|----------|--------|
+| `NOVA_NON_INTERACTIVE=1` | Skip all prompts, use defaults (equivalent to `--yes`) |
+| `NOVA_QUIET=1` | Suppress the startup banner |
+| `NO_COLOR=1` | Disable ANSI color output |
+| `NOVA_TELEMETRY=false` | Disable telemetry |
+
+## Security Model
+
+Nova binds to **127.0.0.1 by default** — the proxy is inaccessible from other devices on your
+network. A unique per-session token is generated on each startup and embedded in the browser
+overlay. WebSocket connections are rejected without this token.
+
+To allow remote access (e.g., testing from a phone or another device), use `--host 0.0.0.0`.
+Nova prints a warning when binding to a non-loopback address.
+
+```bash
+# Default — local only (safe)
+nova
+
+# Allow LAN access (use with caution)
+nova --host 0.0.0.0
+```
+
+## Platform Support
+
+- **Linux** — fully supported
+- **macOS** — fully supported
+- **Windows** — use WSL 2 (Windows Subsystem for Linux). Native Windows is not supported.
 
 ## Architecture
 

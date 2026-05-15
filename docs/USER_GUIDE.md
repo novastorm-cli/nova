@@ -1,4 +1,4 @@
-# Nova Architect — User Guide
+# Novastorm — User Guide
 
 ## Quick Start
 
@@ -6,11 +6,22 @@
 # 1. Setup (first time)
 nova setup
 
-# 2. Start
-nova start
+# 2. Verify your setup
+nova doctor
+
+# 3. Start
+nova
 ```
 
 Nova detects your stack, starts dev server, opens browser with overlay. You're ready to build.
+
+---
+
+## Platform Support
+
+- **Linux** — fully supported
+- **macOS** — fully supported
+- **Windows** — use WSL 2 (Windows Subsystem for Linux). Native Windows is not supported.
 
 ---
 
@@ -18,21 +29,74 @@ Nova detects your stack, starts dev server, opens browser with overlay. You're r
 
 | Command | Description |
 |---------|-------------|
-| `nova start` | Start Nova (default command) |
+| `nova` | Start Novastorm (default command) |
 | `nova init` | Create `nova.toml` config |
 | `nova setup` | Interactive first-time setup (AI provider + API key) |
 | `nova setup -p <provider> -k <key>` | Non-interactive setup |
+| `nova doctor` | Run system diagnostics (provider, Node, Git, ports) |
+| `nova doctor --json` | Machine-readable diagnostics output |
 | `nova status` | Show project status (stack, port, tasks, index) |
 | `nova license status` | Show license info |
 | `nova license activate <key>` | Activate license key |
 | `nova entity add` | Add service/database/entity to manifest |
 | `nova entity list` | List registered entities |
 | `nova entity remove <name>` | Remove entity |
+| `nova update` | Update Nova CLI to latest version |
+| `nova uninstall` | Uninstall Nova CLI |
 
 **Flags:**
+- `--no-open` — don't open browser on startup
+- `--yes` — skip all interactive prompts
+- `--port <N>` — override dev server port
+- `--proxy-port <N>` — override proxy server port
+- `--host <addr>` — proxy bind address (default: `127.0.0.1`)
 - `--no-telemetry` — disable telemetry for this run
 - `--version` — show version
 - `--help` — show help
+
+---
+
+## nova doctor
+
+Run system diagnostics to verify your Nova setup is healthy:
+
+```bash
+nova doctor
+```
+
+Checks performed:
+- **Provider ping** — verifies your AI provider is reachable with a 1-token test
+- **Node version** — checks Node ≥ 22
+- **Git availability** — confirms `git` is on PATH
+- **Port availability** — checks the default port is free
+- **`.nova/` writable** — verifies Nova can write project state
+- **Ollama reachability** — if Ollama is configured as provider
+- **Claude CLI presence** — if `claude-cli` is configured
+- **Package version** — compares installed version against npm registry
+
+Each check is marked `[OK]`, `[WARN]`, or `[FAIL]`. Exit code is 0 when all pass; non-zero if any fail.
+
+For CI/scripts, use `--json` for machine-readable output:
+
+```bash
+nova doctor --json
+```
+
+## Security Model
+
+Nova binds to **127.0.0.1 (localhost) by default**. The proxy is inaccessible from other devices
+on your network. A unique per-session token is generated on every startup and embedded in the
+browser overlay. WebSocket connections without this token are rejected.
+
+```bash
+# Default — local only (safe)
+nova
+
+# Allow LAN access (e.g., testing from a phone)
+nova --host 0.0.0.0
+```
+
+When binding to a non-loopback address, Nova prints a yellow warning at startup.
 
 ---
 
@@ -42,7 +106,7 @@ Nova detects your stack, starts dev server, opens browser with overlay. You're r
 
 ```toml
 [apiKeys]
-provider = "openrouter"   # anthropic | openai | ollama | claude-cli
+provider = "openrouter"   # anthropic | openai | openrouter | ollama | claude-cli | deepseek
 key = "sk-..."
 
 [project]
@@ -52,11 +116,13 @@ frontend = "."              # optional
 backends = ["api"]          # optional
 
 [models]
-fast = "claude-sonnet-4-6"
+micro = "claude-haiku-4-5-20251001"
+standard = "claude-sonnet-4-6"
 strong = "claude-opus-4-6"
 
 [behavior]
 autoCommit = false
+confirmTasks = true
 branchPrefix = "nova/"
 
 [voice]
@@ -71,6 +137,9 @@ engine = "web"              # web | whisper
 | `NOVA_API_KEY` | Override API key from config |
 | `NOVA_LICENSE_KEY` | Set license key |
 | `NOVA_TELEMETRY=false` | Disable telemetry |
+| `NOVA_NON_INTERACTIVE=1` | Skip all prompts, use defaults |
+| `NOVA_QUIET=1` | Suppress startup banner |
+| `NO_COLOR=1` | Disable ANSI color output |
 
 ---
 
@@ -82,13 +151,14 @@ engine = "web"              # web | whisper
 | **OpenRouter** | API key | Pay-per-token |
 | **Anthropic** | API key | Pay-per-token |
 | **OpenAI** | API key | Pay-per-token |
+| **DeepSeek** | API key | Pay-per-token |
 | **Ollama** | Local install | Free |
 
 ---
 
 ## Overlay UI
 
-After `nova start`, the browser overlay appears with these elements:
+After `nova`, the browser overlay appears with these elements:
 
 ### Star Button (bottom-right)
 
@@ -312,7 +382,7 @@ Or set via environment variable: `NOVA_LICENSE_KEY=NOVA-XXXXX`
 
 ## Scaffolding
 
-If you run `nova start` in an empty directory, Nova offers templates:
+If you run `nova` in an empty directory, Nova offers templates:
 
 1. **Next.js + TypeScript** — full-stack app
 2. **Vite + React + TypeScript** — SPA

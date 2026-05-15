@@ -1,8 +1,8 @@
-# Nova Architect — FAQ
+# Novastorm — FAQ
 
 ## General
 
-### What is Nova Architect?
+### What is Novastorm?
 
 A CLI tool that lets you build web applications by speaking, typing, or clicking elements in the browser. It works with your existing project — no cloud IDE, no platform lock-in.
 
@@ -46,7 +46,7 @@ With Ollama: always free.
 
 ### Can I change models mid-session?
 
-Yes: `/settings models.fast gpt-4o` applies immediately.
+Yes: `/settings models.standard gpt-4o` applies immediately.
 
 ### Does my code get sent to AI?
 
@@ -117,6 +117,86 @@ Auto-fix runs automatically when build errors are detected. Currently there's no
 
 ---
 
+## nova doctor
+
+### What does `nova doctor` check?
+
+Runs diagnostics on your setup:
+- Provider connectivity (1-token ping)
+- Node.js version (≥ 22)
+- Git availability
+- Port availability for the default Nova port
+- `.nova/` directory writability
+- Ollama reachability (if configured)
+- Claude CLI presence (if configured)
+- Package version vs latest npm registry
+
+Outputs `[OK]`, `[WARN]`, or `[FAIL]` for each check. Exits 0 if all pass; non-zero if any fail.
+
+### How do I run doctor in CI?
+
+```bash
+nova doctor --json
+```
+
+Machine-readable JSON output for scripting.
+
+---
+
+## Security & Network
+
+### Is Nova accessible from other devices on my network?
+
+**No, by default.** Nova's proxy binds to `127.0.0.1` (localhost only). External connections are
+refused. A per-session token authenticates the WebSocket connection between browser and Nova.
+
+### How do I test from another device (phone, tablet)?
+
+Use the `--host` flag:
+
+```bash
+nova --host 0.0.0.0
+```
+
+Nova prints a warning when binding to a non-loopback address. Only use this on trusted networks.
+
+### Does the session token persist across restarts?
+
+No — a new token is generated on every `nova` startup. The previous token is invalidated immediately.
+
+---
+
+## CLI Flags
+
+### Can I use Nova in CI / headless environments?
+
+Yes:
+
+```bash
+NOVA_NON_INTERACTIVE=1 nova --no-open --yes --no-telemetry
+```
+
+- `--no-open` — don't open a browser
+- `--yes` — skip all prompts
+- `--no-telemetry` — disable telemetry
+- `NOVA_NON_INTERACTIVE=1` — additional safety net for any remaining prompts
+
+### How do I run Nova without the startup banner?
+
+```bash
+NOVA_QUIET=1 nova
+# or pipe through a non-TTY consumer:
+nova --help | cat
+```
+
+### How do I run Nova without colored output?
+
+```bash
+NO_COLOR=1 nova
+```
+
+---
+
 ## Multi-Stack
 
 ### Can I use Next.js + Django together?
@@ -155,7 +235,7 @@ Set `frontend` and `backends` in `nova.toml` so Nova only scans relevant directo
 ### How to reduce AI costs?
 
 1. Use Ollama for simple CSS/style changes (Lane 1 doesn't use AI at all)
-2. Use a cheaper fast model: `/settings models.fast claude-haiku-4-5-20251001`
+2. Use a cheaper standard model: `/settings models.standard claude-haiku-4-5-20251001`
 3. Use Quick Edit (Option+I) for single-element changes — smaller prompts
 4. Batch changes with Multi-Edit instead of many separate requests
 
