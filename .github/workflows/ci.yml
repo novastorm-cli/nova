@@ -82,18 +82,26 @@ jobs:
           corepack prepare pnpm@10.32.1 --activate
 
       # ------------------------------------------------------------------
-      # 4. Cache pnpm store (global, OS-scoped)
+      # 4. Get pnpm store directory (dynamic, cross-platform)
+      # ------------------------------------------------------------------
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      # ------------------------------------------------------------------
+      # 5. Cache pnpm store (global, OS-scoped)
       # ------------------------------------------------------------------
       - name: Cache pnpm store
         uses: actions/cache@v4
         with:
-          path: ~/.pnpm-store
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
       # ------------------------------------------------------------------
-      # 5. Cache node_modules
+      # 6. Cache node_modules
       # ------------------------------------------------------------------
       - name: Cache node_modules
         id: cache-node-modules
@@ -107,19 +115,19 @@ jobs:
             ${{ runner.os }}-node-modules-
 
       # ------------------------------------------------------------------
-      # 6. Install dependencies
+      # 7. Install dependencies
       # ------------------------------------------------------------------
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       # ------------------------------------------------------------------
-      # 7. Build all packages
+      # 8. Build all packages
       # ------------------------------------------------------------------
       - name: Build
         run: pnpm -r build
 
       # ------------------------------------------------------------------
-      # 8. Typecheck
+      # 9. Typecheck
       # ------------------------------------------------------------------
       - name: Typecheck
         run: pnpm -r exec tsc --noEmit
@@ -128,48 +136,48 @@ jobs:
         continue-on-error: true
 
       # ------------------------------------------------------------------
-      # 9. Lint
+      # 10. Lint
       # ------------------------------------------------------------------
       - name: Lint
         run: pnpm exec eslint .
 
       # ------------------------------------------------------------------
-      # 10. Format check
+      # 11. Format check
       # ------------------------------------------------------------------
       - name: Format check
         run: pnpm exec prettier --check "packages/*/src/**/*.ts"
 
       # ------------------------------------------------------------------
-      # 11. Unit tests
+      # 12. Unit tests
       # ------------------------------------------------------------------
       - name: Unit tests
         run: pnpm test
 
       # ------------------------------------------------------------------
-      # 12. Coverage
+      # 13. Coverage
       # ------------------------------------------------------------------
       - name: Coverage
         run: pnpm exec vitest run --coverage
 
       # ------------------------------------------------------------------
-      # 13. Cache Playwright browsers
+      # 14. Cache Playwright browsers
       # ------------------------------------------------------------------
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright/
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
       # ------------------------------------------------------------------
-      # 14. Install Playwright Chromium (headless)
+      # 15. Install Playwright Chromium (headless)
       # ------------------------------------------------------------------
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --no-deps chromium
 
       # ------------------------------------------------------------------
-      # 15. Start test fixture
+      # 16. Start test fixture
       # ------------------------------------------------------------------
       - name: Start test fixture
         run: |
@@ -182,7 +190,7 @@ jobs:
           done
 
       # ------------------------------------------------------------------
-      # 16. Start Nova proxy (PLACEHOLDER — skipped in M0)
+      # 17. Start Nova proxy (PLACEHOLDER — skipped in M0)
       # ------------------------------------------------------------------
       # This step is commented out in M0 because the CLI flags required
       # (--no-open, --yes, --port, --proxy-port) and the NOVA_NON_INTERACTIVE
@@ -206,7 +214,7 @@ jobs:
       #     done
 
       # ------------------------------------------------------------------
-      # 17. Playwright E2E tests
+      # 18. Playwright E2E tests
       # ------------------------------------------------------------------
       - name: Playwright E2E tests
         run: pnpm exec playwright test
