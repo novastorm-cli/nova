@@ -228,6 +228,22 @@ export class ActivityLog {
     this.diffClickHandler = handler;
   }
 
+  /** Toggle the panel visibility (show/hide). */
+  toggle(): void {
+    if (!this.panelEl) return;
+    if (this.panelEl.classList.contains('hidden')) {
+      this.show();
+    } else {
+      this.panelEl.classList.add('hidden');
+    }
+  }
+
+  /** Show the activity log panel. */
+  show(): void {
+    if (!this.panelEl) return;
+    this.panelEl.classList.remove('hidden');
+  }
+
   /** Expose public state for e2e testing. */
   getState(): { collapsed: boolean; unreadCount: number; entryCount: number; isHidden: boolean } {
     return {

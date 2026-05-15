@@ -16,6 +16,7 @@ export const strings = {
   multiEditLabel: 'Multi-Edit',
   projectMapLabel: 'Project Map',
   gestureModeLabel: 'Gesture Mode',
+  activityLogPillLabel: 'Activity Log',
 
   // ── Transcript bar ───────────────────────────────────────
   micEmoji: '\uD83C\uDFA4',

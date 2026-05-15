@@ -1073,6 +1073,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     taskPanel.showHistory();
   });
 
+  // Pill dropdown: Activity Log
+  pill.onActivityLog(() => {
+    activityLog.toggle();
+  });
+
   // Set initial gesture mode visual
   pill.setGestureModeActive(gestureModeEnabled);
 

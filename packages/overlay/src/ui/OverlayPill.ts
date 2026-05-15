@@ -36,6 +36,7 @@ export class OverlayPill implements IOverlayPill {
   private multiEditHandler: (() => void) | null = null;
   private gestureModeHandler: (() => void) | null = null;
   private recentTasksHandler: (() => void) | null = null;
+  private activityLogHandler: (() => void) | null = null;
   private activeMode: 'none' | 'quickEdit' | 'multiEdit' = 'none';
   private gestureModeActive = false;
   private currentState: PillState = 'idle';
@@ -90,6 +91,11 @@ export class OverlayPill implements IOverlayPill {
     this.dropdownEl.innerHTML = this.buildDropdownHtml();
     this.dropdownEl.addEventListener('click', this.handleDropdownClick.bind(this));
     this.shadow.appendChild(this.dropdownEl);
+
+    // Listen for keydown on the host element so we catch keyboard events
+    // from both the pill button and dropdown items, which bubble through
+    // the shadow DOM to the host (keyboard events are composed: true).
+    this.host.addEventListener('keydown', this.handleDropdownKeyDown.bind(this));
 
     document.addEventListener('click', this.boundDocumentClick, true);
 
@@ -162,6 +168,10 @@ export class OverlayPill implements IOverlayPill {
 
   onRecentTasks(handler: () => void): void {
     this.recentTasksHandler = handler;
+  }
+
+  onActivityLog(handler: () => void): void {
+    this.activityLogHandler = handler;
   }
 
   // ── Gesture mode visual ───────────────────────────────────────
@@ -255,6 +265,11 @@ export class OverlayPill implements IOverlayPill {
     const target = (e.target as HTMLElement).closest<HTMLElement>('.dropdown-item');
     if (!target) return;
     e.stopPropagation();
+    this.activateDropdownItem(target);
+  }
+
+  /** Activate a dropdown item by its DOM element. */
+  private activateDropdownItem(target: HTMLElement): void {
     const mode = target.dataset.mode;
     if (mode === 'quickEdit') {
       this.quickEditHandler?.();
@@ -262,12 +277,88 @@ export class OverlayPill implements IOverlayPill {
       this.multiEditHandler?.();
     } else if (mode === 'projectMap') {
       window.open('/nova-project-map', '_blank');
+    } else if (mode === 'activityLog') {
+      this.activityLogHandler?.();
     } else if (mode === 'recentTasks') {
       this.recentTasksHandler?.();
     } else if (mode === 'gestureMode') {
       this.gestureModeHandler?.();
     }
     this.closeDropdown();
+  }
+
+  // ── Dropdown keyboard handler ─────────────────────────────────
+
+  private handleDropdownKeyDown(e: Event): void {
+    const ke = e as KeyboardEvent;
+    if (!this.dropdownVisible || !this.dropdownEl) return;
+
+    const items = this.getDropdownItems();
+    if (items.length === 0) return;
+
+    if (ke.key === 'ArrowDown' || ke.key === 'ArrowUp') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.navigateDropdown(items, ke.key === 'ArrowDown');
+      return;
+    }
+
+    if (ke.key === 'Enter' || ke.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      const focused = this.getFocusedDropdownItem(items);
+      if (focused) {
+        this.activateDropdownItem(focused);
+      }
+      return;
+    }
+
+    if (ke.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.closeDropdown();
+      // Return focus to the pill button
+      this.pillEl?.focus();
+      return;
+    }
+
+    if (ke.key === 'Tab') {
+      // Close dropdown and let Tab proceed naturally
+      this.closeDropdown();
+      // pillEl is a button with no explicit tabindex, so it's naturally
+      // in the tab order.  Closing the dropdown and letting the event
+      // bubble lets the browser move focus to the next element after
+      // the pill in the document tab order.
+      return;
+    }
+  }
+
+  /** Get all focusable dropdown item elements. */
+  private getDropdownItems(): HTMLElement[] {
+    if (!this.dropdownEl) return [];
+    return Array.from(this.dropdownEl.querySelectorAll('.dropdown-item'));
+  }
+
+  /** Get the currently focused dropdown item, or null if none is focused. */
+  private getFocusedDropdownItem(items: HTMLElement[]): HTMLElement | null {
+    const active = this.shadow?.activeElement as HTMLElement | null;
+    if (active && items.includes(active)) return active;
+    return null;
+  }
+
+  /** Navigate up or down through dropdown items, wrapping at edges. */
+  private navigateDropdown(items: HTMLElement[], down: boolean): void {
+    const current = this.getFocusedDropdownItem(items);
+    const idx = current ? items.indexOf(current) : -1;
+
+    let nextIdx: number;
+    if (down) {
+      nextIdx = idx < 0 ? 0 : idx + 1 >= items.length ? 0 : idx + 1;
+    } else {
+      nextIdx = idx < 0 ? items.length - 1 : idx - 1 < 0 ? items.length - 1 : idx - 1;
+    }
+
+    items[nextIdx]?.focus();
   }
 
   // ── Document click to close dropdown ──────────────────────────
@@ -429,6 +520,9 @@ export class OverlayPill implements IOverlayPill {
       </button>
       <button class="dropdown-item" data-mode="projectMap">
         <span class="dropdown-icon">&#128506;</span> ${strings.projectMapLabel} <span class="shortcut">${altM}</span>
+      </button>
+      <button class="dropdown-item" data-mode="activityLog">
+        <span class="dropdown-icon">&#128203;</span> ${strings.activityLogPillLabel}
       </button>
       <button class="dropdown-item" data-mode="recentTasks">
         <span class="dropdown-icon">&#128337;</span> ${strings.recentTasksLabel}
