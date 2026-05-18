@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import type {
   LlmClient,
   ProjectMap,
@@ -6,6 +5,7 @@ import type {
   IGitManager,
   EventBus,
   ILogger,
+  ExecutionResult,
 } from '@novastorm-ai/core';
 import { Lane2Executor, Lane3Executor, CommitQueue, StructuredLogger } from '@novastorm-ai/core';
 import type { WebSocketServer } from '@novastorm-ai/proxy';
@@ -35,6 +35,24 @@ const IMAGE_PATTERNS = [
   /next\/image.*not configured/i,
 ];
 
+/**
+ * Keywords that indicate the error requires deleting a file rather than creating one.
+ * When the error text matches any of these, the autofix prompt instructs the LLM to
+ * prefer deletion (remove the conflicting file) rather than creation.
+ */
+const DELETION_INTENT_KEYWORDS = [
+  /conflicting/i,
+  /both match/i,
+  /duplicate route/i,
+  /multiple modules/i,
+  /already exists/i,
+  /collision/i,
+  /ambiguous/i,
+  /both resolve to/i,
+  /two files/i,
+  /more than one/i,
+];
+
 export class ErrorAutoFixer {
   private isFixing = false;
   private errorBuffer = '';
@@ -45,6 +63,7 @@ export class ErrorAutoFixer {
   private lastErrorSignature = '';
   private cooldownUntil = 0;
   readonly autofixTaskIds = new Set<string>();
+  private readonly failedTaskIds = new Set<string>();
   private readonly logger: ILogger;
 
   constructor(
@@ -92,34 +111,47 @@ export class ErrorAutoFixer {
     }, this.DEBOUNCE_MS);
   }
 
-  /** Force an immediate fix attempt, bypassing debounce and pattern check. */
-  forceFixNow(errorOutput: string): void {
+  /** Force an immediate fix attempt, bypassing debounce, cooldown, and pattern check. */
+  forceFixNow(errorOutput: string): Promise<void> {
     if (this.isFixing) {
       this.logger.debug('[Nova] AutoFixer: already fixing, skipping forced fix');
-      return;
+      return Promise.resolve();
     }
-    void this.attemptAutoFix(errorOutput);
+    return this.attemptAutoFix(errorOutput, { skipCooldown: true, skipDedup: true });
   }
 
-  private async attemptAutoFix(errorOutput: string): Promise<void> {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Retry loop + prompt builder
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private async attemptAutoFix(
+    errorOutput: string,
+    options?: { skipCooldown?: boolean; skipDedup?: boolean },
+  ): Promise<void> {
     if (this.isFixing) return;
 
-    // Deduplicate: if same error keeps appearing, stop after MAX_FIX_ATTEMPTS
-    const errorSig = errorOutput.slice(0, 200);
-    if (errorSig === this.lastErrorSignature) {
-      this.fixAttempts++;
-    } else {
-      this.lastErrorSignature = errorSig;
-      this.fixAttempts = 1;
-    }
+    const skipCooldown = options?.skipCooldown ?? false;
+    const skipDedup = options?.skipDedup ?? false;
 
-    if (this.fixAttempts > this.MAX_FIX_ATTEMPTS) {
-      this.logger.warn(
-        `[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`,
-      );
-      this.cooldownUntil = Date.now() + 60_000; // 1 minute cooldown
-      this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
-      return;
+    // Deduplicate: if same error keeps appearing, stop after MAX_FIX_ATTEMPTS
+    // (skip for forceFixNow which resets its own attempt tracking internally)
+    if (!skipDedup) {
+      const errorSig = errorOutput.slice(0, 200);
+      if (errorSig === this.lastErrorSignature) {
+        this.fixAttempts++;
+      } else {
+        this.lastErrorSignature = errorSig;
+        this.fixAttempts = 1;
+      }
+
+      if (this.fixAttempts > this.MAX_FIX_ATTEMPTS) {
+        this.logger.warn(
+          `[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`,
+        );
+        this.cooldownUntil = Date.now() + 60_000; // 1 minute cooldown
+        this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
+        return;
+      }
     }
 
     this.isFixing = true;
@@ -133,21 +165,256 @@ export class ErrorAutoFixer {
     }, 300_000);
 
     try {
+      // Retry loop: attempt fix up to MAX_FIX_ATTEMPTS times.
+      // Each retry includes failure context from previous attempt.
       const isImageError = IMAGE_PATTERNS.some((p) => p.test(errorOutput));
+      let previousFailure = '';
 
-      if (isImageError) {
-        await this.fixImageError(errorOutput);
-        return;
+      for (let attempt = 1; attempt <= this.MAX_FIX_ATTEMPTS; attempt++) {
+        // Clear Next.js/Turbopack cache before each retry to avoid stale errors
+        if (attempt > 1) {
+          try {
+            const { rmSync } = await import('node:fs');
+            const { join } = await import('node:path');
+            const nextCache = join(this.projectPath, '.next', 'cache');
+            rmSync(nextCache, { recursive: true, force: true });
+          } catch {
+            /* cache dir may not exist */
+          }
+        }
+
+        const taskDescription = this.buildTaskDescription(errorOutput, attempt, previousFailure);
+
+        let result: ExecutionResult;
+
+        if (isImageError) {
+          result = await this.executeImageFixCore(errorOutput, taskDescription);
+        } else {
+          result = await this.executeCompilationFixCore(errorOutput, taskDescription);
+        }
+
+        if (result.success) {
+          // Fix succeeded — emit success events
+          this.logger.info(
+            `[Nova] Auto-fix succeeded on attempt ${attempt}/${this.MAX_FIX_ATTEMPTS}`,
+          );
+          this.eventBus.emit({
+            type: 'task_completed',
+            data: {
+              taskId: result.taskId,
+              diff: result.diff ?? '',
+              commitHash: result.commitHash ?? '',
+            },
+          });
+          this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
+          return;
+        }
+
+        // Fix failed — record as a failed attempt
+        this.failedTaskIds.add(result.taskId);
+        previousFailure = result.error ?? 'Unknown error';
+
+        // Emit task_failed event for this attempt
+        const failEvent = {
+          type: 'task_failed' as const,
+          data: { taskId: result.taskId, error: previousFailure },
+        };
+        this.eventBus.emit(failEvent);
+
+        if (attempt < this.MAX_FIX_ATTEMPTS) {
+          this.logger.info(
+            `[Nova] AutoFixer: attempt ${attempt}/${this.MAX_FIX_ATTEMPTS} failed (${previousFailure}), retrying...`,
+          );
+          this.wsServer.sendEvent({
+            type: 'status',
+            data: {
+              message: `autofix_retry_${attempt + 1}`,
+            },
+          });
+        }
       }
 
-      await this.fixCompilationError(errorOutput);
+      // Budget exhausted — all attempts failed
+      this.logger.error(
+        JSON.stringify({
+          event: 'autofix_budget_exhausted',
+          lastError: errorOutput.slice(0, 300),
+          failedTaskIds: [...this.failedTaskIds],
+          totalAttempts: this.MAX_FIX_ATTEMPTS,
+          lastFailureReason: previousFailure,
+        }),
+      );
+
+      this.wsServer.sendEvent({
+        type: 'status',
+        data: { message: 'autofix_budget_exhausted' },
+      });
+
+      // Cooldown to prevent immediate re-trigger via handleOutput
+      if (!skipCooldown) {
+        this.cooldownUntil = Date.now() + 60_000;
+      }
+
+      // Reset dedup tracking so a genuinely new error can trigger a fresh cycle
+      if (!skipDedup) {
+        this.lastErrorSignature = '';
+        this.fixAttempts = 0;
+      }
     } finally {
       clearTimeout(safetyTimer);
       this.isFixing = false;
     }
   }
 
-  private async fixImageError(errorOutput: string): Promise<void> {
+  /**
+   * Build the task description sent to the LLM, including deletion-intent
+   * guidance when the error suggests conflicting/duplicate files.
+   */
+  private buildTaskDescription(
+    errorOutput: string,
+    attempt: number,
+    previousFailure?: string,
+  ): string {
+    const truncatedError = errorOutput.slice(0, 500);
+    let description =
+      `Fix the following compilation/build error in the project. ` +
+      `Read the error carefully and fix the root cause:\n${truncatedError}`;
+
+    // Detect deletion-intent keywords: error mentions conflicting/duplicate files.
+    // Instruct LLM to prefer removal over creation in such cases.
+    const hasDeletionIntent = DELETION_INTENT_KEYWORDS.some((p) => p.test(errorOutput));
+    if (hasDeletionIntent) {
+      description +=
+        '\n\nIMPORTANT: This error indicates conflicting or duplicate files. ' +
+        'You MUST REMOVE or DELETE one of the conflicting files, NOT create new ones. ' +
+        "Prefer deletion over creation when resolving conflicts. Use the 'delete' action.";
+    }
+
+    // Include previous failure context on retry so the LLM tries a different approach
+    if (attempt > 1 && previousFailure) {
+      description +=
+        `\n\nPrevious attempt ${attempt - 1} failed: ${previousFailure}. ` +
+        'Try a DIFFERENT approach. Do not repeat the same fix.';
+    }
+
+    return description;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Core execution methods (create task, run executor, return ExecutionResult)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private async executeCompilationFixCore(
+    errorOutput: string,
+    taskDescription: string,
+  ): Promise<ExecutionResult> {
+    this.logger.warn('[Nova] Detected compilation error — attempting auto-fix');
+    this.wsServer.sendEvent({
+      type: 'status',
+      data: { message: 'Compilation error detected. Auto-fixing...' },
+    });
+
+    let targetFile = this.extractFilePath(errorOutput);
+
+    // Fallback: scan project map for files mentioned in error text
+    if (!targetFile) {
+      const knownFiles = Array.from(this.projectMap.fileContexts.keys());
+      for (const f of knownFiles) {
+        if (errorOutput.includes(f)) {
+          targetFile = f;
+          break;
+        }
+      }
+      if (!targetFile) {
+        for (const f of knownFiles) {
+          const basename = f.split('/').slice(-1)[0]!;
+          if (basename && errorOutput.includes(basename) && f.endsWith('.tsx')) {
+            targetFile = f;
+            break;
+          }
+        }
+      }
+    }
+
+    const result =
+      targetFile && this.projectMap.fileContexts.has(targetFile)
+        ? await this.executeLane2Core(targetFile, taskDescription)
+        : await this.executeLane3Core(taskDescription);
+
+    return result;
+  }
+
+  private async executeLane2Core(
+    targetFile: string,
+    taskDescription: string,
+  ): Promise<ExecutionResult> {
+    const task: TaskItem = {
+      id: crypto.randomUUID(),
+      description: taskDescription,
+      files: [targetFile],
+      type: 'single_file',
+      lane: 2,
+      status: 'pending',
+    };
+    this.autofixTaskIds.add(task.id);
+
+    const executor = new Lane2Executor(
+      this.projectPath,
+      this.llmClient,
+      this.gitManager,
+      undefined, // pathGuard
+      this.commitQueue,
+      this.microModel,
+    );
+
+    this.logger.info(`[Nova] Auto-fixing compilation error via Lane 2 (${targetFile})...`);
+    this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
+    this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
+    this.wsServer.sendEvent({ type: 'task_created', data: task });
+
+    const result = await executor.execute(task, this.projectMap);
+    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
+    return result;
+  }
+
+  private async executeLane3Core(taskDescription: string): Promise<ExecutionResult> {
+    const task: TaskItem = {
+      id: crypto.randomUUID(),
+      description: taskDescription,
+      files: [],
+      type: 'multi_file',
+      lane: 3,
+      status: 'pending',
+    };
+    this.autofixTaskIds.add(task.id);
+
+    const executor = new Lane3Executor(
+      this.projectPath,
+      this.llmClient,
+      this.gitManager,
+      this.eventBus,
+      1, // maxFixIterations — single pass for auto-fix
+      this.microModel,
+      undefined, // agentPromptLoader
+      undefined, // pathGuard
+      this.commitQueue,
+      true, // skipValidation — auto-fix tasks skip tsc
+    );
+
+    this.logger.info('[Nova] Auto-fixing compilation error via Lane 3...');
+    this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
+    this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
+    this.wsServer.sendEvent({ type: 'task_created', data: task });
+
+    const result = await executor.execute(task, this.projectMap);
+    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
+    return result;
+  }
+
+  private async executeImageFixCore(
+    errorOutput: string,
+    taskDescription: string,
+  ): Promise<ExecutionResult> {
     this.logger.warn('[Nova] Detected image loading error — replacing with placeholders');
     this.wsServer.sendEvent({
       type: 'status',
@@ -156,25 +423,9 @@ export class ErrorAutoFixer {
       },
     });
 
-    // Detect if it's a next/image hostname error
-    const hostnameMatch = errorOutput.match(/hostname "([^"]+)" is not configured/);
-    const invalidSrcMatch = errorOutput.match(/Invalid src prop \(([^)]+)\)/);
-
-    let description: string;
-    if (hostnameMatch || invalidSrcMatch) {
-      const hostname = hostnameMatch?.[1] ?? 'unknown';
-      description = `Fix next/image error. Two options (pick the simpler one):
-1. Replace all next/image <Image> tags that use external URLs with regular <img> tags.
-2. OR add the hostname "${hostname}" to images.remotePatterns in next.config.ts/next.config.mjs.
-Also: replace any invalid/fake image URLs (like https://invalid-url.com/*) with working placeholder URLs from https://picsum.photos (e.g. https://picsum.photos/800/600).
-Error: ${errorOutput.slice(0, 300)}`;
-    } else {
-      description = `Fix image loading errors. Replace all broken/missing image references with working placeholder URLs from https://picsum.photos (e.g. https://picsum.photos/800/600 for large, https://picsum.photos/400/300 for medium). Use regular <img> tags instead of next/image <Image> for external URLs. Error: ${errorOutput.slice(0, 200)}`;
-    }
-
     const task: TaskItem = {
       id: crypto.randomUUID(),
-      description,
+      description: taskDescription,
       files: [],
       type: 'multi_file',
       lane: 3,
@@ -202,110 +453,42 @@ Error: ${errorOutput.slice(0, 300)}`;
 
     const result = await executor.execute(task, this.projectMap);
     setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
+    return result;
+  }
 
-    if (result.success) {
-      this.logger.info('[Nova] Image errors fixed automatically');
-      this.eventBus.emit({
-        type: 'task_completed',
-        data: { taskId: task.id, diff: result.diff ?? '', commitHash: result.commitHash ?? '' },
-      });
-      this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
-    } else {
-      this.logger.error(`[Nova] Failed to fix image errors: ${result.error}`);
-      const failEvent = {
-        type: 'task_failed' as const,
-        data: { taskId: task.id, error: result.error ?? 'Image fix failed' },
-      };
-      this.eventBus.emit(failEvent);
-      this.wsServer.sendEvent(failEvent);
-      this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
-    }
+  // ─────────────────────────────────────────────────────────────────────────
+  // Legacy wrapper methods (kept for backward compatibility)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private async fixImageError(errorOutput: string): Promise<void> {
+    await this.attemptAutoFix(errorOutput);
   }
 
   private async fixCompilationError(errorOutput: string): Promise<void> {
-    this.logger.warn('[Nova] Detected compilation error — attempting auto-fix');
-    this.wsServer.sendEvent({
-      type: 'status',
-      data: { message: 'Compilation error detected. Auto-fixing...' },
-    });
-
-    let targetFile = this.extractFilePath(errorOutput);
-
-    // Fallback: if extractFilePath returned null, scan the project map
-    // for files mentioned in the error text (e.g., Turbopack puts
-    // "⨯ ./app/page.tsx:2:1" on a line that may arrive in a different
-    // output chunk).
-    if (!targetFile) {
-      const knownFiles = Array.from(this.projectMap.fileContexts.keys());
-      for (const f of knownFiles) {
-        if (errorOutput.includes(f)) {
-          targetFile = f;
-          break;
-        }
-      }
-      // Also try matching file paths without leading ./
-      if (!targetFile) {
-        for (const f of knownFiles) {
-          const basename = f.split('/').slice(-1)[0]!;
-          if (basename && errorOutput.includes(basename) && f.endsWith('.tsx')) {
-            targetFile = f;
-            break;
-          }
-        }
-      }
-    }
-
-    if (targetFile && this.projectMap.fileContexts.has(targetFile)) {
-      // Simple single-file error — use fast Lane 2
-      await this.fixWithLane2(targetFile, errorOutput);
-    } else {
-      // Complex/unknown error — use Lane 3
-      await this.fixWithLane3(errorOutput);
-    }
+    await this.attemptAutoFix(errorOutput);
   }
 
   private async fixWithLane2(targetFile: string, errorOutput: string): Promise<void> {
-    const truncatedError = errorOutput.slice(0, 500);
-
-    const task: TaskItem = {
-      id: crypto.randomUUID(),
-      description: `Fix the following compilation/build error in the project. Read the error carefully and fix the root cause:\n${truncatedError}`,
-      files: [targetFile],
-      type: 'single_file',
-      lane: 2,
-      status: 'pending',
-    };
-    this.autofixTaskIds.add(task.id);
-
-    const executor = new Lane2Executor(
-      this.projectPath,
-      this.llmClient,
-      this.gitManager,
-      undefined, // pathGuard
-      this.commitQueue,
-      this.microModel,
-    );
-
-    this.logger.info(`[Nova] Auto-fixing compilation error via Lane 2 (${targetFile})...`);
-    this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
-    this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
-    this.wsServer.sendEvent({ type: 'task_created', data: task });
-
-    const result = await executor.execute(task, this.projectMap);
-    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
-
+    const taskDescription =
+      `Fix the following compilation/build error in the project. ` +
+      `Read the error carefully and fix the root cause:\n${errorOutput.slice(0, 500)}`;
+    const result = await this.executeLane2Core(targetFile, taskDescription);
     if (result.success) {
       this.logger.info('[Nova] Compilation error fixed automatically (Lane 2)');
       this.eventBus.emit({
         type: 'task_completed',
-        data: { taskId: task.id, diff: result.diff ?? '', commitHash: result.commitHash ?? '' },
+        data: {
+          taskId: result.taskId,
+          diff: result.diff ?? '',
+          commitHash: result.commitHash ?? '',
+        },
       });
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
       this.logger.error(`[Nova] Auto-fix failed: ${result.error}`);
       const failEvent = {
         type: 'task_failed' as const,
-        data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' },
+        data: { taskId: result.taskId, error: result.error ?? 'Auto-fix failed' },
       };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
@@ -314,38 +497,10 @@ Error: ${errorOutput.slice(0, 300)}`;
   }
 
   private async fixWithLane3(errorOutput: string): Promise<void> {
-    const truncatedError = errorOutput.slice(0, 500);
-
-    const task: TaskItem = {
-      id: crypto.randomUUID(),
-      description: `Fix the following compilation/build error in the project. Read the error carefully and fix the root cause:\n${truncatedError}`,
-      files: [],
-      type: 'multi_file',
-      lane: 3,
-      status: 'pending',
-    };
-    this.autofixTaskIds.add(task.id);
-
-    const executor = new Lane3Executor(
-      this.projectPath,
-      this.llmClient,
-      this.gitManager,
-      this.eventBus,
-      1, // maxFixIterations — single pass for auto-fix
-      this.microModel,
-      undefined, // agentPromptLoader
-      undefined, // pathGuard
-      this.commitQueue,
-      true, // skipValidation — auto-fix tasks skip tsc
-    );
-
-    this.logger.info('[Nova] Auto-fixing compilation error...');
-    this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
-    this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
-    this.wsServer.sendEvent({ type: 'task_created', data: task });
-
-    const result = await executor.execute(task, this.projectMap);
-    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
+    const taskDescription =
+      `Fix the following compilation/build error in the project. ` +
+      `Read the error carefully and fix the root cause:\n${errorOutput.slice(0, 500)}`;
+    const result = await this.executeLane3Core(taskDescription);
 
     // Clear Next.js/Turbopack cache after fix to avoid stale compilation errors
     try {
@@ -361,20 +516,28 @@ Error: ${errorOutput.slice(0, 300)}`;
       this.logger.info('[Nova] Compilation error fixed automatically');
       this.eventBus.emit({
         type: 'task_completed',
-        data: { taskId: task.id, diff: result.diff ?? '', commitHash: result.commitHash ?? '' },
+        data: {
+          taskId: result.taskId,
+          diff: result.diff ?? '',
+          commitHash: result.commitHash ?? '',
+        },
       });
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
     } else {
       this.logger.error(`[Nova] Auto-fix failed: ${result.error}`);
       const failEvent = {
         type: 'task_failed' as const,
-        data: { taskId: task.id, error: result.error ?? 'Auto-fix failed' },
+        data: { taskId: result.taskId, error: result.error ?? 'Auto-fix failed' },
       };
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // File path extraction
+  // ─────────────────────────────────────────────────────────────────────────
 
   private extractFilePath(errorOutput: string): string | null {
     // Common patterns for file paths in error output.
