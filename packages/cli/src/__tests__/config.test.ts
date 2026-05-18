@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -576,8 +576,8 @@ micro = "test"
       await reader.read(tmpDir);
       // "modles" is 1 edit away from "models"
       expect(consoleWarnSpy).toHaveBeenCalled();
-      const warnings = consoleWarnSpy.mock.calls.map((c) => c[0] as string);
-      const typoWarning = warnings.find((w) => w.includes('modles') || w.includes('models'));
+      const warnings = consoleWarnSpy.mock.calls.map((c: unknown[]) => c[0] as string);
+      const typoWarning = warnings.find((w: string) => w.includes('modles') || w.includes('models'));
       expect(typoWarning).toBeDefined();
       consoleWarnSpy.mockRestore();
     });

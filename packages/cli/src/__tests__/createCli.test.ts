@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { Option } from 'commander';
 
 vi.mock('@novastorm-ai/core', async () => {
   const actual = await vi.importActual('@novastorm-ai/core');
@@ -31,41 +32,40 @@ describe('createCli', () => {
 
   it('registers --no-open option', () => {
     const program = createCli();
-    const opts = program.opts();
     // --no-open creates 'open' option (default true, can be set false)
-    expect(program.options.some((o: { long: string }) => o.long === '--no-open')).toBe(true);
+    expect(program.options.some((o: Option) => o.long === '--no-open')).toBe(true);
   });
 
   it('registers --yes option', () => {
     const program = createCli();
-    expect(program.options.some((o: { long: string }) => o.long === '--yes')).toBe(true);
+    expect(program.options.some((o: Option) => o.long === '--yes')).toBe(true);
   });
 
   it('registers --port option', () => {
     const program = createCli();
-    expect(program.options.some((o: { long: string }) => o.long === '--port')).toBe(true);
+    expect(program.options.some((o: Option) => o.long === '--port')).toBe(true);
   });
 
   it('registers --proxy-port option', () => {
     const program = createCli();
-    expect(program.options.some((o: { long: string }) => o.long === '--proxy-port')).toBe(true);
+    expect(program.options.some((o: Option) => o.long === '--proxy-port')).toBe(true);
   });
 
   it('registers --host option', () => {
     const program = createCli();
-    expect(program.options.some((o: { long: string }) => o.long === '--host')).toBe(true);
+    expect(program.options.some((o: Option) => o.long === '--host')).toBe(true);
   });
 
   it('registers --no-telemetry option', () => {
     const program = createCli();
     expect(
-      program.options.some((o: { long: string }) => o.long === '--no-telemetry'),
+      program.options.some((o: Option) => o.long === '--no-telemetry'),
     ).toBe(true);
   });
 
   it('registers --debug option', () => {
     const program = createCli();
-    expect(program.options.some((o: { long: string }) => o.long === '--debug')).toBe(true);
+    expect(program.options.some((o: Option) => o.long === '--debug')).toBe(true);
   });
 
   it('registers start subcommand', () => {

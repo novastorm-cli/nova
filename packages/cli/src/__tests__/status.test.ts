@@ -43,7 +43,7 @@ describe('statusCommand', () => {
   });
 
   it('reports no nova.toml when config does not exist', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(false) as any;
 
     await statusCommand();
@@ -51,9 +51,9 @@ describe('statusCommand', () => {
   });
 
   it('shows status when config exists', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
     // Mock stat to throw (no index)
@@ -66,13 +66,13 @@ describe('statusCommand', () => {
   });
 
   it('reports index and tasks when present', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
     // Mock stat to succeed (index exists)
-    vi.mocked(fs.stat).mockResolvedValue({} as fs.Stats);
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true, isDirectory: () => false } as any);
     // Mock tasks file with pending tasks
     vi.mocked(fs.readFile).mockResolvedValue(
       JSON.stringify([{ status: 'pending' }, { status: 'completed' }]),
@@ -83,12 +83,12 @@ describe('statusCommand', () => {
   });
 
   it('reports no pending tasks when tasks are all complete', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
-    vi.mocked(fs.stat).mockResolvedValue({} as fs.Stats);
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true, isDirectory: () => false } as any);
     vi.mocked(fs.readFile).mockResolvedValue(
       JSON.stringify([{ status: 'completed' }]),
     );
@@ -98,12 +98,12 @@ describe('statusCommand', () => {
   });
 
   it('handles invalid tasks.json gracefully', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
-    vi.mocked(fs.stat).mockResolvedValue({} as fs.Stats);
+    vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true, isDirectory: () => false } as any);
     vi.mocked(fs.readFile).mockResolvedValue('not valid json');
 
     await statusCommand();
@@ -111,9 +111,9 @@ describe('statusCommand', () => {
   });
 
   it('does not crash when config read fails', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     MockConfigReader.prototype.read = vi
       .fn()
       .mockRejectedValue(new Error('read error')) as any;

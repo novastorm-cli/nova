@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@novastorm-ai/core', async () => {
   const actual = await vi.importActual('@novastorm-ai/core');
@@ -23,7 +23,7 @@ describe('NovaChat', () => {
 
     // Access private parse method for testing
     function parse(input: string): ChatCommand {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       return (chat as any).parse(input);
     }
 

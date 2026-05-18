@@ -62,7 +62,7 @@ describe('uninstallCommand', () => {
     await uninstallCommand();
     // Should call npm uninstall
     expect(mockExecFile).toHaveBeenCalled();
-    const firstCall = mockExecFile.mock.calls[0];
+    const firstCall = mockExecFile.mock.calls[0]!;
     expect(firstCall[0]).toBe('npm');
     expect(firstCall[1]).toContain('uninstall');
   });
@@ -88,7 +88,7 @@ describe('uninstallCommand', () => {
     await uninstallCommand();
     // Should have been called twice (npm then pnpm)
     expect(mockExecFile).toHaveBeenCalledTimes(2);
-    const secondCall = mockExecFile.mock.calls[1];
+    const secondCall = mockExecFile.mock.calls[1]!;
     expect(secondCall[0]).toBe('pnpm');
   });
 
@@ -98,7 +98,7 @@ describe('uninstallCommand', () => {
         _cmd: string,
         _args: string[],
         _opts: { timeout: number },
-        cb: (error: Error) => void,
+        cb: (error: Error, stdout?: string) => void,
       ) => {
         cb(new Error('command not found'), '');
       },

@@ -29,6 +29,8 @@ vi.mock('@novastorm-ai/core', async () => {
 });
 
 import { ConfigReader } from '../config.js';
+// ProviderFactory imported for type registration but used implicitly by factory pattern
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ProviderFactory } from '@novastorm-ai/core';
 
 const MockConfigReader = vi.mocked(ConfigReader);
@@ -40,7 +42,7 @@ import {
   formatJsonOutput,
   doctorCommand,
 } from '../commands/doctor.js';
-import type { CheckResult, DoctorOptions } from '../commands/doctor.js';
+import type { CheckResult } from '../commands/doctor.js';
 
 // ── Helper to build a valid NovaConfig ──────────────────────────────────
 
@@ -561,7 +563,7 @@ describe('doctor.ts module exports', () => {
       process.env['NOVA_DOCTOR_PING_MODE'] = 'mock';
       MockConfigReader.prototype.read = vi.fn().mockResolvedValue(
         makeConfig({
-          models: { standard: 'deepseek-v4-pro' },
+          models: { micro: 'deepseek-v4-flash', standard: 'deepseek-v4-pro', strong: 'deepseek-v4-pro' } as any,
         }),
       );
 

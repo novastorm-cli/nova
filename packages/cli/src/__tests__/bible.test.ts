@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, vi } from 'vitest';
 
 vi.mock('@novastorm-ai/core', async () => {
   const actual = await vi.importActual('@novastorm-ai/core');
