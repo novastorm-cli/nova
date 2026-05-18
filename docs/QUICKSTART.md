@@ -6,6 +6,20 @@
 npm install -g @novastorm-ai/cli
 ```
 
+> **Alternative (local tarball):** If the package is not yet available on npm, build and
+> install from source:
+> ```bash
+> # Build all workspace packages
+> pnpm install && pnpm -r build
+>
+> # Pack all workspace packages
+> pnpm pack --pack-destination /tmp/novastorm-pkgs -r
+>
+> # Install all packages globally
+> npm install -g /tmp/novastorm-pkgs/*.tgz
+> ```
+> After install, `nova --version` should print a semver.
+
 ## 2. Setup AI Provider
 
 ```bash

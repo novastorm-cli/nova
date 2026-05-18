@@ -106,7 +106,9 @@ Settings changed via `/settings` apply **instantly** — no restart needed:
 ```
 /settings apiKeys.provider anthropic
 /settings apiKeys.key sk-ant-...
+/settings models.micro claude-haiku-4-5-20251001
 /settings models.standard claude-haiku-4-5-20251001
+/settings models.strong claude-opus-4-6
 /settings behavior.autoCommit true
 /settings voice.engine whisper
 ```
