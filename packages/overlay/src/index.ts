@@ -149,7 +149,8 @@ function boot(): void {
   let lastTranscript = '';
   let isProcessing = false;
   let autoExecute = false; // Skip confirmation for inspector/multi-edit modes
-  let autoExecuteSource: 'quick-edit' | 'multi-edit' | null = null; // Track source for ActivityLog labels
+  let autoExecuteSource: 'quick-edit' | 'multi-edit' | null = null; // Current batch source, consumed by task_created/pending_tasks
+  const taskSourceMap = new Map<string, 'quick-edit' | 'multi-edit'>(); // Per-task source tracking
   let voiceStarted = false;
   let awaitingConfirmation = false;
   let awaitingSendConfirmation = false;
@@ -1002,7 +1003,9 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         wsClient.send(observation);
       }
       autoExecute = false; // Reset after sending
-      autoExecuteSource = null; // Reset source tracking
+      // autoExecuteSource is NOT reset here to avoid a race:
+      // it must survive until task_created / pending_tasks events arrive
+      // and is consumed by those handlers into taskSourceMap.
       cursorTracker.clear();
       temporalCorrelator.clear();
       executingToastId = statusToast.show(strings.aiThinking, 'info', 0);
@@ -1279,11 +1282,13 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         completedTasks++;
         taskPanel.setTaskCompleted(event.data.taskId, event.data.commitHash);
         {
-          const autoExecLabel = autoExecuteSource
-            ? ` (${autoExecuteSource === 'quick-edit' ? strings.executedViaQuickEdit : strings.executedViaMultiEdit})`
+          const taskSource = taskSourceMap.get(event.data.taskId);
+          const autoExecLabel = taskSource
+            ? ` (${taskSource === 'quick-edit' ? strings.executedViaQuickEdit : strings.executedViaMultiEdit})`
             : '';
           activityLog.addEntry(`Done: ${event.data.taskId}${autoExecLabel}`, 'success', false, ts);
         }
+        taskSourceMap.delete(event.data.taskId); // Clean up per-task source tracking
         // Only finish when ALL tasks done
         if (completedTasks >= totalTasks && totalTasks > 0) {
           if (executingToastId) {
@@ -1323,8 +1328,9 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         fsm.send({ type: 'thinking_started' });
         taskPanel.setTaskStarted(event.data.taskId);
         {
-          const autoExecLabel = autoExecuteSource
-            ? ` (${autoExecuteSource === 'quick-edit' ? strings.executedViaQuickEdit : strings.executedViaMultiEdit})`
+          const taskSource = taskSourceMap.get(event.data.taskId);
+          const autoExecLabel = taskSource
+            ? ` (${taskSource === 'quick-edit' ? strings.executedViaQuickEdit : strings.executedViaMultiEdit})`
             : '';
           activityLog.addEntry(`Starting: ${event.data.taskId}${autoExecLabel}`, 'info', false, ts);
         }
@@ -1393,6 +1399,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         if (td.id && td.description) {
           taskPanel.addTask({ id: td.id, description: td.description, lane: td.lane ?? 3 });
           totalTasks = Math.max(totalTasks, 1);
+          // Consume autoExecuteSource into per-task map (avoids race with reset in sendObservation)
+          if (autoExecuteSource) {
+            taskSourceMap.set(td.id, autoExecuteSource);
+            autoExecuteSource = null;
+          }
         }
         activityLog.addEntry(`Task: ${td.description} (Lane ${td.lane})`, 'info', false, ts);
         break;
@@ -1434,6 +1445,13 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           taskPanel.setPendingTasks(pendingTaskList);
           totalTasks = pendingTaskList.length;
           completedTasks = 0;
+          // Consume autoExecuteSource into per-task map for every pending task
+          if (autoExecuteSource) {
+            for (const t of pendingTaskList) {
+              if (t.id) taskSourceMap.set(t.id, autoExecuteSource);
+            }
+            autoExecuteSource = null;
+          }
         }
 
         const taskCount = pendingTaskList?.length ?? 0;
@@ -1490,6 +1508,13 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             taskPanel.setPendingTasks(statusTasks);
             totalTasks = statusTasks.length;
             completedTasks = 0;
+            // Consume autoExecuteSource into per-task map for every pending task
+            if (autoExecuteSource) {
+              for (const t of statusTasks) {
+                if (t.id) taskSourceMap.set(t.id, autoExecuteSource);
+              }
+              autoExecuteSource = null;
+            }
           }
 
           // Show confirmation above transcript bar (persistent until Execute/Cancel)
