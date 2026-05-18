@@ -122,10 +122,12 @@ describe('VoiceCapture', () => {
     capture.start();
 
     // Simulate a recognition result event
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockEvent = {
       results: [[{ transcript: 'hello world' }]],
       resultIndex: 0,
     };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const instances = vi.mocked(MockSpeechRecognition);
 
     const resultEvent = {

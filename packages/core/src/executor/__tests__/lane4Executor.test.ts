@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { TaskItem, ProjectMap, StackInfo, ExecutionResult } from '../../models/types.js';
+import type { TaskItem, ProjectMap, StackInfo } from '../../models/types.js';
 import type { LlmClient } from '../../contracts/ILlmClient.js';
 import type { IGitManager } from '../../contracts/IGitManager.js';
 import type { EventBus } from '../../contracts/IEventBus.js';

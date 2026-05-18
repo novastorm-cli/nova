@@ -20,6 +20,7 @@ const dotnetStack: StackInfo = {
   language: 'csharp',
   typescript: false,
 };
+void dotnetStack; // reserved for future dotnet fixture tests
 
 const unknownStack: StackInfo = {
   framework: 'unknown',

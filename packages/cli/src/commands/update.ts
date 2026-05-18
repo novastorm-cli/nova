@@ -229,7 +229,7 @@ export async function updateCommand(): Promise<void> {
   const isPermError = result.exitCode === 243 || /EACCES|permission denied/i.test(result.output);
 
   if (isPermError) {
-    spinner.fail('Permission denied — cannot write to the global install location.');
+    spinner.fail('Permission denied -- cannot write to the global install location.');
     logger.info('');
     logger.warn(PM_COMMANDS[pm].remedy);
     process.exit(result.exitCode);
@@ -272,10 +272,10 @@ async function shouldThrottleUpdateCheck(): Promise<boolean> {
       const raw = await readFile(checkFile, 'utf-8');
       const lastCheck = parseInt(raw.trim(), 10);
       if (!isNaN(lastCheck) && now - lastCheck < TWENTY_FOUR_HOURS_MS) {
-        return true; // throttled — less than 24h since last check
+        return true; // throttled -- less than 24h since last check
       }
     } catch {
-      // File doesn't exist or is corrupt — proceed with check
+      // File doesn't exist or is corrupt -- proceed with check
     }
 
     // Update timestamp
@@ -305,12 +305,13 @@ export async function checkForUpdates(currentVersion: string): Promise<void> {
     const rows = process.stdout.rows || 24;
 
     // Strip ANSI for length calculation
+    // eslint-disable-next-line no-control-regex
     const plain = msg.replace(/\x1b\[[0-9;]*m/g, '');
     const x = Math.max(columns - plain.length - 1, 0);
 
     if (!process.stdout.isTTY) return;
 
-    // Render once — no interval (don't leave dangling timers)
+    // Render once -- no interval (don't leave dangling timers)
     // Save cursor, move to bottom-right, print, restore cursor
     process.stdout.write(`\x1b7\x1b[${rows};${x}H${msg}\x1b8`);
   } catch {

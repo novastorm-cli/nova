@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { rm, mkdtemp, cp, writeFile, mkdir, stat } from 'node:fs/promises';
+import { rm, mkdtemp, cp, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -235,6 +235,7 @@ describe('ProjectIndexer', () => {
 
       const graphPathBefore = path.join(projectPath, '.nova', 'graph.json');
       const contentBefore = readFileSync(graphPathBefore, 'utf-8');
+      void contentBefore; // verify file exists before update
 
       // Update with the route file (it exists, so the node should be refreshed)
       const changedFile = path.join(projectPath, 'app', 'api', 'users', 'route.ts');

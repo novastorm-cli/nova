@@ -58,7 +58,7 @@ export class CodeFixer {
     this.logger.info(`Fixer: sending ${errors.length} error(s) to LLM for fixing...`);
     for (const err of errors.slice(0, 5)) {
       this.logger.debug(
-        `  Fix: ${err.file}${err.line ? ':' + err.line : ''} — ${err.message.slice(0, 100)}`,
+        `  Fix: ${err.file}${err.line ? ':' + err.line : ''} -- ${err.message.slice(0, 100)}`,
       );
     }
 
@@ -115,7 +115,7 @@ export class CodeFixer {
     parts.push('--- ERRORS ---\n');
     for (const error of errors) {
       const loc = error.line ? `:${error.line}` : '';
-      parts.push(`- ${error.file}${loc} — ${error.message}`);
+      parts.push(`- ${error.file}${loc} -- ${error.message}`);
     }
 
     return parts.join('\n');

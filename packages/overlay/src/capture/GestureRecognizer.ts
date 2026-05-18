@@ -8,6 +8,7 @@ const CIRCLE_RADIUS_STD_THRESHOLD = 0.3;
 const CIRCLE_MIN_ANGLE = 315 * (Math.PI / 180); // 315 degrees in radians
 const PATH_MIN_DISTANCE = 100;
 const PATH_MAX_DURATION_MS = 5000;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DWELL_RADIUS = 20;
 const DWELL_MIN_DURATION_MS = 500;
 const MAX_GESTURES = 3;

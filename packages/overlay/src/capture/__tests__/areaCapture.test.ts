@@ -42,6 +42,7 @@ describe('AreaCapture', () => {
       // Mock the canvas context
       const drawImageFn = vi.fn();
       const toDataURLFn = vi.fn().mockReturnValue('data:image/png;base64,cropped');
+      void toDataURLFn; // used via mockCtx.toDataURL reference below
 
       const mockCtx = {
         drawImage: drawImageFn,

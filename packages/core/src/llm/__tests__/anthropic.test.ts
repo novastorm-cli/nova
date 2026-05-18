@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProviderError } from '../../contracts/ILlmClient.js';
 import type { Message } from '../../models/index.js';
 
@@ -26,6 +26,7 @@ vi.mock('@anthropic-ai/sdk', () => {
       stream: mockStream,
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     constructor(_opts: Record<string, unknown>) {}
   }
 
@@ -37,7 +38,6 @@ vi.mock('@anthropic-ai/sdk', () => {
 
 // Dynamic import after mock is set up
 const { AnthropicProvider } = await import('../AnthropicProvider.js');
-const AnthropicSDK = (await import('@anthropic-ai/sdk')).default;
 const { APIError } = await import('@anthropic-ai/sdk');
 
 describe('AnthropicProvider', () => {

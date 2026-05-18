@@ -7,6 +7,7 @@ export class TfIdfEmbedding implements IEmbeddingService {
   private idf: Map<string, number> = new Map();
   private trained = false;
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async embed(texts: string[]): Promise<number[][]> {
     if (!this.trained) {
       this.buildVocabulary(texts);
@@ -14,6 +15,7 @@ export class TfIdfEmbedding implements IEmbeddingService {
     return texts.map((text) => this.vectorize(text));
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await
   async embedSingle(text: string): Promise<number[]> {
     return this.vectorize(text);
   }

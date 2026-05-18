@@ -3,6 +3,38 @@ import crypto from 'node:crypto';
 import type http from 'node:http';
 import type { IWebSocketServer, Observation, NovaEvent } from '@novastorm-ai/core';
 
+/** Typed shape of messages received from the overlay WebSocket. */
+interface IncomingMessage {
+  type?: string;
+  data?: {
+    taskIds?: string[];
+    text?: string;
+    error?: string;
+    secrets?: Record<string, string>;
+    screenshotBase64?: string;
+    screenshot?: Buffer;
+    clickCoords?: { x: number; y: number };
+    domSnapshot?: string;
+    transcript?: string;
+    currentUrl?: string;
+    consoleErrors?: string[];
+    timestamp?: number;
+    gestureContext?: unknown;
+    autoExecute?: boolean;
+  };
+  path?: string;
+  screenshotBase64?: string;
+  screenshot?: Buffer;
+  clickCoords?: { x: number; y: number };
+  domSnapshot?: string;
+  transcript?: string;
+  currentUrl?: string;
+  consoleErrors?: string[];
+  timestamp?: number;
+  gestureContext?: unknown;
+  autoExecute?: boolean;
+}
+
 export class WebSocketServer implements IWebSocketServer {
   private wss: WsServer | null = null;
   private observationHandlers: Array<(observation: Observation, autoExecute?: boolean) => void> =
@@ -115,7 +147,7 @@ export class WebSocketServer implements IWebSocketServer {
       ws.on('message', (data: Buffer | string) => {
         try {
           const raw = typeof data === 'string' ? data : data.toString('utf-8');
-          const parsed = JSON.parse(raw);
+          const parsed = JSON.parse(raw) as IncomingMessage;
 
           // Handle confirm/cancel messages from overlay
           if (parsed.type === 'confirm') {
@@ -125,7 +157,7 @@ export class WebSocketServer implements IWebSocketServer {
             return;
           }
           if (parsed.type === 'confirm_tasks') {
-            const taskIds = parsed.data?.taskIds as string[] | undefined;
+            const taskIds = parsed.data?.taskIds;
             for (const handler of this.confirmTasksHandlers) {
               handler(taskIds);
             }
@@ -154,7 +186,7 @@ export class WebSocketServer implements IWebSocketServer {
           if (parsed.type === 'secrets_submit') {
             const secrets = parsed.data?.secrets ?? {};
             for (const handler of this.secretsSubmitHandlers) {
-              handler(secrets as Record<string, string>);
+              handler(secrets);
             }
             return;
           }
@@ -182,7 +214,7 @@ export class WebSocketServer implements IWebSocketServer {
             currentUrl: obsData.currentUrl ?? '',
             consoleErrors: obsData.consoleErrors,
             timestamp: obsData.timestamp ?? Date.now(),
-            gestureContext: obsData.gestureContext,
+            gestureContext: obsData.gestureContext as Observation['gestureContext'],
           };
 
           const autoExecute = obsData.autoExecute === true;

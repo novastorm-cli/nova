@@ -11,16 +11,16 @@ Ambient Development
 A manifesto for a new approach to building software
 ──────────────────────────────────────────────────────────────
 
-PART I — The problem everyone is solving from the wrong end
+PART I -- The problem everyone is solving from the wrong end
 
 We live in an era where AI can write code. GPT, Claude, Gemini, dozens
-of models — all generating functions, components, entire applications.
+of models -- all generating functions, components, entire applications.
 Every month a new tool appears. Each one promises a revolution. Each
-one does the same thing — helps turn text into code faster.
+one does the same thing -- helps turn text into code faster.
 
 And here's the paradox: code was never the real bottleneck.
 
-  [RESEARCH] Bain 2025 — Where time actually goes
+  [RESEARCH] Bain 2025 -- Where time actually goes
   Writing & testing code ....... 25-35%
   Everything else ............. 65-75%
   (Understanding, formulation, review, integration, deploy)
@@ -36,24 +36,24 @@ process by 20-30%.
 
 ──────────────────────────────────────────────────────────────
 
-PART II — What is Ambient Development
+PART II -- What is Ambient Development
 
-Ambient Development — an approach to building software where the
+Ambient Development -- an approach to building software where the
 system continuously observes the application in use and builds it
 out across every level of the stack based on user behavior, voice
 commands, and visual cues.
 
-  ♪  Ambient Music     — Creates atmosphere. Doesn't demand attention.
-  ◐  Ambient Lighting  — Creates space. You don't think about bulbs.
-  ◈  Ambient Computing — Smart home, sensors. You live, it adapts.
-  ⌘  Ambient Dev       — You use the product. Development happens around you.
+  ♪  Ambient Music     -- Creates atmosphere. Doesn't demand attention.
+  ◐  Ambient Lighting  -- Creates space. You don't think about bulbs.
+  ◈  Ambient Computing -- Smart home, sensors. You live, it adapts.
+  ⌘  Ambient Dev       -- You use the product. Development happens around you.
 
 You stop switching between the role of user and the role of developer.
 You are always the user. Development is ambient.
 
 ──────────────────────────────────────────────────────────────
 
-PART III — Five principles
+PART III -- Five principles
 
 01 Usage as specification
    The best specification is not one written in a document. The best
@@ -72,16 +72,16 @@ PART III — Five principles
    UI Component ↕ API Endpoint ↕ Database Query ↕ Migration
 
 03 Three simultaneous modes
-   PASSIVE 👁  — Silently observes. Suggests improvements.
-   VOICE   🎤 — Say what you need without switching context.
-   VISUAL  👆 — Click, circle, drag. Point and speak.
-   All three work simultaneously. Not switches — layers.
+   PASSIVE 👁  -- Silently observes. Suggests improvements.
+   VOICE   🎤 -- Say what you need without switching context.
+   VISUAL  👆 -- Click, circle, drag. Point and speak.
+   All three work simultaneously. Not switches -- layers.
 
 04 Speed lanes
-   LANE 1 <2s    — CSS, texts, configs. No AI. Pattern matching.
-   LANE 2 10-30s — Single-file changes. Fast model.
-   LANE 3 1-5min — Multi-file features. Strong model.
-   LANE 4 min-hrs — Background refactoring. Async.
+   LANE 1 <2s    -- CSS, texts, configs. No AI. Pattern matching.
+   LANE 2 10-30s -- Single-file changes. Fast model.
+   LANE 3 1-5min -- Multi-file features. Strong model.
+   LANE 4 min-hrs -- Background refactoring. Async.
 
 05 Stack-agnostic
    [scan] package.json → Next.js + TypeScript
@@ -91,7 +91,7 @@ PART III — Five principles
 
 ──────────────────────────────────────────────────────────────
 
-PART IV — What it looks like in practice
+PART IV -- What it looks like in practice
 
   MORNING
   [you]     open SaaS. check dashboard. "this table is slow."
@@ -110,13 +110,13 @@ PART IV — What it looks like in practice
   [result]  zero IDE. zero prompts. zero context switches.
 
   NIGHT
-  [you]     "Refactor auth module — split into services"
+  [you]     "Refactor auth module -- split into services"
   [lane 4] background. agent running...
   [morning] PR ready. all tests green.
 
 ──────────────────────────────────────────────────────────────
 
-PART V — Who is this for
+PART V -- Who is this for
 
   ✓ Solo developer building a SaaS
   ✓ Startup team of 2-5 shipping daily
@@ -126,7 +126,7 @@ PART V — Who is this for
 
 ──────────────────────────────────────────────────────────────
 
-PART VI — The future
+PART VI -- The future
 
 What happens when you remove the formulation step entirely?
 
@@ -148,6 +148,7 @@ Not "write code faster." Stop writing altogether.
 ══════════════════════════════════════════════════════════════
 `;
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export async function bibleCommand(subcommand?: string): Promise<void> {
   if (subcommand === '--read' || subcommand === 'read' || !subcommand) {
     logger.info(BIBLE_TEXT);

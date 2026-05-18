@@ -42,6 +42,8 @@ function invalidDiff(): string {
 function createMockLlmClient(responses: string[] = [validDiff()]): LlmClient {
   let callIndex = 0;
   return {
+    supportsVision: false,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     chat: vi.fn(async (_messages: Message[], _options?: LlmOptions): Promise<ChatResponse> => {
       const content = responses[callIndex] ?? responses[responses.length - 1]!;
       callIndex++;
@@ -57,6 +59,8 @@ function createMockLlmClient(responses: string[] = [validDiff()]): LlmClient {
 function createFailingLlmClient(failureCount: number = 3): LlmClient {
   let callIndex = 0;
   return {
+    supportsVision: false,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     chat: vi.fn(async (_messages: Message[], _options?: LlmOptions): Promise<ChatResponse> => {
       callIndex++;
       if (callIndex <= failureCount) {

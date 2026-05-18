@@ -15,14 +15,17 @@ function createMockLlmClient(fixedResponse: string): {
 
   const client: LlmClient = {
     supportsVision: true,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async chat(messages: Message[], _options?: LlmOptions) {
       capturedMessages.push([...messages]);
       return { content: fixedResponse };
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async chatWithVision(messages: Message[], _images: Buffer[], _options?: LlmOptions) {
       capturedMessages.push([...messages]);
       return { content: fixedResponse };
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async *stream(messages: Message[], _options?: LlmOptions) {
       capturedMessages.push([...messages]);
       yield { content: fixedResponse };

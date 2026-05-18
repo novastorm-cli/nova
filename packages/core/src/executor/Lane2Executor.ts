@@ -12,13 +12,13 @@ const SYSTEM_PROMPT = `You are a code editor. You receive a file with line numbe
 The file content has line numbers in the format "N | code" for your reference only.
 Respond with ONLY a valid unified diff (no explanation, no markdown fences).
 The diff must start with --- and +++ headers followed by @@ hunk headers.
-Output ONLY the changed hunks — do NOT repeat unchanged parts of the file.
+Output ONLY the changed hunks -- do NOT repeat unchanged parts of the file.
 Minimal diff = fewer tokens = faster. Keep it tight.`;
 
 function buildUserPrompt(context: MiniContext, taskDescription: string): string {
   return `File: ${context.filePath}
 
-${context.importedTypes ? `Imported types:\n${context.importedTypes}\n\n` : ''}Current content (line numbers for reference only — do NOT include them in the diff):
+${context.importedTypes ? `Imported types:\n${context.importedTypes}\n\n` : ''}Current content (line numbers for reference only -- do NOT include them in the diff):
 \`\`\`
 ${addLineNumbers(context.content)}
 \`\`\`

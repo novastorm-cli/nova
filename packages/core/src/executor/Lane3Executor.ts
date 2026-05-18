@@ -20,14 +20,14 @@ import { CommitQueue } from '../git/CommitQueue.js';
 
 const SYSTEM_PROMPT = `You are a code generation tool. You output ONLY code. No explanations. No questions. No descriptions.
 
-OUTPUT FORMAT — use the appropriate wrapper for each file:
+OUTPUT FORMAT -- use the appropriate wrapper for each file:
 
 For NEW files (do not exist yet):
 === FILE: path/to/file.tsx ===
 full file content here
 === END FILE ===
 
-For EXISTING files (already on disk — shown with line numbers):
+For EXISTING files (already on disk -- shown with line numbers):
 === DIFF: path/to/file.tsx ===
 --- a/path/to/file.tsx
 +++ b/path/to/file.tsx
@@ -43,7 +43,7 @@ Your ENTIRE response must consist of === FILE === and/or === DIFF === blocks. No
 RULES:
 - For EXISTING files: output ONLY a unified diff with changed hunks. Minimal diff = fewer tokens = faster.
 - For NEW files: output COMPLETE file contents.
-- Line numbers shown in existing file content are for reference only — do NOT include them in diffs.
+- Line numbers shown in existing file content are for reference only -- do NOT include them in diffs.
 - Use ONLY existing directory structure from the project.
 - NEVER ask questions or describe what you would do. Just output the code.
 - Use only packages from the project's package.json.
@@ -100,8 +100,10 @@ function buildPrompt(task: TaskItem, projectMap: ProjectMap, existingFiles: Set<
   const pkgCtx = projectMap.fileContexts.get('package.json');
   if (pkgCtx) {
     try {
-      const pkg = JSON.parse(pkgCtx.content);
-      const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).join(', ');
+      const pkg = JSON.parse(pkgCtx.content) as Record<string, unknown>;
+      const pkgDeps = (pkg.dependencies as Record<string, unknown>) ?? {};
+      const pkgDevDeps = (pkg.devDependencies as Record<string, unknown>) ?? {};
+      const deps = Object.keys({ ...pkgDeps, ...pkgDevDeps }).join(', ');
       parts.push(`\nAvailable packages: ${deps}`);
     } catch {
       /* skip */
@@ -225,7 +227,7 @@ export class Lane3Executor {
         };
       }
 
-      // DEVELOPER phase done — files generated
+      // DEVELOPER phase done -- files generated
       this.logger?.info(`Developer: generated ${mixedBlocks.length} block(s)`, {
         taskId: task.id,
         blocks: mixedBlocks.map((b) => ({
@@ -295,7 +297,7 @@ export class Lane3Executor {
       // Quick syntax check: verify brackets are balanced in generated files
       for (const fb of fileBlocks) {
         if (fb.path.match(/\.[tj]sx?$/) && !this.hasBalancedBrackets(fb.content)) {
-          this.logger?.warn(`Syntax check failed for ${fb.path} — unbalanced brackets`, {
+          this.logger?.warn(`Syntax check failed for ${fb.path} -- unbalanced brackets`, {
             taskId: task.id,
             file: fb.path,
           });
@@ -402,7 +404,7 @@ export class Lane3Executor {
           break;
         }
 
-        // DIRECTOR phase — fix errors
+        // DIRECTOR phase -- fix errors
         this.logger?.info(
           `Director: requesting fixes (attempt ${iteration}/${this.maxFixIterations})...`,
           { taskId: task.id },
@@ -536,13 +538,13 @@ export class Lane3Executor {
       const absPath = join(this.projectPath, block.path);
 
       if (block.type === 'file') {
-        // New file or full replacement — write directly
+        // New file or full replacement -- write directly
         await this.pathGuard?.check(absPath);
         await mkdir(dirname(absPath), { recursive: true });
         await writeFile(absPath, block.content, 'utf-8');
         result.push({ path: block.path, content: block.content });
       } else {
-        // Diff block — apply to existing file
+        // Diff block -- apply to existing file
         try {
           await this.pathGuard?.check(absPath);
           await this.diffApplier.apply(absPath, block.diff);
@@ -553,7 +555,7 @@ export class Lane3Executor {
             reason: err instanceof Error ? err.message : String(err),
           });
 
-          // Diff apply failed — mark for full-file retry (retryFailedDiffsAsFullFiles)
+          // Diff apply failed -- mark for full-file retry (retryFailedDiffsAsFullFiles)
           failedDiffPaths.push(block.path);
         }
       }

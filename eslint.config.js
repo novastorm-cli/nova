@@ -95,13 +95,19 @@ export default tseslint.config(
     },
   },
 
-  // Allow non-ASCII in designated strings files and CLI banner
+  // Allow non-ASCII in designated strings files, CLI banner, logger, bible, and start command
   {
     files: [
       'packages/overlay/src/ui/strings.ts',
       'packages/cli/src/strings.ts',
       'packages/cli/src/index.ts',
       'packages/cli/src/banner.ts',
+      'packages/cli/src/logger.ts',
+      'packages/cli/src/commands/bible.ts',
+      'packages/cli/src/commands/start.ts',
+      'packages/cli/src/commands/update.ts',
+      'packages/cli/src/boot/EventRouter.ts',
+      'packages/cli/src/boot/Installer.ts',
     ],
     rules: {
       'nova/no-non-ascii-literals': 'off',
@@ -109,10 +115,22 @@ export default tseslint.config(
   },
 
   // Allow non-ASCII in test files (test data may contain non-English text)
+  // Relax rules for test files (mock/spy patterns are inherent to testing)
   {
     files: ['packages/*/src/**/__tests__/**'],
     rules: {
       'nova/no-non-ascii-literals': 'off',
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-this-alias': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
     },
   },
 

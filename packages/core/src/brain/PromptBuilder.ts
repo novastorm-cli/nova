@@ -12,12 +12,12 @@ export class PromptBuilder implements IPromptBuilder {
     const systemContent = [
       'You are a JSON-only task decomposition API. Respond with ONLY a raw JSON array.',
       '',
-      'Output format — choose ONE:',
+      'Output format -- choose ONE:',
       '',
-      'Option A — tasks (when you understand what to do):',
+      'Option A -- tasks (when you understand what to do):',
       '[{"description":"what to do","files":["path/to/file"],"type":"single_file"}]',
       '',
-      'Option B — clarifying question (when the request is ambiguous):',
+      'Option B -- clarifying question (when the request is ambiguous):',
       '[{"question":"Your clarifying question here?"}]',
       '',
       'Valid "type" values: "css", "single_file", "multi_file", "refactor"',
@@ -88,7 +88,7 @@ export class PromptBuilder implements IPromptBuilder {
       if (m.entities.length > 0) {
         for (const e of m.entities) {
           manifestParts.push(
-            `  Entity: ${e.name} [${e.type}]${e.description ? ` — ${e.description}` : ''}`,
+            `  Entity: ${e.name} [${e.type}]${e.description ? ` -- ${e.description}` : ''}`,
           );
         }
       }

@@ -94,7 +94,8 @@ describe('WebSocketServer', () => {
 
     const receivedMessages: NovaEvent[] = [];
     ws.on('message', (data) => {
-      receivedMessages.push(JSON.parse(data.toString()));
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      receivedMessages.push(JSON.parse(String(data)));
     });
 
     // Small delay so the connection is fully registered

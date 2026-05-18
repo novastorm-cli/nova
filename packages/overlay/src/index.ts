@@ -164,6 +164,7 @@ function boot(): void {
   let silenceHintTimer: ReturnType<typeof setTimeout> | null = null;
   let silenceHintShown = false;
   let silenceStartTime = 0;
+  void silenceStartTime; // reserved for future use
   const SILENCE_TIMEOUT_MS = 10_000;
   const NO_AUDIO_HINT_MS = 3_000;
 
@@ -559,7 +560,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     if (elementInspector.isActive() || multiSelector.isActive()) return;
 
     // Find the interactive element (target itself or closest ancestor)
-    const interactive = target.closest(DEAD_CLICK_SELECTOR) as HTMLElement | null;
+    const interactive = target.closest(DEAD_CLICK_SELECTOR);
     if (!interactive) return;
 
     // Skip if inside Nova root (extra safety)
@@ -571,7 +572,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     // onClick={noop} handler should still trigger dead-click detection.
 
     // Cooldown: skip if same element was suggested recently
-    const lastSuggested = deadClickSuggested.get(interactive);
+    const lastSuggested = deadClickSuggested.get(interactive as HTMLElement);
     if (lastSuggested && Date.now() - lastSuggested < DEAD_CLICK_COOLDOWN_MS) return;
 
     const clickedElement = interactive;
@@ -607,10 +608,10 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
         if (nearbyNew) return;
 
         // Nothing happened — suggest adding functionality
-        deadClickSuggested.set(clickedElement, Date.now());
-        deadClickElement = clickedElement;
+        deadClickSuggested.set(clickedElement as HTMLElement, Date.now());
+        deadClickElement = clickedElement as HTMLElement;
 
-        const elementSnapshot = domCapture.captureElement(clickedElement);
+        const elementSnapshot = domCapture.captureElement(clickedElement as HTMLElement);
         const instruction = `DEAD CLICK DETECTED -- this interactive element does nothing when clicked. Add appropriate functionality to it.
 
 Element snapshot:
@@ -1068,7 +1069,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   });
 
   // Permission error handler — show explanatory toast and mic-hint
-  voiceCapture.onPermissionError((_error: string) => {
+  voiceCapture.onPermissionError((error: string) => {
+    void error;
     // Show an explanatory toast with a link to browser permission settings
     const helpUrl = strings.micPermissionHelpUrl;
     const msg = `${strings.micPermissionDenied}${helpUrl}`;
@@ -1257,9 +1259,11 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   });
 
   // Typed command submitted -> capture everything and send (voice stays on)
-  commandInput.onSubmit(async (text) => {
-    commandInput.hide();
-    await sendObservation(text || lastTranscript);
+  commandInput.onSubmit((text) => {
+    void (async () => {
+      commandInput.hide();
+      await sendObservation(text || lastTranscript);
+    })();
   });
 
   // Activity log: reasoning chunk accumulation

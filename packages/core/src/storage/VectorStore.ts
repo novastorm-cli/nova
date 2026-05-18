@@ -8,9 +8,10 @@ export class VectorStore implements IVectorStore {
   async load(filePath: string): Promise<void> {
     try {
       const raw = await readFile(filePath, 'utf-8');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        this.records = parsed;
+        this.records = parsed as EmbeddingRecord[];
       }
     } catch {
       this.records = [];

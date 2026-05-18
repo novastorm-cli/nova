@@ -204,6 +204,7 @@ export class FullstackGraphBuilder {
     return results;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   extractOrmQueries(content: string, stack: StackInfo): OrmQuery[] {
     const results: OrmQuery[] = [];
     let m: RegExpExecArray | null;

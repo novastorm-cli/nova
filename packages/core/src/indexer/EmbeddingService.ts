@@ -97,13 +97,14 @@ class OpenAIEmbedding implements IEmbeddingService {
   private async callWithRetry(texts: string[]): Promise<number[][]> {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
         const response = await this.client.embeddings.create({
           model: this.model,
           input: texts,
         });
-        return response.data
-          .sort((a: { index: number }, b: { index: number }) => a.index - b.index)
-          .map((d: { embedding: number[] }) => d.embedding);
+        const data: Array<{ index: number; embedding: number[] }> = response.data;
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
+        return data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
       } catch (err: unknown) {
         const status = (err as { status?: number })?.status;
         if (status === 429 && attempt < MAX_RETRIES - 1) {

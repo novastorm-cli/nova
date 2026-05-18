@@ -10,7 +10,7 @@ export function buildGestureElement(
 ): GestureElement {
   const tagName = element.tagName.toLowerCase();
   const selector = buildSelector(element);
-  let domSnippet = '';
+  let domSnippet: string;
 
   try {
     domSnippet = domCapture.captureElement(element as HTMLElement);

@@ -312,6 +312,7 @@ describe('NO_COLOR handling', () => {
     const { Chalk } = await vi.importActual<typeof import('chalk')>('chalk');
     const chalk = new Chalk({ level: 0 }); // level 0 = no color
     const colored = chalk.red('test');
+    // eslint-disable-next-line no-control-regex
     expect(colored).not.toMatch(/\x1b\[/);
   });
 
@@ -319,6 +320,7 @@ describe('NO_COLOR handling', () => {
     const { Chalk } = await vi.importActual<typeof import('chalk')>('chalk');
     const chalk = new Chalk({ level: 1 }); // level 1 = basic colors
     const colored = chalk.red('test');
+    // eslint-disable-next-line no-control-regex
     expect(colored).toMatch(/\x1b\[/);
   });
 });

@@ -194,7 +194,7 @@ export class ErrorAutoFixer {
         }
 
         if (result.success) {
-          // Fix succeeded — emit success events
+          // Fix succeeded -- emit success events
           this.logger.info(
             `[Nova] Auto-fix succeeded on attempt ${attempt}/${this.MAX_FIX_ATTEMPTS}`,
           );
@@ -210,7 +210,7 @@ export class ErrorAutoFixer {
           return;
         }
 
-        // Fix failed — record as a failed attempt
+        // Fix failed -- record as a failed attempt
         this.failedTaskIds.add(result.taskId);
         previousFailure = result.error ?? 'Unknown error';
 
@@ -234,7 +234,7 @@ export class ErrorAutoFixer {
         }
       }
 
-      // Budget exhausted — all attempts failed
+      // Budget exhausted -- all attempts failed
       this.logger.error(
         JSON.stringify({
           event: 'autofix_budget_exhausted',
@@ -308,7 +308,7 @@ export class ErrorAutoFixer {
     errorOutput: string,
     taskDescription: string,
   ): Promise<ExecutionResult> {
-    this.logger.warn('[Nova] Detected compilation error — attempting auto-fix');
+    this.logger.warn('[Nova] Detected compilation error -- attempting auto-fix');
     this.wsServer.sendEvent({
       type: 'status',
       data: { message: 'Compilation error detected. Auto-fixing...' },
@@ -393,12 +393,12 @@ export class ErrorAutoFixer {
       this.llmClient,
       this.gitManager,
       this.eventBus,
-      1, // maxFixIterations — single pass for auto-fix
+      1, // maxFixIterations -- single pass for auto-fix
       this.microModel,
       undefined, // agentPromptLoader
       undefined, // pathGuard
       this.commitQueue,
-      true, // skipValidation — auto-fix tasks skip tsc
+      true, // skipValidation -- auto-fix tasks skip tsc
     );
 
     this.logger.info('[Nova] Auto-fixing compilation error via Lane 3...');
@@ -415,7 +415,7 @@ export class ErrorAutoFixer {
     errorOutput: string,
     taskDescription: string,
   ): Promise<ExecutionResult> {
-    this.logger.warn('[Nova] Detected image loading error — replacing with placeholders');
+    this.logger.warn('[Nova] Detected image loading error -- replacing with placeholders');
     this.wsServer.sendEvent({
       type: 'status',
       data: {
@@ -438,12 +438,12 @@ export class ErrorAutoFixer {
       this.llmClient,
       this.gitManager,
       this.eventBus,
-      1, // maxFixIterations — single pass for auto-fix
+      1, // maxFixIterations -- single pass for auto-fix
       this.microModel,
       undefined, // agentPromptLoader
       undefined, // pathGuard
       this.commitQueue,
-      true, // skipValidation — auto-fix tasks skip tsc
+      true, // skipValidation -- auto-fix tasks skip tsc
     );
 
     this.logger.info('[Nova] Auto-fixing image errors...');

@@ -39,11 +39,13 @@ export class NovaLogger {
   }
 
   logTaskCompleted(task: TaskItem): void {
-    this.logger.info(`${PREFIX} ✓ Done: ${task.description} — ${task.commitHash ?? 'no hash'}`);
+    this.logger.info(`${PREFIX} ✓ Done: ${task.description} -- ${task.commitHash ?? 'no hash'}`);
   }
 
   logTaskFailed(task: TaskItem): void {
-    this.logger.error(`${PREFIX} ✗ Failed: ${task.description} — ${task.error ?? 'unknown error'}`);
+    this.logger.error(
+      `${PREFIX} ✗ Failed: ${task.description} -- ${task.error ?? 'unknown error'}`,
+    );
   }
 
   logFileChanged(filePath: string): void {

@@ -7,6 +7,7 @@ const COMPONENT_EXTENSIONS = /\.(tsx|jsx|vue|svelte)$/;
 const IGNORED_DIRS = new Set(['node_modules', '.next', '.nuxt', 'dist', 'build', '.git', '.nova']);
 
 export class ComponentExtractor implements IComponentExtractor {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async extract(projectPath: string, stack: StackInfo): Promise<ComponentInfo[]> {
     const components: ComponentInfo[] = [];
     const files = await this.readDirRecursive(projectPath);

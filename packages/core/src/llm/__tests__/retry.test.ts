@@ -8,6 +8,7 @@ class TestError extends Error {
 }
 
 const shouldRetry = (err: unknown) => err instanceof TestError && err.retryable;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const shouldAbort = (_err: unknown) => false;
 const handleError = (err: unknown): never => {
   throw err;
@@ -66,10 +67,12 @@ describe('executeWithRetry', () => {
   it('should use exponential backoff with bounded delays', async () => {
     const delays: number[] = [];
     const originalSetTimeout = globalThis.setTimeout;
-    vi.spyOn(globalThis, 'setTimeout').mockImplementation((fn: any, ms?: number) => {
-      if (ms && ms > 0) delays.push(ms);
-      return originalSetTimeout(fn, 0);
-    });
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(
+      (fn: (...args: unknown[]) => void, ms?: number) => {
+        if (ms && ms > 0) delays.push(ms);
+        return originalSetTimeout(fn, 0);
+      },
+    );
 
     const fn = vi
       .fn()

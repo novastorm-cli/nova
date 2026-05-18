@@ -65,9 +65,11 @@ export class ConsoleCapture implements IConsoleCapture {
       try {
         return JSON.stringify(value);
       } catch {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         return String(value);
       }
     }
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     return String(value);
   }
 }

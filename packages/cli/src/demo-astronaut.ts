@@ -6,41 +6,40 @@
 const ESC = '\x1b';
 const reset = `${ESC}[0m`;
 const cyan = (s: string) => `${ESC}[96m${s}${reset}`;
-const dim = (s: string) => `${ESC}[2m${s}${reset}`;
 
 const frames = [
   // Frame 0: hands down
   [
-    `  ┌─────┐`,
-    `  │ ${cyan('●')} ${cyan('●')} │`,
-    `  │  ◡  │`,
-    `  └──┬──┘`,
-    `  ┌──┴──┐`,
-    `  │  ◦  │`,
-    `  └┬───┬┘`,
-    `   │   │`,
+    `  +-----+`,
+    `  | ${cyan('o')} ${cyan('o')} |`,
+    `  |  w  |`,
+    `  +--+--+`,
+    `  +--+--+`,
+    `  |  o  |`,
+    `  +---+--+`,
+    `   |   |`,
   ],
   // Frame 1: hand out
   [
-    `  ┌─────┐`,
-    `  │ ${cyan('●')} ${cyan('●')} │`,
-    `  │  ◡  │`,
-    `  └──┬──┘`,
-    `──┤  ┴  ├`,
-    `  │  ◦  │`,
-    `  └┬───┬┘`,
-    `   │   │`,
+    `  +-----+`,
+    `  | ${cyan('o')} ${cyan('o')} |`,
+    `  |  w  |`,
+    `  +--+--+`,
+    `--+  +  +-`,
+    `  |  o  |`,
+    `  +---+--+`,
+    `   |   |`,
   ],
   // Frame 2: hand up
   [
-    `╷ ┌─────┐`,
-    `│ │ ${cyan('●')} ${cyan('●')} │`,
-    `╵ │  ◡  │`,
-    `  └──┬──┘`,
-    `  ┌──┴──┐`,
-    `  │  ◦  │`,
-    `  └┬───┬┘`,
-    `   │   │`,
+    `| +-----+`,
+    `| | ${cyan('o')} ${cyan('o')} |`,
+    `| |  w  |`,
+    `  +--+--+`,
+    `  +--+--+`,
+    `  |  o  |`,
+    `  +---+--+`,
+    `   |   |`,
   ],
 ];
 
@@ -49,7 +48,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function run(): Promise<void> {
-  const greeting = `  ${cyan('Привет! Я Nova')} 🚀\n`;
+  const greeting = `  ${cyan("Hello! I'm Nova")} <rocket>\n`;
   const sequence = [0, 1, 2, 1, 2, 1, 0];
   const hide = `${ESC}[?25l`;
   const show = `${ESC}[?25h`;

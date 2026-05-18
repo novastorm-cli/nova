@@ -4,6 +4,7 @@ import { ProviderError } from '../../contracts/ILlmClient.js';
 // Mock both SDKs so constructors don't fail
 vi.mock('@anthropic-ai/sdk', () => {
   class Anthropic {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     constructor(_opts: Record<string, unknown>) {}
   }
   return { default: Anthropic };
@@ -12,6 +13,7 @@ vi.mock('@anthropic-ai/sdk', () => {
 vi.mock('openai', () => {
   class OpenAI {
     chat = { completions: { create: vi.fn() } };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     constructor(_opts: Record<string, unknown>) {}
   }
   return { default: OpenAI };

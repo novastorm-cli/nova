@@ -40,21 +40,20 @@ export class CodeValidator {
       await this.loadInstalledDeps();
     }
 
-    const fileErrors = await Promise.all(
-      files.map(async (file) => {
-        const result: ValidationError[] = [];
+    const fileErrors: ValidationError[][] = [];
+    for (const file of files) {
+      const result: ValidationError[] = [];
 
-        if (!options?.skipImportCheck) {
-          const importErrors = this.checkImportsSync(file.path, file.content);
-          result.push(...importErrors);
-        }
+      if (!options?.skipImportCheck) {
+        const importErrors = this.checkImportsSync(file.path, file.content);
+        result.push(...importErrors);
+      }
 
-        const relErrors = this.checkRelativeImports(file.path, file.content, generatedPaths);
-        result.push(...relErrors);
+      const relErrors = this.checkRelativeImports(file.path, file.content, generatedPaths);
+      result.push(...relErrors);
 
-        return result;
-      }),
-    );
+      fileErrors.push(result);
+    }
 
     for (const fileErrs of fileErrors) {
       errors.push(...fileErrs);
@@ -191,7 +190,7 @@ export class CodeValidator {
           errors.push({
             file: filePath,
             line: i + 1,
-            message: `Unresolved import: '${importPath}' — package '${pkgName}' is not in package.json`,
+            message: `Unresolved import: '${importPath}' -- package '${pkgName}' is not in package.json`,
             severity: 'error',
           });
         }
@@ -201,20 +200,26 @@ export class CodeValidator {
     return errors;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkRelativeImports(
-    _filePath: string,
-    _content: string,
-    _generatedPaths: Set<string>,
+    filePath: string,
+    content: string,
+    generatedPaths: Set<string>,
   ): ValidationError[] {
+    void filePath;
+    void content;
+    void generatedPaths;
     // Relative import checks are complex (need to know existing project files)
-    // Skip for now — tsc will catch most of these
+    // Skip for now -- tsc will catch most of these
     return [];
   }
 
   private getOutput(error: unknown): string {
     if (error && typeof error === 'object') {
       const err = error as { stdout?: unknown; stderr?: unknown };
-      return String(err.stdout ?? '') + String(err.stderr ?? '');
+      const out = typeof err.stdout === 'string' ? err.stdout : '';
+      const serr = typeof err.stderr === 'string' ? err.stderr : '';
+      return out + serr;
     }
     return error instanceof Error ? error.message : String(error);
   }

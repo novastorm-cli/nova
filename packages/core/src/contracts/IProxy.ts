@@ -39,7 +39,7 @@ export interface IWebSocketServer {
    * Receives Observation objects from overlay.
    * Sends NovaEvent objects to overlay.
    */
-  start(httpServer: any): void;
+  start(httpServer: unknown): void;
 
   /** Register handler for incoming observations. */
   onObservation(handler: (observation: Observation, autoExecute?: boolean) => void): void;

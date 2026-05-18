@@ -26,6 +26,7 @@ vi.mock('openai', () => {
       },
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     constructor(_opts: Record<string, unknown>) {}
   }
 

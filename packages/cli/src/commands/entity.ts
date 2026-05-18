@@ -3,7 +3,6 @@ import { stdin, stdout } from 'node:process';
 import {
   ManifestStore,
   type ManifestService,
-  type ManifestDatabase,
   type ManifestEntity,
   type ServiceType,
   type EntityType,

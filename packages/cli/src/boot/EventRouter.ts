@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any */
 import chalk from 'chalk';
 import ora from 'ora';
 import {
@@ -42,7 +43,7 @@ export interface EventRouterDeps {
  * EventRouter bridges WebSocket observations into the Brain/Executor
  * pipeline and forwards executor events back to the overlay.
  *
- * Call `setupEventRouting()` once during boot — it registers all the
+ * Call `setupEventRouting()` once during boot -- it registers all the
  * event handlers that form the core Nova interaction loop.
  */
 export function setupEventRouting(deps: EventRouterDeps): void {
@@ -91,6 +92,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   });
 
   // ── Handle observations: analyze → create tasks ───────────────────
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   eventBus.on('observation', async (event) => {
     if (!brain) {
       log.warn('Observation received but no AI configured. Run "nova setup" to add an API key.');
@@ -104,7 +106,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
       // Detect revert/undo commands
       if (/\b(revert|верни|откати|undo|отмени последн|верни назад|откатить)\b/i.test(transcript)) {
-        log.info('[Nova] Detected revert request — using git revert');
+        log.info('[Nova] Detected revert request -- using git revert');
         wsServer.sendEvent({
           type: 'status',
           data: { message: 'Reverting last commit...' },
@@ -113,7 +115,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
           const gitLog = await gitManager.getLog();
           if (gitLog.length > 0) {
             const lastCommit = gitLog[0]!;
-            log.info(`[Nova] Reverting commit: ${lastCommit.hash} — ${lastCommit.message}`);
+            log.info(`[Nova] Reverting commit: ${lastCommit.hash} -- ${lastCommit.message}`);
             await gitManager.rollback(lastCommit.hash);
             log.info('[Nova] Reverted successfully!');
             wsServer.sendEvent({
@@ -157,7 +159,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       logger.logTasks(tasks);
 
       if (tasks.length === 0) {
-        log.debug('[Nova] No tasks produced — AI may have asked a question');
+        log.debug('[Nova] No tasks produced -- AI may have asked a question');
         return;
       }
 
@@ -183,7 +185,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
         deps.pendingTasks.length = 0;
         deps.pendingTasks.push(...tasks);
         const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
-        const pendingMessage = `Press Y to execute, N to discard — ${taskDescriptions}`;
+        const pendingMessage = `Press Y to execute, N to discard -- ${taskDescriptions}`;
         log.warn(`\n${pendingMessage}\n`);
         wsServer.sendEvent({
           type: 'pending_tasks',
@@ -253,7 +255,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
     deps.pendingTasks.length = 0;
   });
 
-  // ── DiffModal revert handler — reverts a specific file change ──────
+  // ── DiffModal revert handler -- reverts a specific file change ──────
   wsServer.onRevertFile((filePath: string) => {
     log.info(`[Nova] Revert file requested: ${filePath}`);
     // If there are pending tasks, cancel them (rejecting the changes)
@@ -264,6 +266,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
     }
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   wsServer.onAppend(async (text: string) => {
     if (!brain || !deps.lastObservation.current) return;
     log.info(`[Nova] Appending to request: "${text}"`);
@@ -293,7 +296,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
       deps.pendingTasks.push(...tasks);
       const taskDescriptions = tasks.map((t, i) => `${i + 1}. ${t.description}`).join('; ');
-      const pendingMessage = `Press Y to execute, N to discard — ${taskDescriptions}`;
+      const pendingMessage = `Press Y to execute, N to discard -- ${taskDescriptions}`;
       log.warn(`\n${pendingMessage}\n`);
       wsServer.sendEvent({
         type: 'pending_tasks',
@@ -338,6 +341,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
     wsServer.sendEvent(event);
 
     // Post-task health check
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     setTimeout(async () => {
       if (autoFixer?.isAutofixTask(event.data.taskId)) return;
 
@@ -359,7 +363,7 @@ export function setupEventRouting(deps: EventRouterDeps): void {
             type: 'status',
             data: { message: 'Post-task check: fixing build errors...' },
           });
-          autoFixer.forceFixNow(errorLines);
+          void autoFixer.forceFixNow(errorLines);
           return;
         }
       }
@@ -381,7 +385,9 @@ export function setupEventRouting(deps: EventRouterDeps): void {
             type: 'status',
             data: { message: `Site returned ${res.statusCode}, auto-fixing...` },
           });
-          autoFixer?.forceFixNow(`Dev server returned HTTP ${res.statusCode} after code changes`);
+          void autoFixer?.forceFixNow(
+            `Dev server returned HTTP ${res.statusCode} after code changes`,
+          );
         }
       } catch {
         // health check failed silently

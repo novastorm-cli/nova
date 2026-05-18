@@ -13,7 +13,9 @@ const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
 const SELECT_THEME = {
   icon: { cursor: chalk.whiteBright('❯') },
   style: {
-    highlight: (text: string) => chalk.whiteBright(text.replace(/\x1b\[\d+m/g, '')),
+    highlight: (text: string) =>
+      // eslint-disable-next-line no-control-regex
+      chalk.whiteBright(text.replace(/\x1b\[\d+m/g, '')),
   },
   indexMode: 'hidden' as const,
 };
@@ -47,7 +49,7 @@ export async function ensureDependencies(
   cwd: string,
   stack: StackInfo,
   options: StartOptions,
-  llmClient: unknown | null,
+  llmClient: unknown,
 ): Promise<void> {
   if (!NODE_FRAMEWORKS.includes(stack.framework)) return;
   if (existsSync(join(cwd, 'node_modules'))) return;
@@ -79,9 +81,9 @@ export async function ensureDependencies(
     logger.info('');
   }
 
-  // ── Install failed — handle recovery ────────────────────────────────
+  // ── Install failed -- handle recovery ────────────────────────────────
   if (isNonInteractive(options)) {
-    logger.debug('Non-interactive mode — skipping install recovery. Run "npm install" manually.');
+    logger.debug('Non-interactive mode -- skipping install recovery. Run "npm install" manually.');
     return;
   }
 
@@ -152,7 +154,7 @@ async function handleFixJson(
   cwd: string,
   installCmd: string,
   errMsg: string,
-  llmClient: unknown | null,
+  llmClient: unknown,
 ): Promise<boolean> {
   try {
     const pkgPath = join(cwd, 'package.json');
@@ -163,7 +165,7 @@ async function handleFixJson(
     content = content.replace(/"(\s*\n\s*")/g, '",\n  "');
     writeFileSync(pkgPath, content, 'utf-8');
 
-    // Step 2: validate — if still broken, use AI
+    // Step 2: validate -- if still broken, use AI
     try {
       JSON.parse(readFileSync(pkgPath, 'utf-8'));
     } catch {
@@ -199,7 +201,7 @@ async function handleFixJson(
     logger.info('  Dependencies installed.');
     return true;
   } catch (fixErr) {
-    logger.error(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : fixErr}\n`);
+    logger.error(`  Fix failed: ${fixErr instanceof Error ? fixErr.message : String(fixErr)}\n`);
     return false;
   }
 }
@@ -208,7 +210,7 @@ async function handleAiFix(
   cwd: string,
   installCmd: string,
   errMsg: string,
-  llmClient: unknown | null,
+  llmClient: unknown,
 ): Promise<boolean> {
   try {
     const userDesc = await input({ message: 'Describe what needs to be fixed:' });
@@ -256,7 +258,7 @@ async function handleAiFix(
     logger.error('  AI could not produce a fix.\n');
     return false;
   } catch (aiErr) {
-    logger.error(`  Failed: ${aiErr instanceof Error ? aiErr.message : aiErr}\n`);
+    logger.error(`  Failed: ${aiErr instanceof Error ? aiErr.message : String(aiErr)}\n`);
     return false;
   }
 }
