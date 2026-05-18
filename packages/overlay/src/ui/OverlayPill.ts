@@ -81,6 +81,7 @@ export class OverlayPill implements IOverlayPill {
     this.pillEl.setAttribute('aria-label', strings.pillAriaLabel);
     this.pillEl.setAttribute('aria-haspopup', 'menu');
     this.pillEl.setAttribute('aria-expanded', 'false');
+    this.pillEl.setAttribute('tabindex', '0');
     this.pillEl.innerHTML = this.getIcon();
 
     this.shadow.appendChild(this.pillEl);

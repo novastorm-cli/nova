@@ -24,7 +24,12 @@ import { ElementInspector } from './ui/ElementInspector.js';
 import { MultiElementSelector } from './ui/MultiElementSelector.js';
 import { AreaSelector } from './ui/AreaSelector.js';
 import { SecretConsole } from './ui/SecretConsole.js';
-import { OverlayStateMachine, type FsmState, type FsmEventType, type StateChangeEvent } from './ui/state-machine.js';
+import {
+  OverlayStateMachine,
+  type FsmState,
+  type FsmEventType,
+  type StateChangeEvent,
+} from './ui/state-machine.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 import { strings } from './ui/strings.js';
@@ -61,6 +66,13 @@ function getSessionToken(): string | null {
 function getCanOpen(): boolean {
   const script = document.querySelector('script[data-nova-can-open]');
   return script?.getAttribute('data-nova-can-open') === 'true';
+}
+
+/** Whether the server has confirmTasks enabled (from proxy-injected data attribute). */
+function getConfirmTasks(): boolean {
+  const script = document.querySelector('script[data-nova-confirm-tasks]');
+  const val = script?.getAttribute('data-nova-confirm-tasks');
+  return val !== 'false'; // Default to true if attribute is missing or not explicitly "false"
 }
 
 /** Extract the first line number from a unified diff hunk header. */
@@ -137,6 +149,7 @@ function boot(): void {
   let lastTranscript = '';
   let isProcessing = false;
   let autoExecute = false; // Skip confirmation for inspector/multi-edit modes
+  let autoExecuteSource: 'quick-edit' | 'multi-edit' | null = null; // Track source for ActivityLog labels
   let voiceStarted = false;
   let awaitingConfirmation = false;
   let awaitingSendConfirmation = false;
@@ -247,6 +260,34 @@ function boot(): void {
   ariaLive.textContent = fsm.label;
   novaRoot.appendChild(ariaLive);
 
+  // ── Confirmation mode indicator ──────────────────────────────────
+  const confirmMode = getConfirmTasks();
+  const confirmIndicator = document.createElement('div');
+  confirmIndicator.setAttribute('data-nova', 'confirm-indicator');
+  confirmIndicator.setAttribute(
+    'aria-label',
+    confirmMode ? strings.confirmationOn : strings.confirmationOff,
+  );
+  confirmIndicator.style.position = 'fixed';
+  confirmIndicator.style.zIndex = String(Z_INDEX.pill);
+  confirmIndicator.style.pointerEvents = 'none';
+  confirmIndicator.style.fontFamily =
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  confirmIndicator.style.fontSize = '10px';
+  confirmIndicator.style.fontWeight = '500';
+  confirmIndicator.style.color = confirmMode ? 'var(--nova-accent)' : 'var(--nova-text-secondary)';
+  confirmIndicator.style.background = 'var(--nova-panel-bg)';
+  confirmIndicator.style.backdropFilter = 'blur(8px)';
+  (confirmIndicator.style as unknown as Record<string, string>).webkitBackdropFilter = 'blur(8px)';
+  confirmIndicator.style.borderRadius = '8px';
+  confirmIndicator.style.padding = '2px 8px';
+  confirmIndicator.style.whiteSpace = 'nowrap';
+  confirmIndicator.style.opacity = '0.85';
+  confirmIndicator.style.letterSpacing = '0.03em';
+  confirmIndicator.style.textTransform = 'uppercase';
+  confirmIndicator.textContent = confirmMode ? strings.confirmationOn : strings.confirmationOff;
+  novaRoot.appendChild(confirmIndicator);
+
   // ── Mic hint element ────────────────────────────────────────────
   const micHint = document.createElement('div');
   micHint.setAttribute('data-nova', 'mic-hint');
@@ -330,6 +371,14 @@ function boot(): void {
     statusLine.style.top = `${pillRect.top + pillRect.height / 2 - statusHeight / 2}px`;
     statusLine.style.right = 'auto';
     statusLine.style.bottom = 'auto';
+
+    // Position confirmation indicator below the status line
+    if (confirmIndicator) {
+      confirmIndicator.style.left = `${pillRect.right + 10}px`;
+      confirmIndicator.style.top = `${pillRect.top + pillRect.height / 2 + statusHeight / 2 + 4}px`;
+      confirmIndicator.style.right = 'auto';
+      confirmIndicator.style.bottom = 'auto';
+    }
   }
 
   // Subscribe to FSM changes → update pill, status line, and aria-live
@@ -401,6 +450,7 @@ function boot(): void {
   elementInspector.onSubmit((element, instruction) => {
     selectedElement = element;
     autoExecute = true;
+    autoExecuteSource = 'quick-edit';
     const snapshot = domCapture.captureElement(element);
     const scopedInstruction = `SCOPED EDIT -- change ONLY the selected element and its contents. Do NOT modify sibling elements or unrelated parts of the page.
 
@@ -430,6 +480,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     });
     const combinedInstruction = `${instruction}\n\nMarked elements:\n${snapshots.join('\n\n')}`;
     autoExecute = true;
+    autoExecuteSource = 'multi-edit';
     void sendObservation(combinedInstruction);
   });
 
@@ -950,6 +1001,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         wsClient.send(observation);
       }
       autoExecute = false; // Reset after sending
+      autoExecuteSource = null; // Reset source tracking
       cursorTracker.clear();
       temporalCorrelator.clear();
       executingToastId = statusToast.show(strings.aiThinking, 'info', 0);
@@ -1222,7 +1274,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'task_completed':
         completedTasks++;
         taskPanel.setTaskCompleted(event.data.taskId, event.data.commitHash);
-        activityLog.addEntry(`Done: ${event.data.taskId}`, 'success', false, ts);
+        {
+          const autoExecLabel = autoExecuteSource
+            ? ` (${autoExecuteSource === 'quick-edit' ? strings.executedViaQuickEdit : strings.executedViaMultiEdit})`
+            : '';
+          activityLog.addEntry(`Done: ${event.data.taskId}${autoExecLabel}`, 'success', false, ts);
+        }
         // Only finish when ALL tasks done
         if (completedTasks >= totalTasks && totalTasks > 0) {
           if (executingToastId) {
@@ -1261,7 +1318,12 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       case 'task_started':
         fsm.send({ type: 'thinking_started' });
         taskPanel.setTaskStarted(event.data.taskId);
-        activityLog.addEntry(`Starting: ${event.data.taskId}`, 'info', false, ts);
+        {
+          const autoExecLabel = autoExecuteSource
+            ? ` (${autoExecuteSource === 'quick-edit' ? strings.executedViaQuickEdit : strings.executedViaMultiEdit})`
+            : '';
+          activityLog.addEntry(`Starting: ${event.data.taskId}${autoExecLabel}`, 'info', false, ts);
+        }
         codeBuffer = '';
         break;
       case 'llm_chunk':
@@ -1575,13 +1637,14 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       } else {
         // Fallback: directly set visuals
         pill.setState(fsmStateToPillState(newFsmState));
-        statusLine.textContent = strings[
-          newFsmState === 'listening'
-            ? 'stateListening'
-            : newFsmState === 'thinking'
-              ? 'stateThinking'
-              : 'stateError'
-        ];
+        statusLine.textContent =
+          strings[
+            newFsmState === 'listening'
+              ? 'stateListening'
+              : newFsmState === 'thinking'
+                ? 'stateThinking'
+                : 'stateError'
+          ];
         ariaLive.textContent = statusLine.textContent;
       }
 

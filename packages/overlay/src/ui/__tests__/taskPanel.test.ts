@@ -305,6 +305,74 @@ describe('TaskPanel', () => {
     expect(shadow.querySelectorAll('.task-row').length).toBe(1);
   });
 
+  // ── Confirmation chips ────────────────────────────────────────
+
+  it('shows "awaiting confirmation" chip on pending tasks without preConfirmed', () => {
+    taskPanel.mount(container);
+    taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
+
+    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const shadow = hostEl.shadowRoot!;
+    const chip = shadow.querySelector('.task-confirm-chip')!;
+    expect(chip).not.toBeNull();
+    expect(chip.textContent).toBe('awaiting confirmation');
+  });
+
+  it('shows "auto-execute on" chip on pending tasks with preConfirmed=true', () => {
+    taskPanel.mount(container);
+    taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1, preConfirmed: true }]);
+
+    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const shadow = hostEl.shadowRoot!;
+    const chip = shadow.querySelector('.task-confirm-chip')!;
+    expect(chip).not.toBeNull();
+    expect(chip.textContent).toBe('auto-execute on');
+  });
+
+  it('updates chip to "confirmed" when task is started (not preConfirmed)', () => {
+    taskPanel.mount(container);
+    taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
+    taskPanel.setTaskStarted('t1');
+
+    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const shadow = hostEl.shadowRoot!;
+    const chip = shadow.querySelector('.task-confirm-chip')!;
+    expect(chip.textContent).toBe('confirmed');
+  });
+
+  it('keeps "auto-execute on" chip when preConfirmed task is started', () => {
+    taskPanel.mount(container);
+    taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1, preConfirmed: true }]);
+    taskPanel.setTaskStarted('t1');
+
+    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const shadow = hostEl.shadowRoot!;
+    const chip = shadow.querySelector('.task-confirm-chip')!;
+    expect(chip.textContent).toBe('auto-execute on');
+  });
+
+  it('hides chip when task is completed', () => {
+    taskPanel.mount(container);
+    taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
+    taskPanel.setTaskCompleted('t1', 'abc1234567');
+
+    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const shadow = hostEl.shadowRoot!;
+    const chip = shadow.querySelector('.task-confirm-chip') as HTMLElement;
+    expect(chip.style.display).toBe('none');
+  });
+
+  it('hides chip when task is failed', () => {
+    taskPanel.mount(container);
+    taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
+    taskPanel.setTaskFailed('t1', 'Error');
+
+    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const shadow = hostEl.shadowRoot!;
+    const chip = shadow.querySelector('.task-confirm-chip') as HTMLElement;
+    expect(chip.style.display).toBe('none');
+  });
+
   // ── localStorage persistence for recent tasks ───────────────
 
   it('persists completed tasks to localStorage under nova:recent-tasks', () => {

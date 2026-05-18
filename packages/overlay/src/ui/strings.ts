@@ -18,6 +18,14 @@ export const strings = {
   gestureModeLabel: 'Gesture Mode',
   activityLogPillLabel: 'Activity Log',
 
+  // ── Confirmation mode ────────────────────────────────────
+  confirmationOn: 'confirmation: on',
+  confirmationOff: 'confirmation: off',
+  awaitingChip: 'awaiting confirmation',
+  autoExecChip: 'auto-execute on',
+  executedViaQuickEdit: 'executed via quick-edit',
+  executedViaMultiEdit: 'executed via multi-edit',
+
   // ── Transcript bar ───────────────────────────────────────
   micEmoji: '\uD83C\uDFA4',
   micOffTitle: 'Voice OFF \u2014 click to enable',
@@ -135,6 +143,7 @@ export const strings = {
   allTasksCompleted: 'All tasks completed! Reloading\u2026',
   someTasksFailed: 'Some tasks failed. Check task panel.',
   confirmed: 'Confirmed!',
+  confirmedChip: 'confirmed',
 
   // ── Mode messages ────────────────────────────────────────
   quickEditModeOn: 'Quick Edit mode \u2014 click any element (Option+I)',

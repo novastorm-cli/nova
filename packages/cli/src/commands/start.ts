@@ -278,6 +278,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   const sessionToken = randomBytes(32).toString('hex');
   await writeFile(path.join(novaDir.getPath(cwd), 'session-token'), sessionToken, { mode: 0o600 });
   proxyServer.setSessionToken(sessionToken);
+  proxyServer.setConfirmTasks(config.behavior.confirmTasks);
   wsServer.setSessionToken(sessionToken);
   wsServer.setProxyPort(proxyPort);
   await proxyServer.start(devPort, proxyPort, OVERLAY_SCRIPT_PATH, host);

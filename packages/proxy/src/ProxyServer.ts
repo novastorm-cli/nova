@@ -15,6 +15,7 @@ export class ProxyServer implements IProxyServer {
   private projectMapApi: {
     handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<boolean>;
   } | null = null;
+  private confirmTasks = true;
 
   /** Returns the underlying http.Server (used by WebSocketServer). */
   getHttpServer(): http.Server | null {
@@ -37,6 +38,11 @@ export class ProxyServer implements IProxyServer {
     this.projectMapApi = api;
   }
 
+  /** Set the confirmation mode (communicated to the overlay via data attribute). */
+  setConfirmTasks(confirmTasks: boolean): void {
+    this.confirmTasks = confirmTasks;
+  }
+
   /**
    * Builds the overlay script tag injected into proxied HTML.
    * Includes data-nova-session token, nonce for CSP, and port info.
@@ -47,6 +53,7 @@ export class ProxyServer implements IProxyServer {
       attrs.push(`data-nova-session="${this.sessionToken}"`);
     }
     attrs.push(`data-nova-port="${proxyPort}"`);
+    attrs.push(`data-nova-confirm-tasks="${this.confirmTasks}"`);
     // Tell the overlay that files can be opened via vscode:// protocol
     // (true when the proxy is running against a local dev server)
     attrs.push('data-nova-can-open="true"');

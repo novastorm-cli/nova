@@ -247,6 +247,17 @@ describe('OverlayPill', () => {
     expect(pillBtn.getAttribute('aria-expanded')).toBe('false');
   });
 
+  // ── tabindex ─────────────────────────────────────────────────
+
+  it('pill button has tabindex="0" (keyboard reachable)', () => {
+    pill.mount(container);
+
+    const hostEl = container.querySelector('*')!;
+    const shadow = hostEl.shadowRoot!;
+    const pillBtn = shadow.querySelector('button.nova-pill') as HTMLElement;
+    expect(pillBtn.getAttribute('tabindex')).toBe('0');
+  });
+
   // ── Pointer event drag with 4px deadzone ─────────────────────
 
   it('micro-move (<4px) does NOT register as a drag — pill stays in place', () => {

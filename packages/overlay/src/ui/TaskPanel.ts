@@ -8,6 +8,7 @@ interface TaskEntry {
   status: 'pending' | 'executing' | 'completed' | 'failed';
   commitHash?: string | undefined;
   error?: string | undefined;
+  preConfirmed?: boolean | undefined;
   element: HTMLElement;
 }
 
@@ -116,7 +117,14 @@ export class TaskPanel {
     this.tasks.clear();
   }
 
-  setPendingTasks(tasks: Array<{ id: string; description: string; lane: number }>): void {
+  setPendingTasks(
+    tasks: Array<{
+      id: string;
+      description: string;
+      lane: number;
+      preConfirmed?: boolean | undefined;
+    }>,
+  ): void {
     this.clearHideTimer();
     this.tasks.clear();
     if (this.listEl) {
@@ -124,13 +132,14 @@ export class TaskPanel {
     }
 
     for (const task of tasks) {
-      const element = this.createTaskRow(task.description, 'pending');
+      const element = this.createTaskRow(task.description, 'pending', task.preConfirmed);
       this.listEl?.appendChild(element);
       this.tasks.set(task.id, {
         id: task.id,
         description: task.description,
         lane: task.lane,
         status: 'pending',
+        preConfirmed: task.preConfirmed,
         element,
       });
     }
@@ -345,7 +354,12 @@ export class TaskPanel {
     }
   }
 
-  private createTaskRow(description: string, status: TaskEntry['status']): HTMLElement {
+  private createTaskRow(
+    description: string,
+    status: TaskEntry['status'],
+    // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents -- required for exactOptionalPropertyTypes
+    preConfirmed?: boolean | undefined,
+  ): HTMLElement {
     const row = document.createElement('div');
     row.className = `task-row status-${status}`;
 
@@ -361,8 +375,22 @@ export class TaskPanel {
     const meta = document.createElement('span');
     meta.className = 'task-meta';
 
+    // Confirmation chip
+    const chip = document.createElement('span');
+    chip.className = 'task-confirm-chip';
+    if (status === 'pending') {
+      if (preConfirmed) {
+        chip.textContent = strings.autoExecChip;
+        chip.classList.add('chip-auto');
+      } else {
+        chip.textContent = strings.awaitingChip;
+        chip.classList.add('chip-awaiting');
+      }
+    }
+
     row.appendChild(icon);
     row.appendChild(desc);
+    row.appendChild(chip);
     row.appendChild(meta);
 
     return row;
@@ -375,6 +403,23 @@ export class TaskPanel {
     const icon = row.querySelector('.task-icon');
     if (icon) {
       icon.innerHTML = this.getIcon(entry.status);
+    }
+
+    // Update the confirmation chip
+    const chip = row.querySelector('.task-confirm-chip');
+    if (chip) {
+      if (entry.status === 'executing') {
+        if (entry.preConfirmed) {
+          (chip as HTMLElement).textContent = strings.autoExecChip;
+          chip.className = 'task-confirm-chip chip-auto';
+        } else {
+          (chip as HTMLElement).textContent = strings.confirmedChip;
+          chip.className = 'task-confirm-chip chip-confirmed';
+        }
+      } else if (entry.status === 'completed' || entry.status === 'failed') {
+        // Hide chip once task is terminal
+        (chip as HTMLElement).style.display = 'none';
+      }
     }
 
     const meta = row.querySelector('.task-meta');
@@ -631,6 +676,33 @@ export class TaskPanel {
       .task-stream.phase-code {
         color: var(--nova-text-primary);
         font-style: normal;
+      }
+
+      /* Confirmation chip in task row */
+      .task-confirm-chip {
+        flex-shrink: 0;
+        font-size: 9px;
+        font-weight: 600;
+        padding: 1px 6px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+      }
+
+      .task-confirm-chip.chip-awaiting {
+        color: var(--nova-warning, #f59e0b);
+        background: color-mix(in srgb, var(--nova-warning, #f59e0b) 15%, transparent);
+      }
+
+      .task-confirm-chip.chip-auto {
+        color: var(--nova-accent);
+        background: color-mix(in srgb, var(--nova-accent) 12%, transparent);
+      }
+
+      .task-confirm-chip.chip-confirmed {
+        color: var(--nova-success);
+        background: color-mix(in srgb, var(--nova-success) 12%, transparent);
       }
 
       @media (prefers-reduced-motion: no-preference) {
