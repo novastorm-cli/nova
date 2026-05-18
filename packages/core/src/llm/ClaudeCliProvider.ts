@@ -6,6 +6,9 @@ import { ProviderError } from '../contracts/ILlmClient.js';
 const TIMEOUT_MS = 300_000; // 5 minutes
 
 export class ClaudeCliProvider implements LlmClient {
+  /** Claude CLI does not support multimodal vision calls. */
+  public readonly supportsVision: boolean = false;
+
   async chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse> {
     const chunks: string[] = [];
     for await (const chunk of this.stream(messages, options)) {

@@ -40,8 +40,12 @@ import { openBrowser } from '../boot/BrowserOpener.js';
 import { setupEventRouting, type EventRouterDeps } from '../boot/EventRouter.js';
 import { isNonInteractive } from '../boot/utils.js';
 import type { StartOptions } from '../index.js';
+import { LogLevel } from '@novastorm-ai/core';
 
-const logger = new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
+const logger = new StructuredLogger({
+  isTTY: process.stderr?.isTTY ?? false,
+  minLevel: process.env['NOVA_DEBUG'] === '1' ? LogLevel.DEBUG : LogLevel.INFO,
+});
 
 const PROXY_PORT_OFFSET = 1;
 

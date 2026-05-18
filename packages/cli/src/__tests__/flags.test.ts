@@ -28,7 +28,8 @@ function createOptsProgram(): Command {
     .option('--port <number>', 'Dev server port')
     .option('--proxy-port <number>', 'Proxy server port')
     .option('--no-telemetry', 'Disable telemetry for this run')
-    .option('--host <addr>', 'Proxy bind address', '127.0.0.1');
+    .option('--host <addr>', 'Proxy bind address', '127.0.0.1')
+    .option('--debug', 'Enable debug / diagnostic output');
   return program;
 }
 
@@ -67,6 +68,12 @@ describe('CLI flags — commander registration', () => {
     const program = createCli();
     const output = program.helpInformation();
     expect(output).toContain('--host');
+  });
+
+  it('registers --debug flag in help output', () => {
+    const program = createCli();
+    const output = program.helpInformation();
+    expect(output).toContain('--debug');
   });
 });
 
@@ -143,6 +150,18 @@ describe('CLI flags — option parsing', () => {
     expect(program.opts().telemetry).toBe(false);
   });
 
+  it('--debug flag defaults to undefined (not set)', () => {
+    const program = createOptsProgram();
+    program.parse([], { from: 'user' });
+    expect(program.opts().debug).toBeUndefined();
+  });
+
+  it('--debug flag sets debug to true', () => {
+    const program = createOptsProgram();
+    program.parse(['--debug'], { from: 'user' });
+    expect(program.opts().debug).toBe(true);
+  });
+
   it('multiple flags can be combined', () => {
     const program = createOptsProgram();
     program.parse(
@@ -154,6 +173,7 @@ describe('CLI flags — option parsing', () => {
         '--no-telemetry',
         '--host',
         '0.0.0.0',
+        '--debug',
       ],
       { from: 'user' },
     );
@@ -164,6 +184,7 @@ describe('CLI flags — option parsing', () => {
     expect(opts.proxyPort).toBe('3501');
     expect(opts.telemetry).toBe(false);
     expect(opts.host).toBe('0.0.0.0');
+    expect(opts.debug).toBe(true);
   });
 });
 

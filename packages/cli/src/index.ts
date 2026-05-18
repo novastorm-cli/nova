@@ -16,6 +16,7 @@ export interface StartOptions {
   proxyPort?: string | undefined;
   host?: string | undefined;
   noTelemetry?: boolean | undefined;
+  debug?: boolean | undefined;
 }
 
 export function createCli(): Command {
@@ -30,7 +31,8 @@ export function createCli(): Command {
     .option('--port <number>', 'Dev server port')
     .option('--proxy-port <number>', 'Proxy server port')
     .option('--no-telemetry', 'Disable telemetry for this run')
-    .option('--host <addr>', 'Proxy bind address', '127.0.0.1');
+    .option('--host <addr>', 'Proxy bind address', '127.0.0.1')
+    .option('--debug', 'Enable debug / diagnostic output');
 
   program
     .command('start', { isDefault: true })
@@ -43,6 +45,7 @@ export function createCli(): Command {
         proxyPort?: string;
         telemetry?: boolean;
         host?: string;
+        debug?: boolean;
       }>();
 
       if (opts.telemetry === false) {
@@ -70,6 +73,10 @@ export function createCli(): Command {
         }
       }
 
+      if (opts.debug === true) {
+        process.env['NOVA_DEBUG'] = '1';
+      }
+
       const { startCommand } = await import('./commands/start.js');
       await startCommand({
         noOpen: opts.open === false,
@@ -78,6 +85,7 @@ export function createCli(): Command {
         proxyPort: opts.proxyPort,
         host: opts.host,
         noTelemetry: opts.telemetry === false,
+        debug: opts.debug === true,
       });
     });
 

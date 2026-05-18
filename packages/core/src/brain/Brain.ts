@@ -59,7 +59,17 @@ export class Brain implements IBrain {
     let lastError: unknown;
     // Providers that don't support vision (e.g. DeepSeek) will throw NO_VISION_SUPPORT.
     // Track this so we can fall back to text-only chat on retry.
-    let useVision = !!(observation.screenshot && observation.screenshot.length > 0);
+    // Pre-check capability flag to avoid a wasted API call.
+    let useVision =
+      !!(observation.screenshot && observation.screenshot.length > 0) &&
+      this.llm.supportsVision;
+
+    if (observation.screenshot && observation.screenshot.length > 0 && !this.llm.supportsVision) {
+      this.logger.info(
+        'Brain: provider does not support vision -- falling back to text-only chat',
+      );
+      this.status('Vision not supported, using text-only...');
+    }
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       try {

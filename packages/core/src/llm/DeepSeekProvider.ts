@@ -19,6 +19,9 @@ export interface DeepSeekConfig {
 }
 
 export class DeepSeekProvider extends BaseProvider {
+  /** DeepSeek does not support multimodal vision calls. Brain.analyze() uses this to fall back to text-only chat. */
+  public readonly supportsVision: boolean = false;
+
   /** The reasoning_content extracted from the most recent chat or stream call. */
   public lastReasoningContent?: string | undefined;
 

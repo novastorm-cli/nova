@@ -9,6 +9,7 @@ import { BrainError } from '../../contracts/IBrain.js';
 function createMockLlmClient(responses: string[]): LlmClient {
   let callIndex = 0;
   return {
+    supportsVision: true,
     chat: vi.fn(async () => ({ content: responses[callIndex++] ?? '' })),
     chatWithVision: vi.fn(async () => ({ content: responses[callIndex++] ?? '' })),
     stream: vi.fn(),
@@ -154,9 +155,9 @@ describe('Brain', () => {
   // ── analyze() falls back to text-only chat on NO_VISION_SUPPORT ─
 
   it('analyze() falls back to text-only chat when vision is not supported', async () => {
-    // First call: chatWithVision throws NO_VISION_SUPPORT
-    // Second call: text-only chat succeeds
+    // Provider does not support vision — the pre-check skips chatWithVision entirely
     const llm = {
+      supportsVision: false,
       chat: vi.fn(async () => ({ content: VALID_TASKS_JSON })),
       chatWithVision: vi.fn(async () => {
         throw new ProviderError(
@@ -172,10 +173,10 @@ describe('Brain', () => {
 
     const tasks = await brain.analyze(observation, projectMap);
 
-    // Should have called chatWithVision once (failed with NO_VISION_SUPPORT)
-    expect(llm.chatWithVision).toHaveBeenCalledOnce();
+    // Pre-check prevents calling chatWithVision — falls back immediately to text-only
+    expect(llm.chatWithVision).not.toHaveBeenCalled();
 
-    // Should have fallen back to text-only chat (which succeeded)
+    // Should have called text-only chat (which succeeded)
     expect(llm.chat).toHaveBeenCalledOnce();
 
     // Should have parsed tasks successfully

@@ -14,6 +14,7 @@ function createMockLlmClient(fixedResponse: string): {
   const capturedMessages: Message[][] = [];
 
   const client: LlmClient = {
+    supportsVision: true,
     async chat(messages: Message[], _options?: LlmOptions) {
       capturedMessages.push([...messages]);
       return { content: fixedResponse };

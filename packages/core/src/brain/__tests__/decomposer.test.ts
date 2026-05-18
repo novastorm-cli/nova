@@ -7,6 +7,7 @@ import type { ProjectMap, TaskItem } from '../../models/types.js';
 function createMockLlmClient(responses: string[]): LlmClient {
   let callIndex = 0;
   return {
+    supportsVision: true,
     chat: vi.fn(async () => ({ content: responses[callIndex++] ?? '' })),
     chatWithVision: vi.fn(async () => ({ content: responses[callIndex++] ?? '' })),
     stream: vi.fn(),

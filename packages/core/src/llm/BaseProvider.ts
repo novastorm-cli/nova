@@ -34,6 +34,13 @@ export interface BaseProviderOptions {
  * - `isRetryable` / `isAbort` / `toProviderError` — error classification & normalization
  */
 export abstract class BaseProvider implements LlmClient {
+  /**
+   * Whether this provider supports multimodal vision calls (chatWithVision).
+   * True by default; providers that don't support vision (e.g. DeepSeek)
+   * override this to false so Brain.analyze() can fall back gracefully.
+   */
+  public readonly supportsVision: boolean = true;
+
   /** Single source of truth for the JSON-mode prompt suffix. */
   protected static readonly JSON_SUFFIX = '\n\nRespond with valid JSON only.';
 

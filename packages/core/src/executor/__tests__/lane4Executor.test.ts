@@ -50,6 +50,7 @@ function createMockLlmClient(): LlmClient {
   };
 
   return {
+    supportsVision: true,
     chat: vi.fn().mockResolvedValue({
       content: '=== FILE: src/auth.ts ===\nconsole.log("refactored");\n=== END FILE ===',
     }),

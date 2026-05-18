@@ -25,6 +25,9 @@ import type { ChatResponse, LlmOptions, Message, StreamChunk } from '../models/t
  * - Consumer can break out of the loop to cancel the stream
  */
 export interface LlmClient {
+  /** Whether this provider supports multimodal vision calls (chatWithVision). */
+  readonly supportsVision: boolean;
+
   chat(messages: Message[], options?: LlmOptions): Promise<ChatResponse>;
   chatWithVision(
     messages: Message[],
