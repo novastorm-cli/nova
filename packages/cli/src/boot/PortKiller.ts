@@ -33,7 +33,7 @@ export interface KillResult {
 // ---------------------------------------------------------------------------
 
 /** Hex port string as it appears in /proc/net/tcp, e.g. "1F90" for 8080. */
-function toHexPort(port: number): string {
+export function toHexPort(port: number): string {
   return port.toString(16).toUpperCase().padStart(4, '0');
 }
 
@@ -41,7 +41,7 @@ function toHexPort(port: number): string {
  * Parse a /proc/net/tcp (or tcp6) line and return `{ inode, port }` when the
  * entry is in LISTEN state on the requested port, otherwise `null`.
  */
-function parseProcLine(line: string, wantPort: number): { inode: number } | null {
+export function parseProcLine(line: string, wantPort: number): { inode: number } | null {
   // Strip trailing whitespace and split on any whitespace
   const fields = line.trim().split(/\s+/);
   // Fields (by column):
@@ -69,7 +69,7 @@ function parseProcLine(line: string, wantPort: number): { inode: number } | null
 }
 
 /** Collect inodes from /proc/net/tcp (and tcp6 when present) for *port*. */
-function collectInodes(port: number): number[] {
+export function collectInodes(port: number): number[] {
   const inodes = new Set<number>();
   const procFiles = ['/proc/net/tcp', '/proc/net/tcp6'];
 
@@ -96,7 +96,7 @@ function collectInodes(port: number): number[] {
  * Walk `/proc/[pid]/fd/*` looking for a socket symlink whose target is
  * `socket:[<inode>]`.  Returns the PID when found, otherwise `null`.
  */
-function findPidByInode(procDir: string, pid: number, inodes: Set<number>): number | null {
+export function findPidByInode(procDir: string, pid: number, inodes: Set<number>): number | null {
   const fdDir = path.join(procDir, String(pid), 'fd');
   let entries: fs.Dirent[];
   try {
@@ -126,7 +126,7 @@ function findPidByInode(procDir: string, pid: number, inodes: Set<number>): numb
 }
 
 /** Find all PIDs that own one of the given socket inodes. */
-function findPidsByInodes(inodes: number[]): number[] {
+export function findPidsByInodes(inodes: number[]): number[] {
   const inodeSet = new Set(inodes);
   const pids: number[] = [];
   if (inodeSet.size === 0) return pids;

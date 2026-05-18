@@ -275,7 +275,7 @@ export interface ScaffoldResult {
   backends?: string[] | undefined;
 }
 
-function mapDescriptionToCommand(desc: string): ScaffoldResult {
+export function mapDescriptionToCommand(desc: string): ScaffoldResult {
   const d = desc.toLowerCase();
 
   // Find all matching techs

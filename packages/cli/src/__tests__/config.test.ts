@@ -382,4 +382,213 @@ provider = "deepseek"
       expect(PROVIDER_MODEL_DEFAULTS['deepseek']!.strong).toBe('deepseek-v4-pro');
     });
   });
+
+  // ── Legacy migration and edge cases ────────────────────────────
+
+  describe('legacy [providers] migration', () => {
+    it('migrates legacy [providers] deepseek_key to [apiKeys]', async () => {
+      const toml = `
+[providers]
+deepseek_key = "sk-legacy-key"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+      expect(config.apiKeys.provider).toBe('deepseek');
+      expect(config.apiKeys.key).toBe('sk-legacy-key');
+    });
+
+    it('migrates legacy [providers] openai_key to [apiKeys]', async () => {
+      const toml = `
+[providers]
+openai_key = "sk-openai-legacy"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+      expect(config.apiKeys.provider).toBe('openai');
+      expect(config.apiKeys.key).toBe('sk-openai-legacy');
+    });
+
+    it('explicit [apiKeys] wins over legacy [providers]', async () => {
+      const toml = `
+[providers]
+deepseek_key = "sk-legacy"
+
+[apiKeys]
+provider = "deepseek"
+key = "sk-explicit"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+      expect(config.apiKeys.provider).toBe('deepseek');
+      expect(config.apiKeys.key).toBe('sk-explicit');
+    });
+  });
+
+  describe('[models] fast backward compat', () => {
+    it('aliases [models] fast to standard when standard not set', async () => {
+      const toml = `
+[models]
+fast = "deepseek-v4-flash"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+      expect(config.models.standard).toBe('deepseek-v4-flash');
+    });
+
+    it('does not override explicit standard when fast is also set', async () => {
+      const toml = `
+[models]
+fast = "deepseek-v4-flash"
+standard = "deepseek-v4-pro"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      const config = await reader.read(tmpDir);
+      expect(config.models.standard).toBe('deepseek-v4-pro');
+    });
+  });
+
+  describe('validation edge cases', () => {
+    it('rejects invalid port numbers', async () => {
+      const toml = `
+[project]
+port = 99999
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await expect(reader.read(tmpDir)).rejects.toThrow('port');
+    });
+
+    it('rejects path traversal in frontend', async () => {
+      const toml = `
+[project]
+frontend = "../escape"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await expect(reader.read(tmpDir)).rejects.toThrow('Path traversal');
+    });
+
+    it('rejects absolute paths in frontend', async () => {
+      const toml = `
+[project]
+frontend = "/etc/passwd"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await expect(reader.read(tmpDir)).rejects.toThrow('Absolute paths');
+    });
+
+    it('rejects invalid voice engine', async () => {
+      const toml = `
+[voice]
+engine = "invalid_engine"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await expect(reader.read(tmpDir)).rejects.toThrow('voice');
+    });
+
+    it('rejects non-boolean telemetry.enabled', async () => {
+      const toml = `
+[telemetry]
+enabled = "yes"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await expect(reader.read(tmpDir)).rejects.toThrow('telemetry');
+    });
+
+    it('rejects invalid provider name', async () => {
+      const toml = `
+[apiKeys]
+provider = "nonexistent"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await expect(reader.read(tmpDir)).rejects.toThrow('provider');
+    });
+  });
+
+  describe('environment variable overrides', () => {
+    it('uses NOVA_API_KEY env var for API key', async () => {
+      process.env['NOVA_API_KEY'] = 'sk-from-env';
+      try {
+        const toml = `
+[apiKeys]
+provider = "openrouter"
+`;
+        await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+        const config = await reader.read(tmpDir);
+        expect(config.apiKeys.key).toBe('sk-from-env');
+      } finally {
+        delete process.env['NOVA_API_KEY'];
+      }
+    });
+
+    it('uses DEEPSEEK_API_KEY for deepseek provider when NOVA_API_KEY not set', async () => {
+      process.env['DEEPSEEK_API_KEY'] = 'sk-deepseek-env';
+      try {
+        const toml = `
+[apiKeys]
+provider = "deepseek"
+`;
+        await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+        const config = await reader.read(tmpDir);
+        expect(config.apiKeys.key).toBe('sk-deepseek-env');
+      } finally {
+        delete process.env['DEEPSEEK_API_KEY'];
+      }
+    });
+  });
+
+  describe('unrecognized sections and typos', () => {
+    it('warns about unrecognized top-level sections', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const toml = `
+[unknown_section]
+key = "value"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await reader.read(tmpDir);
+      // Should have warned about unrecognized section
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('suggests closest match for typos (Levenshtein ≤ 2)', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const toml = `
+[modles]
+micro = "test"
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await reader.read(tmpDir);
+      // "modles" is 1 edit away from "models"
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      const warnings = consoleWarnSpy.mock.calls.map((c) => c[0] as string);
+      const typoWarning = warnings.find((w) => w.includes('modles') || w.includes('models'));
+      expect(typoWarning).toBeDefined();
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('invalid TOML handling', () => {
+    it('throws ConfigError for invalid TOML syntax', async () => {
+      const toml = 'this is not valid toml [[[';
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await expect(reader.read(tmpDir)).rejects.toThrow('Invalid TOML');
+    });
+  });
 });
