@@ -402,6 +402,8 @@ describe('doctor.ts module exports', () => {
 
     afterEach(() => {
       delete process.env['NOVA_DOCTOR_PING_MODE'];
+      delete process.env['DEEPSEEK_API_KEY'];
+      delete process.env['NOVA_API_KEY'];
     });
 
     it('sets exit code to 0 when all checks pass', async () => {
@@ -442,6 +444,8 @@ describe('doctor.ts module exports', () => {
 
     afterEach(() => {
       delete process.env['NOVA_DOCTOR_PING_MODE'];
+      delete process.env['DEEPSEEK_API_KEY'];
+      delete process.env['NOVA_API_KEY'];
     });
 
     it('handles ollama provider path', async () => {
@@ -519,6 +523,9 @@ describe('doctor.ts module exports', () => {
 
     it('handles remote provider with API key via env var (deepseek)', async () => {
       process.env['DEEPSEEK_API_KEY'] = 'sk-env-key';
+      const mockClient = { chat: vi.fn().mockResolvedValue({ content: 'ok' }) };
+      mockCreate.mockReturnValue(mockClient);
+
       MockConfigReader.prototype.read = vi
         .fn()
         .mockResolvedValue(makeConfig({ apiKeys: { provider: 'deepseek', key: undefined } }));
@@ -526,11 +533,17 @@ describe('doctor.ts module exports', () => {
       const result = await runDoctor({ cwd: '/tmp' });
       const providerCheck = result.checks.find((c) => c.name === 'Provider');
       expect(providerCheck).toBeDefined();
-      // Should have tried to use the env key
+      expect(providerCheck!.status).toBe('ok');
+      expect(providerCheck!.message).toContain('deepseek');
+      expect(providerCheck!.message).toContain('ping successful');
+      expect(mockCreate).toHaveBeenCalledWith('deepseek', 'sk-env-key');
     });
 
     it('handles remote provider with NOVA_API_KEY fallback', async () => {
       process.env['NOVA_API_KEY'] = 'sk-nova-fallback';
+      const mockClient = { chat: vi.fn().mockResolvedValue({ content: 'ok' }) };
+      mockCreate.mockReturnValue(mockClient);
+
       MockConfigReader.prototype.read = vi.fn().mockResolvedValue(
         makeConfig({
           apiKeys: { provider: 'openrouter', key: undefined },
@@ -540,7 +553,10 @@ describe('doctor.ts module exports', () => {
       const result = await runDoctor({ cwd: '/tmp' });
       const providerCheck = result.checks.find((c) => c.name === 'Provider');
       expect(providerCheck).toBeDefined();
-      // Should use the NOVA_API_KEY as fallback
+      expect(providerCheck!.status).toBe('ok');
+      expect(providerCheck!.message).toContain('openrouter');
+      expect(providerCheck!.message).toContain('ping successful');
+      expect(mockCreate).toHaveBeenCalledWith('openrouter', 'sk-nova-fallback');
     });
 
     it('includes model name in provider ping result when configured', async () => {
