@@ -24,7 +24,7 @@ import { ElementInspector } from './ui/ElementInspector.js';
 import { MultiElementSelector } from './ui/MultiElementSelector.js';
 import { AreaSelector } from './ui/AreaSelector.js';
 import { SecretConsole } from './ui/SecretConsole.js';
-import { OverlayStateMachine, type FsmState, type StateChangeEvent } from './ui/state-machine.js';
+import { OverlayStateMachine, type FsmState, type FsmEventType, type StateChangeEvent } from './ui/state-machine.js';
 import { WebSocketClient } from './transport/WebSocketClient.js';
 import type { BrowserObservation } from './transport/WebSocketClient.js';
 import { strings } from './ui/strings.js';
@@ -1517,6 +1517,75 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         const titleBar = host.shadowRoot.querySelector('.activity-title');
         if (titleBar) (titleBar as HTMLElement).click();
       }
+    },
+    /**
+     * Programmatic FSM state hook for e2e testing.
+     *
+     * Maps a pill visual state to the corresponding FSM state and updates
+     * the pill's data-state, the status line, and the aria-live region
+     * synchronously.  This allows tests to verify that the pill and status
+     * line correctly reflect each state without requiring microphone
+     * permissions or live LLM calls.
+     *
+     * Accepted values: 'idle' | 'listening' | 'processing' | 'error'
+     */
+    setStatus: (visualState: string) => {
+      const map: Record<string, FsmState> = {
+        idle: 'idle',
+        listening: 'listening',
+        processing: 'thinking',
+        error: 'error',
+      };
+      const newFsmState = map[visualState];
+      if (!newFsmState) {
+        overlayLogger.warn(`__novaTest__.setStatus: unknown state "${visualState}"`);
+        return;
+      }
+
+      // Update the FSM directly (skip transition table for test hook)
+      // We use a type-cast to reset the internal state, since the
+      // boot closure already has access to the fsm instance.
+      // The state machine's private _state is accessed via reset + send.
+      const current = fsm.state;
+      if (current === newFsmState) return;
+
+      // Force-reset to idle then send the target event
+      // (this is the cleanest way to transition the FSM from a test hook)
+      const transitionMap: Record<string, FsmEventType> = {
+        listening: 'voice_started',
+        thinking: 'thinking_started',
+        error: 'error_occurred',
+      };
+
+      // First reset to idle so transitions are valid from any source state
+      fsm.reset();
+
+      if (newFsmState === 'idle') {
+        // Already idle after reset — just update visuals
+        pill.setState('idle');
+        statusLine.textContent = fsm.label;
+        ariaLive.textContent = fsm.label;
+        requestAnimationFrame(() => positionStatusLine());
+        return;
+      }
+
+      const eventType = transitionMap[newFsmState];
+      if (eventType) {
+        fsm.send({ type: eventType });
+      } else {
+        // Fallback: directly set visuals
+        pill.setState(fsmStateToPillState(newFsmState));
+        statusLine.textContent = strings[
+          newFsmState === 'listening'
+            ? 'stateListening'
+            : newFsmState === 'thinking'
+              ? 'stateThinking'
+              : 'stateError'
+        ];
+        ariaLive.textContent = statusLine.textContent;
+      }
+
+      requestAnimationFrame(() => positionStatusLine());
     },
   };
 }

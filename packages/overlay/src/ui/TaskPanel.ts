@@ -13,7 +13,7 @@ interface TaskEntry {
 
 const AUTO_HIDE_DELAY_MS = 5000;
 const STORAGE_KEY = 'nova-task-panel-state';
-const RECENT_TASKS_KEY = 'nova_recent_tasks';
+const RECENT_TASKS_KEY = 'nova:recent-tasks';
 const MAX_RECENT_TASKS = 20;
 
 interface StoredTask {

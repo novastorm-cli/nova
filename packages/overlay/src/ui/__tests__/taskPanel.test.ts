@@ -307,7 +307,7 @@ describe('TaskPanel', () => {
 
   // ── localStorage persistence for recent tasks ───────────────
 
-  it('persists completed tasks to localStorage under nova_recent_tasks', () => {
+  it('persists completed tasks to localStorage under nova:recent-tasks', () => {
     taskPanel.mount(container);
     taskPanel.setPendingTasks([
       { id: 't1', description: 'Task 1', lane: 1 },
@@ -317,7 +317,7 @@ describe('TaskPanel', () => {
     taskPanel.setTaskCompleted('t1', 'abc1234');
     taskPanel.setTaskCompleted('t2', 'def5678');
 
-    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']!) as Array<{
+    const stored = JSON.parse(mockLocalStorage['nova:recent-tasks']!) as Array<{
       id: string;
       status: string;
     }>;
@@ -333,7 +333,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Task 1', lane: 1 }]);
     taskPanel.setTaskFailed('t1', 'something broke');
 
-    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']!) as Array<{
+    const stored = JSON.parse(mockLocalStorage['nova:recent-tasks']!) as Array<{
       status: string;
       error: string;
     }>;
@@ -353,7 +353,7 @@ describe('TaskPanel', () => {
       status: 'completed' as const,
       commitHash: 'abc',
     }));
-    mockLocalStorage['nova_recent_tasks'] = JSON.stringify(existing);
+    mockLocalStorage['nova:recent-tasks'] = JSON.stringify(existing);
 
     // Add 3 new tasks
     taskPanel.setPendingTasks([
@@ -365,7 +365,7 @@ describe('TaskPanel', () => {
     taskPanel.setTaskCompleted('new-2', 'abc');
     taskPanel.setTaskCompleted('new-3', 'abc');
 
-    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']) as Array<{
+    const stored = JSON.parse(mockLocalStorage['nova:recent-tasks']) as Array<{
       id: string;
     }>;
     expect(stored.length).toBe(20); // 19 old + 3 new = 22, capped to 20
@@ -380,7 +380,7 @@ describe('TaskPanel', () => {
     taskPanel.mount(container);
 
     // Pre-populate with a task
-    mockLocalStorage['nova_recent_tasks'] = JSON.stringify([
+    mockLocalStorage['nova:recent-tasks'] = JSON.stringify([
       { id: 't1', description: 'Old desc', lane: 1, status: 'completed', commitHash: 'old' },
     ]);
 
@@ -388,7 +388,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'New desc', lane: 1 }]);
     taskPanel.setTaskCompleted('t1', 'newhash');
 
-    const stored = JSON.parse(mockLocalStorage['nova_recent_tasks']) as Array<{
+    const stored = JSON.parse(mockLocalStorage['nova:recent-tasks']) as Array<{
       id: string;
     }>;
     expect(stored).toHaveLength(1);
@@ -401,7 +401,7 @@ describe('TaskPanel', () => {
   it('showHistory renders tasks from localStorage recent tasks', () => {
     taskPanel.mount(container);
 
-    mockLocalStorage['nova_recent_tasks'] = JSON.stringify([
+    mockLocalStorage['nova:recent-tasks'] = JSON.stringify([
       {
         id: 'hist-1',
         description: 'Added logout button',

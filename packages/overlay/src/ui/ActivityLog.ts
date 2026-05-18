@@ -48,6 +48,16 @@ export class ActivityLog {
 
     this.panelEl = document.createElement('div');
     this.panelEl.className = 'activity-panel hidden'; // Hidden until first entry
+    this.panelEl.setAttribute('data-nova', 'activity-log');
+
+    // Detect backdrop-filter support for opaque fallback
+    if (
+      typeof CSS !== 'undefined' &&
+      !CSS.supports('backdrop-filter', 'blur(1px)') &&
+      !CSS.supports('-webkit-backdrop-filter', 'blur(1px)')
+    ) {
+      this.panelEl.setAttribute('data-opaque-fallback', '');
+    }
 
     // Title bar with collapse button
     this.titleEl = document.createElement('div');
@@ -122,6 +132,7 @@ export class ActivityLog {
 
     const entry = document.createElement('div');
     entry.className = `entry entry-${type}`;
+    entry.setAttribute('data-nova', 'entry');
 
     const timestamp = document.createElement('span');
     timestamp.className = 'timestamp';
@@ -186,6 +197,7 @@ export class ActivityLog {
 
     const entry = document.createElement('div');
     entry.className = `entry entry-${type} collapsible`;
+    entry.setAttribute('data-nova', 'entry');
 
     const timestamp = document.createElement('span');
     timestamp.className = 'timestamp';
@@ -281,6 +293,7 @@ export class ActivityLog {
 
     const entry = document.createElement('div');
     entry.className = `entry entry-${type}`;
+    entry.setAttribute('data-nova', 'entry');
 
     const timestamp = document.createElement('span');
     timestamp.className = 'timestamp';
