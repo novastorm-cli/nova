@@ -112,15 +112,44 @@ async function checkPortAvailable(port: number): Promise<CheckResult> {
 async function checkProviderPing(config: NovaConfig): Promise<CheckResult> {
   const provider = config.apiKeys.provider;
 
-  // For local providers, skip the ping
+  // ── Mock mode (NO outbound HTTP) ────────────────────────────
+  if (process.env['NOVA_DOCTOR_PING_MODE'] === 'mock') {
+    const model = config.models?.standard;
+    const modelSuffix = model ? ` (${model})` : '';
+    return {
+      name: 'Provider',
+      status: 'ok',
+      message: `${provider}${modelSuffix} ping successful (mock mode)`,
+    };
+  }
+
+  // ── Resolve API key: config files → NOVA_API_KEY → DEEPSEEK_API_KEY ──
+  let apiKey = config.apiKeys.key;
+  if (!apiKey && provider === 'deepseek') {
+    apiKey = process.env['DEEPSEEK_API_KEY'];
+  }
+  if (!apiKey && process.env['NOVA_API_KEY']) {
+    apiKey = process.env['NOVA_API_KEY'];
+  }
+
+  // ── Resolve model from config (informational + used in the ping) ──
+  const model = config.models?.standard;
+
+  // For local providers, skip the ping but still try a local call
   if (provider === 'ollama' || provider === 'claude-cli') {
     try {
       const factory = new ProviderFactory();
       const client = factory.create(provider);
-      // Do a 1-token chat to verify the provider works
-      const response = await client.chat([{ role: 'user', content: 'say ok' }], { maxTokens: 1 });
-      if (response && response.content.length > 0) {
-        return { name: 'Provider', status: 'ok', message: `${provider} ping successful` };
+      const chatOpts: Record<string, unknown> = { maxTokens: 1 };
+      if (model) chatOpts['model'] = model;
+      const response = await client.chat([{ role: 'user', content: 'say ok' }], chatOpts);
+      if (response && response.content && response.content.length > 0) {
+        const modelSuffix = model ? ` (${model})` : '';
+        return {
+          name: 'Provider',
+          status: 'ok',
+          message: `${provider}${modelSuffix} ping successful`,
+        };
       }
       return {
         name: 'Provider',
@@ -138,22 +167,31 @@ async function checkProviderPing(config: NovaConfig): Promise<CheckResult> {
   }
 
   // For remote providers, check if API key is available
-  const apiKey = config.apiKeys.key;
   if (!apiKey) {
+    const envHint =
+      provider === 'deepseek'
+        ? ' (set DEEPSEEK_API_KEY or NOVA_API_KEY env var, or apiKeys.key in .nova/config.toml)'
+        : ' (set NOVA_API_KEY env var or apiKeys.key in .nova/config.toml)';
     return {
       name: 'Provider',
       status: 'fail',
-      message: `no API key configured for ${provider} (set apiKeys.key in .nova/config.toml or NOVA_API_KEY env var)`,
+      message: `no API key configured for ${provider}${envHint}`,
     };
   }
 
   try {
     const factory = new ProviderFactory();
     const client = factory.create(provider, apiKey);
-    // Do a 1-token chat
-    const response = await client.chat([{ role: 'user', content: 'say ok' }], { maxTokens: 1 });
-    if (response && response.content.length > 0) {
-      return { name: 'Provider', status: 'ok', message: `${provider} ping successful` };
+    const chatOpts: Record<string, unknown> = { maxTokens: 1 };
+    if (model) chatOpts['model'] = model;
+    const response = await client.chat([{ role: 'user', content: 'say ok' }], chatOpts);
+    if (response && response.content && response.content.length > 0) {
+      const modelSuffix = model ? ` (${model})` : '';
+      return {
+        name: 'Provider',
+        status: 'ok',
+        message: `${provider}${modelSuffix} ping successful`,
+      };
     }
     return {
       name: 'Provider',
@@ -274,6 +312,46 @@ export async function runDoctor(opts: DoctorOptions = {}): Promise<DoctorOutput>
   // 4. Provider ping
   if (config && !configError) {
     checks.push(await checkProviderPing(config));
+  } else if (process.env['DEEPSEEK_API_KEY']) {
+    // No config file but DEEPSEEK_API_KEY is set — do a best-effort ping
+    const fallbackConfig: NovaConfig = {
+      project: { devCommand: '', port: 3000 },
+      models: {
+        micro: 'deepseek-v4-flash',
+        standard: 'deepseek-v4-pro',
+        strong: 'deepseek-v4-pro',
+        local: false,
+      },
+      apiKeys: {
+        provider: 'deepseek',
+        key: process.env['DEEPSEEK_API_KEY'],
+      },
+      behavior: {
+        autoCommit: false,
+        confirmTasks: true,
+        branchPrefix: 'nova/',
+        passiveSuggestions: true,
+      },
+      voice: { enabled: false, engine: 'web' },
+      telemetry: { enabled: false },
+    };
+    checks.push(await checkProviderPing(fallbackConfig));
+  } else if (process.env['NOVA_API_KEY']) {
+    // No config file but NOVA_API_KEY is set — default to openrouter
+    const fallbackConfig: NovaConfig = {
+      project: { devCommand: '', port: 3000 },
+      models: { micro: '', standard: '', strong: '', local: false },
+      apiKeys: { provider: 'openrouter', key: process.env['NOVA_API_KEY'] },
+      behavior: {
+        autoCommit: false,
+        confirmTasks: true,
+        branchPrefix: 'nova/',
+        passiveSuggestions: true,
+      },
+      voice: { enabled: false, engine: 'web' },
+      telemetry: { enabled: false },
+    };
+    checks.push(await checkProviderPing(fallbackConfig));
   } else {
     checks.push({
       name: 'Provider',

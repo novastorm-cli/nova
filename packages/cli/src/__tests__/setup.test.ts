@@ -30,7 +30,7 @@ async function importSetup(): Promise<{
 function createMockClient(validKey: boolean) {
   return {
     chat: validKey
-      ? vi.fn().mockResolvedValue('ok')
+      ? vi.fn().mockResolvedValue({ content: 'OK' })
       : vi.fn().mockRejectedValue(new Error('Authentication failed')),
   };
 }
@@ -397,5 +397,37 @@ describe('Setup wizard', () => {
       .then(() => true)
       .catch(() => false);
     expect(afterExists).toBe(true);
+  });
+
+  // ── Mock mode tests ───────────────────────────────────────────────
+
+  it('mock mode: key validation passes without outbound HTTP call', async () => {
+    process.env['NOVA_DOCTOR_PING_MODE'] = 'mock';
+    try {
+      // Set up ProviderFactory mock that would throw if called
+      const core = await import('@novastorm-ai/core');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.mocked(core.ProviderFactory).mockImplementation((): any => ({
+        create: vi.fn().mockImplementation(() => {
+          throw new Error('ProviderFactory.create should not be called in mock mode');
+        }),
+      }));
+
+      const prompts = await import('@inquirer/prompts');
+      vi.mocked(prompts.select).mockResolvedValue('deepseek');
+      vi.mocked(prompts.password).mockResolvedValue('sk-mock-key');
+      vi.mocked(prompts.confirm).mockResolvedValue(true);
+
+      const { runSetup } = await importSetup();
+      await runSetup(tmpDir);
+
+      // Verify key was saved despite mock mode
+      const localConfigPath = path.join(tmpDir, '.nova', 'config.toml');
+      const content = await fs.readFile(localConfigPath, 'utf-8');
+      expect(content).toContain('sk-mock-key');
+      expect(content).toContain('deepseek');
+    } finally {
+      delete process.env['NOVA_DOCTOR_PING_MODE'];
+    }
   });
 });

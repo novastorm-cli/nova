@@ -142,11 +142,21 @@ function checkPortAvailable(port: number): Promise<CheckResult> {
  * Check: provider ping (1-token chat)
  *
  * Takes a function that can perform the ping, or null if not supported.
+ * When `NOVA_DOCTOR_PING_MODE=mock`, skips the actual ping and returns success.
  */
 async function checkProviderPing(
   pingFn: (() => Promise<boolean>) | null,
   providerName: string,
 ): Promise<CheckResult> {
+  // Mock mode: no network call, always passes
+  if (process.env['NOVA_DOCTOR_PING_MODE'] === 'mock') {
+    return {
+      name: 'Provider',
+      status: 'ok',
+      message: `${providerName} ping successful (mock mode)`,
+    };
+  }
+
   if (!pingFn) {
     return {
       name: 'Provider',
@@ -458,6 +468,28 @@ describe('nova doctor - unit tests', () => {
       expect(result.status).toBe('fail');
       expect(result.message).toContain('Network error');
     });
+
+    it('passes in mock mode even with null ping function', async () => {
+      process.env['NOVA_DOCTOR_PING_MODE'] = 'mock';
+      try {
+        const result = await checkProviderPing(null, 'deepseek');
+        expect(result.status).toBe('ok');
+        expect(result.message).toContain('ping successful');
+        expect(result.message).toContain('mock mode');
+      } finally {
+        delete process.env['NOVA_DOCTOR_PING_MODE'];
+      }
+    });
+
+    it('mock mode result includes provider name', async () => {
+      process.env['NOVA_DOCTOR_PING_MODE'] = 'mock';
+      try {
+        const result = await checkProviderPing(null, 'deepseek');
+        expect(result.message).toContain('deepseek');
+      } finally {
+        delete process.env['NOVA_DOCTOR_PING_MODE'];
+      }
+    });
   });
 
   // ── Claude CLI check ───────────────────────────────────────────────
@@ -659,6 +691,26 @@ describe('nova doctor - unit tests', () => {
       });
       const names = checks.map((c) => c.name);
       expect(names).not.toContain('Ollama');
+    });
+
+    it('mock mode: provider ping passes with null ping function', async () => {
+      process.env['NOVA_DOCTOR_PING_MODE'] = 'mock';
+      try {
+        const { checks, exitCode } = await runDoctor({
+          cwd: tmpDir,
+          port: 3590,
+          providerName: 'deepseek',
+          providerPing: null, // no ping function = would normally fail
+          fetchLatestVersion: () => Promise.resolve('0.2.2'),
+        });
+        expect(exitCode).toBe(0);
+        const providerCheck = checks.find((c) => c.name === 'Provider');
+        expect(providerCheck?.status).toBe('ok');
+        expect(providerCheck?.message).toContain('mock mode');
+        expect(providerCheck?.message).toContain('deepseek');
+      } finally {
+        delete process.env['NOVA_DOCTOR_PING_MODE'];
+      }
     });
   });
 

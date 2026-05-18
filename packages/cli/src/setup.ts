@@ -157,8 +157,16 @@ async function writeUserConfig(cfg: Record<string, unknown>): Promise<void> {
 /**
  * Validate a provider API key with a 1-token chat.
  * Returns true if the key is valid, false otherwise.
+ *
+ * When `NOVA_DOCTOR_PING_MODE=mock`, validation passes immediately
+ * without any outbound HTTP call (used by validators/CI).
  */
 async function validateApiKey(provider: Provider, apiKey: string): Promise<boolean> {
+  // ── Mock mode: no network call ──────────────────────────────
+  if (process.env['NOVA_DOCTOR_PING_MODE'] === 'mock') {
+    return true;
+  }
+
   try {
     const factory = new ProviderFactory();
     const client = factory.create(provider, apiKey);
@@ -320,14 +328,14 @@ async function collectAndValidateKey(provider: Provider): Promise<string | undef
     const valid = await validateApiKey(provider, key.trim());
 
     if (valid) {
-      logger.info('  Provider verified');
+      logger.info('  [OK] Provider verified - key valid');
       return key.trim();
     }
 
     // Invalid — show remedy and offer retry/skip
-    logger.error(`  Invalid API key for ${provider}.`);
+    logger.error(`  [FAIL] Invalid API key for ${provider}.`);
     if (remedyUrl) {
-      logger.debug(`  Get a valid key at: ${remedyUrl}`);
+      logger.info(`  Get a valid key at: ${remedyUrl}`);
     }
 
     const retry = await confirm({

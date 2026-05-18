@@ -354,7 +354,12 @@ export class ConfigReader implements IConfigReader {
     merged = deepMerge(merged, localData);
 
     // Apply environment variable overrides
-    const envApiKey = process.env['NOVA_API_KEY'];
+    const envApiKey =
+      process.env['NOVA_API_KEY'] ??
+      (typeof merged['apiKeys'] === 'object' &&
+      (merged['apiKeys'] as Record<string, unknown>)['provider'] === 'deepseek'
+        ? process.env['DEEPSEEK_API_KEY']
+        : undefined);
     if (envApiKey !== undefined) {
       const apiKeys = merged['apiKeys'] as Record<string, unknown>;
       apiKeys['key'] = envApiKey;
