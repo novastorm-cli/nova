@@ -43,7 +43,6 @@ describe('statusCommand', () => {
   });
 
   it('reports no nova.toml when config does not exist', async () => {
-     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(false) as any;
 
     await statusCommand();
@@ -51,9 +50,8 @@ describe('statusCommand', () => {
   });
 
   it('shows status when config exists', async () => {
-     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-     
+
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
     // Mock stat to throw (no index)
@@ -66,9 +64,8 @@ describe('statusCommand', () => {
   });
 
   it('reports index and tasks when present', async () => {
-     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-     
+
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
     // Mock stat to succeed (index exists)
@@ -83,24 +80,20 @@ describe('statusCommand', () => {
   });
 
   it('reports no pending tasks when tasks are all complete', async () => {
-     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-     
+
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
     vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true, isDirectory: () => false } as any);
-    vi.mocked(fs.readFile).mockResolvedValue(
-      JSON.stringify([{ status: 'completed' }]),
-    );
+    vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify([{ status: 'completed' }]));
 
     await statusCommand();
     // Should not throw
   });
 
   it('handles invalid tasks.json gracefully', async () => {
-     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-     
+
     MockConfigReader.prototype.read = vi.fn().mockResolvedValue(DEFAULT_CONFIG) as any;
 
     vi.mocked(fs.stat).mockResolvedValue({ isFile: () => true, isDirectory: () => false } as any);
@@ -111,12 +104,9 @@ describe('statusCommand', () => {
   });
 
   it('does not crash when config read fails', async () => {
-     
     MockConfigReader.prototype.exists = vi.fn().mockResolvedValue(true) as any;
-     
-    MockConfigReader.prototype.read = vi
-      .fn()
-      .mockRejectedValue(new Error('read error')) as any;
+
+    MockConfigReader.prototype.read = vi.fn().mockRejectedValue(new Error('read error')) as any;
 
     await expect(statusCommand()).rejects.toThrow('read error');
   });

@@ -74,7 +74,7 @@ function killProcess(proc: ChildProcess | null, signal: NodeJS.Signals = 'SIGTER
 
 function killPort(port: number): void {
   try {
-    const pids = execSync(`lsof -ti :${port}`, { encoding: 'utf-8' }).trim();
+    const pids = execSync(`lsof -ti :${port}`, { encoding: 'utf-8', timeout: 5000 }).trim();
     if (pids) {
       for (const pid of pids.split('\n')) {
         try {
@@ -94,7 +94,7 @@ function killAllNextJs(): void {
   try {
     execSync(
       "ps aux | grep -E 'next dev|next-server|next start' | grep -v grep | awk '{print $2}' | xargs -r kill -KILL 2>/dev/null",
-      { encoding: 'utf-8' },
+      { encoding: 'utf-8', timeout: 8000 },
     );
   } catch {
     /* ok */
@@ -112,7 +112,7 @@ afterEach(async () => {
     killPort(p);
   }
   await new Promise((r) => setTimeout(r, 500));
-});
+}, 30_000);
 
 describe('NOVA_NON_INTERACTIVE=1 cross-area E2E', () => {
   /**

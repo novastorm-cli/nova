@@ -58,9 +58,7 @@ describe('createCli', () => {
 
   it('registers --no-telemetry option', () => {
     const program = createCli();
-    expect(
-      program.options.some((o: Option) => o.long === '--no-telemetry'),
-    ).toBe(true);
+    expect(program.options.some((o: Option) => o.long === '--no-telemetry')).toBe(true);
   });
 
   it('registers --debug option', () => {
@@ -120,17 +118,13 @@ describe('createCli', () => {
 
   it('registers license subcommand', () => {
     const program = createCli();
-    const licenseCmd = program.commands.find(
-      (c: { name: () => string }) => c.name() === 'license',
-    );
+    const licenseCmd = program.commands.find((c: { name: () => string }) => c.name() === 'license');
     expect(licenseCmd).toBeDefined();
   });
 
   it('registers entity subcommand', () => {
     const program = createCli();
-    const entityCmd = program.commands.find(
-      (c: { name: () => string }) => c.name() === 'entity',
-    );
+    const entityCmd = program.commands.find((c: { name: () => string }) => c.name() === 'entity');
     expect(entityCmd).toBeDefined();
   });
 

@@ -23,7 +23,6 @@ describe('NovaChat', () => {
 
     // Access private parse method for testing
     function parse(input: string): ChatCommand {
-       
       return (chat as any).parse(input);
     }
 

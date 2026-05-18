@@ -577,7 +577,9 @@ micro = "test"
       // "modles" is 1 edit away from "models"
       expect(consoleWarnSpy).toHaveBeenCalled();
       const warnings = consoleWarnSpy.mock.calls.map((c: unknown[]) => c[0] as string);
-      const typoWarning = warnings.find((w: string) => w.includes('modles') || w.includes('models'));
+      const typoWarning = warnings.find(
+        (w: string) => w.includes('modles') || w.includes('models'),
+      );
       expect(typoWarning).toBeDefined();
       consoleWarnSpy.mockRestore();
     });

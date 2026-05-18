@@ -221,9 +221,7 @@ describe('doctor.ts module exports', () => {
     });
 
     it('handles config read errors gracefully', async () => {
-      MockConfigReader.prototype.read = vi
-        .fn()
-        .mockRejectedValue(new Error('Config parse error'));
+      MockConfigReader.prototype.read = vi.fn().mockRejectedValue(new Error('Config parse error'));
 
       const result = await runDoctor({ cwd: '/tmp' });
       const providerCheck = result.checks.find((c) => c.name === 'Provider');
@@ -233,9 +231,7 @@ describe('doctor.ts module exports', () => {
     });
 
     it('uses DEEPSEEK_API_KEY fallback when no config', async () => {
-      MockConfigReader.prototype.read = vi
-        .fn()
-        .mockRejectedValue(new Error('No config'));
+      MockConfigReader.prototype.read = vi.fn().mockRejectedValue(new Error('No config'));
       process.env['DEEPSEEK_API_KEY'] = 'sk-fallback-key';
 
       const result = await runDoctor({ cwd: '/tmp' });
@@ -245,9 +241,7 @@ describe('doctor.ts module exports', () => {
     });
 
     it('uses NOVA_API_KEY fallback when no config and no DEEPSEEK_API_KEY', async () => {
-      MockConfigReader.prototype.read = vi
-        .fn()
-        .mockRejectedValue(new Error('No config'));
+      MockConfigReader.prototype.read = vi.fn().mockRejectedValue(new Error('No config'));
       process.env['NOVA_API_KEY'] = 'sk-nova-key';
 
       const result = await runDoctor({ cwd: '/tmp' });
@@ -257,9 +251,7 @@ describe('doctor.ts module exports', () => {
     });
 
     it('fails provider check when no config and no env vars', async () => {
-      MockConfigReader.prototype.read = vi
-        .fn()
-        .mockRejectedValue(new Error('No config'));
+      MockConfigReader.prototype.read = vi.fn().mockRejectedValue(new Error('No config'));
       // Ensure no env vars are set
       delete process.env['DEEPSEEK_API_KEY'];
       delete process.env['NOVA_API_KEY'];
@@ -370,9 +362,7 @@ describe('doctor.ts module exports', () => {
     });
 
     it('returns overall "fail" when any check fails', async () => {
-      MockConfigReader.prototype.read = vi
-        .fn()
-        .mockRejectedValue(new Error('no config'));
+      MockConfigReader.prototype.read = vi.fn().mockRejectedValue(new Error('no config'));
 
       const result = await runDoctor({ cwd: '/tmp' });
       expect(result.overall).toBe('fail');
@@ -424,9 +414,7 @@ describe('doctor.ts module exports', () => {
     });
 
     it('sets exit code to 1 when any check fails', async () => {
-      MockConfigReader.prototype.read = vi
-        .fn()
-        .mockRejectedValue(new Error('config error'));
+      MockConfigReader.prototype.read = vi.fn().mockRejectedValue(new Error('config error'));
 
       process.exitCode = 0;
       await doctorCommand({ cwd: '/tmp' });
@@ -533,9 +521,7 @@ describe('doctor.ts module exports', () => {
       process.env['DEEPSEEK_API_KEY'] = 'sk-env-key';
       MockConfigReader.prototype.read = vi
         .fn()
-        .mockResolvedValue(
-          makeConfig({ apiKeys: { provider: 'deepseek', key: undefined } }),
-        );
+        .mockResolvedValue(makeConfig({ apiKeys: { provider: 'deepseek', key: undefined } }));
 
       const result = await runDoctor({ cwd: '/tmp' });
       const providerCheck = result.checks.find((c) => c.name === 'Provider');
@@ -545,13 +531,11 @@ describe('doctor.ts module exports', () => {
 
     it('handles remote provider with NOVA_API_KEY fallback', async () => {
       process.env['NOVA_API_KEY'] = 'sk-nova-fallback';
-      MockConfigReader.prototype.read = vi
-        .fn()
-        .mockResolvedValue(
-          makeConfig({
-            apiKeys: { provider: 'openrouter', key: undefined },
-          }),
-        );
+      MockConfigReader.prototype.read = vi.fn().mockResolvedValue(
+        makeConfig({
+          apiKeys: { provider: 'openrouter', key: undefined },
+        }),
+      );
 
       const result = await runDoctor({ cwd: '/tmp' });
       const providerCheck = result.checks.find((c) => c.name === 'Provider');
@@ -563,7 +547,11 @@ describe('doctor.ts module exports', () => {
       process.env['NOVA_DOCTOR_PING_MODE'] = 'mock';
       MockConfigReader.prototype.read = vi.fn().mockResolvedValue(
         makeConfig({
-          models: { micro: 'deepseek-v4-flash', standard: 'deepseek-v4-pro', strong: 'deepseek-v4-pro' } as any,
+          models: {
+            micro: 'deepseek-v4-flash',
+            standard: 'deepseek-v4-pro',
+            strong: 'deepseek-v4-pro',
+          } as any,
         }),
       );
 
