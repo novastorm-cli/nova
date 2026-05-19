@@ -170,8 +170,13 @@ async function validateApiKey(provider: Provider, apiKey: string): Promise<boole
   try {
     const factory = new ProviderFactory();
     const client = factory.create(provider, apiKey);
-    await client.chat([{ role: 'user', content: 'say ok' }], { maxTokens: 1 });
-    return true;
+    const response = await client.chat([{ role: 'user', content: 'say ok' }], { maxTokens: 16 });
+    // Treat empty content with non-empty reasoningContent as valid
+    // (DeepSeek reasoning models return reasoning_content instead of content)
+    const hasContent = typeof response.content === 'string' && response.content.length > 0;
+    const hasReasoning =
+      typeof response.reasoningContent === 'string' && response.reasoningContent.length > 0;
+    return hasContent || hasReasoning;
   } catch {
     return false;
   }

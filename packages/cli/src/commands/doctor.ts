@@ -140,10 +140,14 @@ async function checkProviderPing(config: NovaConfig): Promise<CheckResult> {
     try {
       const factory = new ProviderFactory();
       const client = factory.create(provider);
-      const chatOpts: Record<string, unknown> = { maxTokens: 1 };
+      const chatOpts: Record<string, unknown> = { maxTokens: 16 };
       if (model) chatOpts['model'] = model;
       const response = await client.chat([{ role: 'user', content: 'say ok' }], chatOpts);
-      if (response && response.content && response.content.length > 0) {
+      if (
+        response &&
+        ((response.content && response.content.length > 0) ||
+          (response.reasoningContent && response.reasoningContent.length > 0))
+      ) {
         const modelSuffix = model ? ` (${model})` : '';
         return {
           name: 'Provider',
@@ -182,10 +186,14 @@ async function checkProviderPing(config: NovaConfig): Promise<CheckResult> {
   try {
     const factory = new ProviderFactory();
     const client = factory.create(provider, apiKey);
-    const chatOpts: Record<string, unknown> = { maxTokens: 1 };
+    const chatOpts: Record<string, unknown> = { maxTokens: 16 };
     if (model) chatOpts['model'] = model;
     const response = await client.chat([{ role: 'user', content: 'say ok' }], chatOpts);
-    if (response && response.content && response.content.length > 0) {
+    if (
+      response &&
+      ((response.content && response.content.length > 0) ||
+        (response.reasoningContent && response.reasoningContent.length > 0))
+    ) {
       const modelSuffix = model ? ` (${model})` : '';
       return {
         name: 'Provider',

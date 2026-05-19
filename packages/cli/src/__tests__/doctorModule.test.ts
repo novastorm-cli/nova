@@ -577,6 +577,91 @@ describe('doctor.ts module exports', () => {
       expect(providerCheck!.message).toContain('deepseek-v4-pro');
     });
 
+    // ── reasoning_content / DeepSeek reasoning model tests ─────────
+
+    it('passes on reasoning-only response (empty content, non-empty reasoningContent)', async () => {
+      process.env['DEEPSEEK_API_KEY'] = 'sk-env-key';
+      const mockClient = {
+        chat: vi.fn().mockResolvedValue({
+          content: '',
+          reasoningContent: 'Let me think about this step by step...',
+        }),
+      };
+      mockCreate.mockReturnValue(mockClient);
+
+      MockConfigReader.prototype.read = vi
+        .fn()
+        .mockResolvedValue(makeConfig({ apiKeys: { provider: 'deepseek', key: undefined } }));
+
+      const result = await runDoctor({ cwd: '/tmp' });
+      const providerCheck = result.checks.find((c) => c.name === 'Provider');
+      expect(providerCheck).toBeDefined();
+      expect(providerCheck!.status).toBe('ok');
+      expect(providerCheck!.message).toContain('ping successful');
+    });
+
+    it('fails on empty response (empty content, no reasoningContent)', async () => {
+      process.env['DEEPSEEK_API_KEY'] = 'sk-env-key';
+      const mockClient = {
+        chat: vi.fn().mockResolvedValue({
+          content: '',
+          // reasoningContent not present
+        }),
+      };
+      mockCreate.mockReturnValue(mockClient);
+
+      MockConfigReader.prototype.read = vi
+        .fn()
+        .mockResolvedValue(makeConfig({ apiKeys: { provider: 'deepseek', key: undefined } }));
+
+      const result = await runDoctor({ cwd: '/tmp' });
+      const providerCheck = result.checks.find((c) => c.name === 'Provider');
+      expect(providerCheck).toBeDefined();
+      expect(providerCheck!.status).toBe('fail');
+      expect(providerCheck!.message).toContain('empty response');
+    });
+
+    it('passes on normal response with both content and reasoningContent', async () => {
+      process.env['DEEPSEEK_API_KEY'] = 'sk-env-key';
+      const mockClient = {
+        chat: vi.fn().mockResolvedValue({
+          content: 'ok',
+          reasoningContent: 'Let me think...',
+        }),
+      };
+      mockCreate.mockReturnValue(mockClient);
+
+      MockConfigReader.prototype.read = vi
+        .fn()
+        .mockResolvedValue(makeConfig({ apiKeys: { provider: 'deepseek', key: undefined } }));
+
+      const result = await runDoctor({ cwd: '/tmp' });
+      const providerCheck = result.checks.find((c) => c.name === 'Provider');
+      expect(providerCheck).toBeDefined();
+      expect(providerCheck!.status).toBe('ok');
+      expect(providerCheck!.message).toContain('ping successful');
+    });
+
+    it('passes on reasoning-only response for local provider (ollama)', async () => {
+      const mockClient = {
+        chat: vi.fn().mockResolvedValue({
+          content: '',
+          reasoningContent: 'Thinking through this...',
+        }),
+      };
+      mockCreate.mockReturnValue(mockClient);
+
+      MockConfigReader.prototype.read = vi
+        .fn()
+        .mockResolvedValue(makeConfig({ apiKeys: { provider: 'ollama' } }));
+
+      const result = await runDoctor({ cwd: '/tmp' });
+      const providerCheck = result.checks.find((c) => c.name === 'Provider');
+      expect(providerCheck).toBeDefined();
+      expect(providerCheck!.status).toBe('ok');
+      expect(providerCheck!.message).toContain('ping successful');
+    });
+
     it('defaults port to 3000 when config has no port', async () => {
       process.env['NOVA_DOCTOR_PING_MODE'] = 'mock';
       MockConfigReader.prototype.read = vi
