@@ -184,6 +184,16 @@ export class ElementInspector {
     return this.active;
   }
 
+  /**
+   * Returns true when the inspector popup dialog is currently visible.
+   *
+   * Used by __novaTest__ test hooks to check popup visibility without
+   * relying on getBoundingClientRect (which returns zeros in headless/jsdom).
+   */
+  isPopupVisible(): boolean {
+    return this.popupVisible;
+  }
+
   private activate(): void {
     this.active = true;
     document.body.style.cursor = 'crosshair';

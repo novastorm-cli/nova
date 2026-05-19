@@ -1708,6 +1708,38 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
       requestAnimationFrame(() => positionStatusLine());
     },
+    /**
+     * Test hook: check if the ElementInspector popup is visible.
+     *
+     * Returns true when the popup dialog is shown, false when hidden.
+     * Uses the public isPopupVisible() method instead of getBoundingClientRect,
+     * which returns zeros in headless/jsdom environments.
+     */
+    isInspectorPopupVisible: () => elementInspector.isPopupVisible(),
+    /**
+     * Test hook: programmatically open the SecretConsole with mock variable names.
+     *
+     * Enables validators to test role=dialog, aria-modal, click pass-through,
+     * and close behavior without a running backend. After calling this, tests
+     * can verify the DOM attributes and interact with the console via Escape or
+     * the close button.
+     */
+    showSecretConsole: (vars: string[]) => {
+      secretConsole.show(vars);
+    },
+    /**
+     * Test hook: store text in a data attribute accessible from shadow DOM
+     * as a fallback when navigator.clipboard.writeText() is denied by
+     * headless browser permissions.
+     *
+     * The text is stored on a data-nova-clipboard attribute on the nova-root
+     * element so validators can read it even when the Clipboard API is blocked.
+     */
+    setClipboardText: (text: string) => {
+      if (novaRoot) {
+        novaRoot.setAttribute('data-nova-clipboard', text);
+      }
+    },
   };
 }
 

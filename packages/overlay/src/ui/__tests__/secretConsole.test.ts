@@ -131,4 +131,71 @@ describe('SecretConsole', () => {
     const host = container.querySelector('[data-nova="secret-console"]');
     expect(host).toBeNull();
   });
+
+  it('show() sets role=dialog and aria-modal=true on the panel', () => {
+    console_.show(['API_KEY']);
+
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
+    const shadow = host.shadowRoot!;
+    const panel = shadow.querySelector('.secret-panel') as HTMLElement;
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+  });
+
+  it('show() sets aria-labelledby referencing the heading', () => {
+    console_.show(['API_KEY']);
+
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
+    const shadow = host.shadowRoot!;
+    const panel = shadow.querySelector('.secret-panel') as HTMLElement;
+    const labelledby = panel.getAttribute('aria-labelledby');
+    expect(labelledby).toBeTruthy();
+
+    const heading = shadow.getElementById(labelledby!);
+    expect(heading).not.toBeNull();
+    expect(heading!.textContent).toBeTruthy();
+  });
+
+  it('close button hides the console and calls onSkip', () => {
+    const handler = vi.fn();
+    console_.onSkip(handler);
+    console_.show(['API_KEY']);
+
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
+    const shadow = host.shadowRoot!;
+    const closeBtn = shadow.querySelector('.secret-close-btn') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+
+    closeBtn.click();
+
+    expect(host.style.display).toBe('none');
+    expect(handler).toHaveBeenCalled();
+  });
+
+  it('close button has aria-label for accessibility', () => {
+    console_.show(['API_KEY']);
+
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
+    const shadow = host.shadowRoot!;
+    const closeBtn = shadow.querySelector('[data-nova="close"]') as HTMLButtonElement;
+    expect(closeBtn).not.toBeNull();
+    expect(closeBtn.getAttribute('aria-label')).toBeTruthy();
+  });
+
+  it('show() with empty vars array still renders the dialog structure', () => {
+    console_.show([]);
+
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
+    expect(host.style.display).toBe('flex');
+
+    const shadow = host.shadowRoot!;
+    const panel = shadow.querySelector('.secret-panel') as HTMLElement;
+    expect(panel).not.toBeNull();
+    expect(panel.getAttribute('role')).toBe('dialog');
+    expect(panel.getAttribute('aria-modal')).toBe('true');
+
+    const inputs = shadow.querySelectorAll('.secret-input');
+    expect(inputs.length).toBe(0);
+  });
 });
