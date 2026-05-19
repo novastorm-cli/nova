@@ -21,7 +21,7 @@ export class ActivityLog {
   private maxEntries = 50;
   private lastEntry: HTMLElement | null = null;
   private entryCount = 0;
-  private collapsed = false;
+  private collapsed = true;
   private unreadCount = 0;
   private badgeEl: HTMLElement | null = null;
   private storedEntries: StoredEntry[] = [];
@@ -37,8 +37,6 @@ export class ActivityLog {
     this.host.setAttribute('data-nova-activity-log', '');
     this.host.setAttribute('data-nova', 'activity-log');
     this.host.style.position = 'fixed';
-    this.host.style.bottom = '20px';
-    this.host.style.left = '20px';
     this.host.style.zIndex = String(Z_INDEX.activityLog);
 
     this.shadow = this.host.attachShadow({ mode: 'open' });
@@ -51,12 +49,13 @@ export class ActivityLog {
     this.panelEl.className = 'activity-panel hidden'; // Hidden until first entry
     this.panelEl.setAttribute('data-nova', 'activity-log');
 
-    // Detect backdrop-filter support for opaque fallback
-    if (
+    // Always expose opaque-fallback on host so external code can read it
+    const supportsBackdrop =
       typeof CSS !== 'undefined' &&
-      !CSS.supports('backdrop-filter', 'blur(1px)') &&
-      !CSS.supports('-webkit-backdrop-filter', 'blur(1px)')
-    ) {
+      (CSS.supports('backdrop-filter', 'blur(1px)') ||
+       CSS.supports('-webkit-backdrop-filter', 'blur(1px)'));
+    this.host.setAttribute('data-opaque-fallback', String(!supportsBackdrop));
+    if (!supportsBackdrop) {
       this.panelEl.setAttribute('data-opaque-fallback', '');
     }
 
@@ -99,6 +98,19 @@ export class ActivityLog {
 
     this.shadow.appendChild(this.panelEl);
     container.appendChild(this.host);
+
+    // Apply initial collapsed visual state
+    if (this.collapsed) {
+      this.logEl.classList.add('collapsed');
+      if (this.collapseBtn) {
+        this.collapseBtn.textContent = strings.expandIcon;
+        this.collapseBtn.title = strings.expandButtonTitle;
+        this.collapseBtn.setAttribute('aria-label', strings.expandButtonAriaLabel);
+      }
+      this.host.setAttribute('data-collapsed', 'true');
+    } else {
+      this.host.setAttribute('data-collapsed', 'false');
+    }
 
     // Restore from sessionStorage
     this.restoreState();
@@ -364,6 +376,7 @@ export class ActivityLog {
 
   private collapse(): void {
     this.collapsed = true;
+    this.host?.setAttribute('data-collapsed', 'true');
     this.logEl?.classList.add('collapsed');
     if (this.collapseBtn) {
       this.collapseBtn.textContent = strings.expandIcon;
@@ -376,6 +389,7 @@ export class ActivityLog {
     this.collapsed = false;
     this.unreadCount = 0;
     this.updateBadge();
+    this.host?.setAttribute('data-collapsed', 'false');
     this.logEl?.classList.remove('collapsed');
     if (this.collapseBtn) {
       this.collapseBtn.textContent = strings.collapseIcon;

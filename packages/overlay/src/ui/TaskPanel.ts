@@ -59,10 +59,6 @@ export class TaskPanel {
     this.host.setAttribute('data-nova-task-panel', '');
     this.host.setAttribute('data-nova', 'task-panel');
     this.host.style.position = 'fixed';
-    this.host.style.top = 'auto';
-    this.host.style.right = 'auto';
-    this.host.style.left = '20px';
-    this.host.style.bottom = '20px';
     this.host.style.zIndex = String(Z_INDEX.taskPanel);
     this.host.style.pointerEvents = 'none';
 
@@ -537,9 +533,7 @@ export class TaskPanel {
       }
 
       .task-panel.hidden {
-        opacity: 0;
-        transform: translateY(-10px);
-        pointer-events: none;
+        display: none;
       }
 
       .task-panel-title-bar {

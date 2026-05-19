@@ -20,8 +20,6 @@ export class SuggestionPanel implements ISuggestionPanel {
     this.host.setAttribute('data-nova-suggestion-panel', '');
     this.host.setAttribute('data-nova', 'suggestion-panel');
     this.host.style.position = 'fixed';
-    this.host.style.bottom = '80px';
-    this.host.style.left = '20px';
     this.host.style.zIndex = String(Z_INDEX.suggestionPanel);
     this.host.style.pointerEvents = 'none';
 

@@ -1612,6 +1612,32 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         if (titleBar) (titleBar as HTMLElement).click();
       }
     },
+    // TaskPanel lifecycle hooks for e2e testing (VAL-OVERLAY-042)
+    addTask: (id: string, description: string, lane: number) => {
+      taskPanel.addTask({ id, description, lane });
+    },
+    completeTask: (id: string, hash: string) => {
+      taskPanel.setTaskCompleted(id, hash);
+    },
+    failTask: (id: string, error: string) => {
+      taskPanel.setTaskFailed(id, error);
+    },
+    getRecentTasks: () => {
+      try {
+        const raw = localStorage.getItem('nova:recent-tasks');
+        if (!raw) return [];
+        return JSON.parse(raw) as Array<{
+          id: string;
+          description: string;
+          lane: number;
+          status: string;
+          commitHash?: string;
+          error?: string;
+        }>;
+      } catch {
+        return [];
+      }
+    },
     /**
      * Programmatic FSM state hook for e2e testing.
      *

@@ -47,10 +47,13 @@ export class LayoutSlots {
     element.style.left = `${this.baseLeft}px`;
     element.style.top = 'auto';
     element.style.right = 'auto';
+    // Clear any default bottom set by the component — LayoutSlots is
+    // the sole positioning authority.
+    element.style.bottom = '';
     this.ensureObserver();
     this.observer!.observe(element);
-    // Defer initial positioning until the next frame so layout is settled.
-    this.scheduleRecalc();
+    // Apply positions immediately so panels don't overlap during the first frame.
+    this.applyPositions();
   }
 
   /**
