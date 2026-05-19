@@ -1,10 +1,10 @@
 import http from 'node:http';
-import path from 'node:path';
 import zlib from 'node:zlib';
 import fs from 'node:fs';
 import { createProxyServer as createHttpProxy } from 'http-proxy-3';
 import type { IProxyServer } from '@novastorm-ai/core';
 import { generateNonce, modifyEnforcementCsp } from './csp.js';
+import { PROJECT_MAP_HTML } from './ProjectMapHtml.js';
 
 export class ProxyServer implements IProxyServer {
   private server: http.Server | null = null;
@@ -195,21 +195,13 @@ export class ProxyServer implements IProxyServer {
     });
 
     this.server = http.createServer((req, res) => {
-      // Serve project map page
+      // Serve project map page (HTML embedded at build time to survive tsup bundling)
       if (req.url === '/nova-project-map') {
-        const mapPath = path.join(import.meta.dirname, '..', 'static', 'project-map.html');
-        fs.readFile(mapPath, (err, data) => {
-          if (err) {
-            res.writeHead(404, { 'Content-Type': 'text/plain' });
-            res.end('project-map.html not found');
-            return;
-          }
-          res.writeHead(200, {
-            'Content-Type': 'text/html',
-            'Cache-Control': 'no-cache',
-          });
-          res.end(data);
+        res.writeHead(200, {
+          'Content-Type': 'text/html',
+          'Cache-Control': 'no-cache',
         });
+        res.end(PROJECT_MAP_HTML);
         return;
       }
 

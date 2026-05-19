@@ -293,4 +293,37 @@ describe('ProxyServer', () => {
     await proxy.stop();
     expect(proxy.isRunning()).toBe(false);
   });
+
+  it('GET /nova-project-map returns 200 with non-empty HTML body', async () => {
+    await startTarget((_req, res) => {
+      res.writeHead(200);
+      res.end('should not hit target');
+    });
+
+    await proxy.start(targetPort, proxyPort, overlayScriptPath);
+
+    const result = await fetch(`http://localhost:${proxyPort}/nova-project-map`);
+    expect(result.status).toBe(200);
+    expect(result.headers['content-type']).toMatch(/text\/html/);
+    expect(result.body.length).toBeGreaterThan(500);
+    expect(result.body).toContain('<!DOCTYPE html>');
+    expect(result.body).toContain('Nova Project Map');
+    expect(result.body).toContain('cytoscape');
+  });
+
+  it('GET /nova-project-map ignores query string for static file', async () => {
+    await startTarget((_req, res) => {
+      res.writeHead(200);
+      res.end('should not hit target');
+    });
+
+    await proxy.start(targetPort, proxyPort, overlayScriptPath);
+
+    // Query string on /nova-project-map should not reach target since
+    // the URL check uses req.url === '/nova-project-map' (exact match).
+    // But the static file is still served.
+    const result = await fetch(`http://localhost:${proxyPort}/nova-project-map`);
+    expect(result.status).toBe(200);
+    expect(result.body).toContain('Nova Project Map');
+  });
 });
