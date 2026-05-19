@@ -25,10 +25,10 @@ export class AreaCapture {
       logging: false,
       ignoreElements: (element: Element) => {
         return (
-          element.hasAttribute('data-nova-area-selector') ||
-          element.hasAttribute('data-nova-pill') ||
-          element.hasAttribute('data-nova-toast') ||
-          element.hasAttribute('data-nova-transcript')
+          element.getAttribute('data-nova') === 'area-selector' ||
+          element.getAttribute('data-nova') === 'pill' ||
+          element.getAttribute('data-nova') === 'toast' ||
+          element.getAttribute('data-nova') === 'transcript'
         );
       },
     });

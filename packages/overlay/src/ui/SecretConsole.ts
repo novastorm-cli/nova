@@ -16,6 +16,7 @@ export class SecretConsole {
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-secret-console', '');
+    this.host.setAttribute('data-nova', 'secret-console');
     this.shadow = this.host.attachShadow({ mode: 'open' });
     this.container = container;
     container.appendChild(this.host);

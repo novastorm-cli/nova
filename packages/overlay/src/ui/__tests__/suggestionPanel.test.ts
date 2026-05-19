@@ -32,7 +32,7 @@ describe('SuggestionPanel', () => {
   it('should mount and create shadow DOM', () => {
     panel.mount(container);
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     expect(host).not.toBeNull();
     expect(host?.shadowRoot).not.toBeNull();
   });
@@ -40,7 +40,7 @@ describe('SuggestionPanel', () => {
   it('should be hidden initially', () => {
     panel.mount(container);
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const panelEl = host?.shadowRoot?.querySelector('.suggestion-panel');
     expect(panelEl?.classList.contains('hidden')).toBe(true);
   });
@@ -49,7 +49,7 @@ describe('SuggestionPanel', () => {
     panel.mount(container);
     panel.addSuggestion(createSuggestionItem({ id: 'test-1' }));
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const panelEl = host?.shadowRoot?.querySelector('.suggestion-panel');
     expect(panelEl?.classList.contains('hidden')).toBe(false);
   });
@@ -64,7 +64,7 @@ describe('SuggestionPanel', () => {
       }),
     );
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const title = host?.shadowRoot?.querySelector('.suggestion-title');
     const desc = host?.shadowRoot?.querySelector('.suggestion-desc');
     expect(title?.textContent).toBe('My Title');
@@ -75,7 +75,7 @@ describe('SuggestionPanel', () => {
     panel.mount(container);
     panel.addSuggestion(createSuggestionItem({ id: 'btn-test' }));
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const approveBtn = host?.shadowRoot?.querySelector('.suggestion-btn.approve');
     const rejectBtn = host?.shadowRoot?.querySelector('.suggestion-btn.reject');
     expect(approveBtn?.textContent).toBe('Approve');
@@ -89,7 +89,7 @@ describe('SuggestionPanel', () => {
 
     panel.addSuggestion(createSuggestionItem({ id: 'approve-test' }));
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const approveBtn = host?.shadowRoot?.querySelector('.suggestion-btn.approve') as HTMLElement;
     approveBtn.click();
 
@@ -103,7 +103,7 @@ describe('SuggestionPanel', () => {
 
     panel.addSuggestion(createSuggestionItem({ id: 'reject-test' }));
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const rejectBtn = host?.shadowRoot?.querySelector('.suggestion-btn.reject') as HTMLElement;
     rejectBtn.click();
 
@@ -115,7 +115,7 @@ describe('SuggestionPanel', () => {
     panel.onResponse(vi.fn());
     panel.addSuggestion(createSuggestionItem({ id: 'remove-test' }));
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const approveBtn = host?.shadowRoot?.querySelector('.suggestion-btn.approve') as HTMLElement;
     approveBtn.click();
 
@@ -130,7 +130,7 @@ describe('SuggestionPanel', () => {
     panel.addSuggestion(createSuggestionItem({ id: 'only-one' }));
     panel.removeSuggestion('only-one');
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const panelEl = host?.shadowRoot?.querySelector('.suggestion-panel');
     expect(panelEl?.classList.contains('hidden')).toBe(true);
   });
@@ -140,7 +140,7 @@ describe('SuggestionPanel', () => {
     panel.addSuggestion(createSuggestionItem({ id: 'dup' }));
     panel.addSuggestion(createSuggestionItem({ id: 'dup' }));
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     const rows = host?.shadowRoot?.querySelectorAll('.suggestion-row');
     expect(rows?.length).toBe(1);
   });
@@ -149,7 +149,7 @@ describe('SuggestionPanel', () => {
     panel.mount(container);
     panel.unmount();
 
-    const host = container.querySelector('[data-nova-suggestion-panel]');
+    const host = container.querySelector('[data-nova="suggestion-panel"]');
     expect(host).toBeNull();
   });
 });

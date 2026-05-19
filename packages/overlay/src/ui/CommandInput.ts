@@ -19,6 +19,7 @@ export class CommandInput implements ICommandInput {
 
     this.panel = document.createElement('div');
     this.panel.setAttribute('data-nova-command-input', '');
+    this.panel.setAttribute('data-nova', 'command-input');
 
     const anchorRect = anchorElement.getBoundingClientRect();
     const spaceBelow = window.innerHeight - anchorRect.bottom;

@@ -27,6 +27,7 @@ export class AreaSelector implements IAreaSelector {
 
     this.overlay = document.createElement('div');
     this.overlay.setAttribute('data-nova-area-selector', '');
+    this.overlay.setAttribute('data-nova', 'area-selector');
     applyStyles(this.overlay, {
       position: 'fixed',
       top: 0,

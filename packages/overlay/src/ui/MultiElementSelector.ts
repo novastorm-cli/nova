@@ -49,6 +49,7 @@ export class MultiElementSelector {
 
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-multi-selector', '');
+    this.host.setAttribute('data-nova', 'multi-selector');
     this.shadow = this.host.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');
@@ -224,8 +225,8 @@ export class MultiElementSelector {
     // Ignore Nova UI elements
     if (
       el?.closest('#nova-root') ||
-      el?.closest('[data-nova-pill]') ||
-      el?.closest('[data-nova-multi-selector]')
+      el?.closest('[data-nova="pill"]') ||
+      el?.closest('[data-nova="multi-selector"]')
     ) {
       return null;
     }

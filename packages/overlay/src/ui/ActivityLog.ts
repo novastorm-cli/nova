@@ -35,6 +35,7 @@ export class ActivityLog {
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-activity-log', '');
+    this.host.setAttribute('data-nova', 'activity-log');
     this.host.style.position = 'fixed';
     this.host.style.bottom = '20px';
     this.host.style.left = '20px';

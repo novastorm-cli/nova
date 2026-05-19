@@ -34,6 +34,7 @@ export class DiffModal {
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-diff-modal', '');
+    this.host.setAttribute('data-nova', 'diff-modal');
     this.host.style.position = 'fixed';
     this.host.style.top = '0';
     this.host.style.left = '0';

@@ -20,7 +20,7 @@ describe('ActivityLog', () => {
   });
 
   function getHost(): HTMLElement | null {
-    return container.querySelector('[data-nova-activity-log]');
+    return container.querySelector('[data-nova="activity-log"]');
   }
 
   function getShadow(): ShadowRoot | null {

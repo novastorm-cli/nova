@@ -55,8 +55,9 @@ export class TranscriptBar implements ITranscriptBar {
 
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-transcript', '');
+    this.host.setAttribute('data-nova', 'transcript');
 
-    // Style element (light DOM, scoped under [data-nova-transcript])
+    // Style element (light DOM, scoped under [data-nova="transcript"])
     const style = document.createElement('style');
     style.textContent = this.getStyleSheet();
     this.host.appendChild(style);
@@ -555,7 +556,7 @@ export class TranscriptBar implements ITranscriptBar {
   private getStyleSheet(): string {
     return [
       // ── Transcript bar (main row) ────────────────────────────
-      `[data-nova-transcript] .transcript-bar {
+      `[data-nova="transcript"] .transcript-bar {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -573,23 +574,23 @@ export class TranscriptBar implements ITranscriptBar {
         opacity: 1;
         pointer-events: auto;
       }`,
-      `[data-nova-transcript] .transcript-bar.idle {
+      `[data-nova="transcript"] .transcript-bar.idle {
         opacity: 0.6;
         border-color: var(--nova-panel-border);
       }`,
-      `[data-nova-transcript] .transcript-bar.idle:hover,
-      [data-nova-transcript] .transcript-bar.idle:focus-within {
+      `[data-nova="transcript"] .transcript-bar.idle:hover,
+      [data-nova="transcript"] .transcript-bar.idle:focus-within {
         opacity: 1;
         border-color: var(--nova-panel-border);
       }`,
-      `[data-nova-transcript] .transcript-bar.flash-green {
+      `[data-nova="transcript"] .transcript-bar.flash-green {
         background: var(--nova-success);
         box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
         color: #fff;
       }`,
 
       // ── Mic button ───────────────────────────────────────────
-      `[data-nova-transcript] .mic-btn {
+      `[data-nova="transcript"] .mic-btn {
         font-size: 18px;
         flex-shrink: 0;
         background: none;
@@ -607,19 +608,19 @@ export class TranscriptBar implements ITranscriptBar {
         position: relative;
         overflow: visible;
       }`,
-      `[data-nova-transcript] .mic-btn.recording {
+      `[data-nova="transcript"] .mic-btn.recording {
         border-color: var(--nova-success);
         animation: nova-mic-pulse 1.5s ease-in-out infinite;
       }`,
-      `[data-nova-transcript] .mic-btn.muted {
+      `[data-nova="transcript"] .mic-btn.muted {
         border-color: var(--nova-text-secondary);
         opacity: 0.5;
       }`,
-      `[data-nova-transcript] .mic-btn:hover {
+      `[data-nova="transcript"] .mic-btn:hover {
         transform: scale(1.1);
       }`,
       // ── Mic icon ─────────────────────────────────────────────
-      `[data-nova-transcript] .mic-icon {
+      `[data-nova="transcript"] .mic-icon {
         position: relative;
         z-index: 1;
         display: flex;
@@ -628,7 +629,7 @@ export class TranscriptBar implements ITranscriptBar {
         line-height: 1;
       }`,
       // ── Amplitude ring ───────────────────────────────────────
-      `[data-nova-transcript] .amplitude-ring {
+      `[data-nova="transcript"] .amplitude-ring {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -641,7 +642,7 @@ export class TranscriptBar implements ITranscriptBar {
         transition: width 0.1s ease, height 0.1s ease, opacity 0.1s ease;
         pointer-events: none;
       }`,
-      `[data-nova-transcript] .amplitude-ring[data-level="0"] {
+      `[data-nova="transcript"] .amplitude-ring[data-level="0"] {
         opacity: 0;
       }`,
 
@@ -654,7 +655,7 @@ export class TranscriptBar implements ITranscriptBar {
       }`,
 
       // ── Transcript input ─────────────────────────────────────
-      `[data-nova-transcript] .transcript-input {
+      `[data-nova="transcript"] .transcript-input {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 15px;
         line-height: 1.4;
@@ -667,22 +668,22 @@ export class TranscriptBar implements ITranscriptBar {
         padding: 6px 0;
         pointer-events: auto;
       }`,
-      `[data-nova-transcript] .transcript-input::placeholder {
+      `[data-nova="transcript"] .transcript-input::placeholder {
         color: var(--nova-text-secondary);
       }`,
-      `[data-nova-transcript] .transcript-input:focus {
+      `[data-nova="transcript"] .transcript-input:focus {
         color: var(--nova-text-primary);
       }`,
-      `[data-nova-transcript] .transcript-input.recording-text {
+      `[data-nova="transcript"] .transcript-input.recording-text {
         color: var(--nova-text-secondary);
         font-style: italic;
       }`,
-      `[data-nova-transcript] .transcript-input:read-only {
+      `[data-nova="transcript"] .transcript-input:read-only {
         cursor: default;
       }`,
 
       // ── Send button ──────────────────────────────────────────
-      `[data-nova-transcript] .send-btn {
+      `[data-nova="transcript"] .send-btn {
         background: none;
         border: none;
         color: var(--nova-text-secondary);
@@ -693,12 +694,12 @@ export class TranscriptBar implements ITranscriptBar {
         transition: color 0.2s;
         pointer-events: auto;
       }`,
-      `[data-nova-transcript] .send-btn:hover {
+      `[data-nova="transcript"] .send-btn:hover {
         color: var(--nova-accent);
       }`,
 
       // ── Confirmation bar ─────────────────────────────────────
-      `[data-nova-transcript] .confirm-bar {
+      `[data-nova="transcript"] .confirm-bar {
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -720,27 +721,27 @@ export class TranscriptBar implements ITranscriptBar {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        [data-nova-transcript] .confirm-bar {
+        [data-nova="transcript"] .confirm-bar {
           animation: nova-slide-up 0.2s ease;
         }
       }`,
 
-      `[data-nova-transcript] .confirm-btn-row {
+      `[data-nova="transcript"] .confirm-btn-row {
         display: flex;
         gap: 8px;
         justify-content: flex-end;
       }`,
-      `[data-nova-transcript] .confirm-bar.hidden {
+      `[data-nova="transcript"] .confirm-bar.hidden {
         display: none;
       }`,
-      `[data-nova-transcript] .confirm-text {
+      `[data-nova="transcript"] .confirm-text {
         color: var(--nova-text-primary);
         font-size: 13px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.4;
         word-break: break-word;
       }`,
-      `[data-nova-transcript] .confirm-exec-btn {
+      `[data-nova="transcript"] .confirm-exec-btn {
         background: var(--nova-success);
         color: #fff;
         border: none;
@@ -753,10 +754,10 @@ export class TranscriptBar implements ITranscriptBar {
         pointer-events: auto;
         transition: opacity 0.2s;
       }`,
-      `[data-nova-transcript] .confirm-exec-btn:hover {
+      `[data-nova="transcript"] .confirm-exec-btn:hover {
         opacity: 0.85;
       }`,
-      `[data-nova-transcript] .confirm-cancel-btn {
+      `[data-nova="transcript"] .confirm-cancel-btn {
         background: transparent;
         color: var(--nova-text-secondary);
         border: 1px solid var(--nova-input-border);
@@ -769,11 +770,11 @@ export class TranscriptBar implements ITranscriptBar {
         pointer-events: auto;
         transition: all 0.2s;
       }`,
-      `[data-nova-transcript] .confirm-cancel-btn:hover {
+      `[data-nova="transcript"] .confirm-cancel-btn:hover {
         background: var(--nova-input-border);
         color: var(--nova-text-primary);
       }`,
-      `[data-nova-transcript] .confirm-answer-input {
+      `[data-nova="transcript"] .confirm-answer-input {
         flex: 1;
         background: var(--nova-input-bg);
         color: var(--nova-text-primary);
@@ -786,13 +787,13 @@ export class TranscriptBar implements ITranscriptBar {
         min-width: 150px;
         pointer-events: auto;
       }`,
-      `[data-nova-transcript] .confirm-answer-input:focus {
+      `[data-nova="transcript"] .confirm-answer-input:focus {
         border-color: var(--nova-accent);
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
       }`,
 
       // ── Language button ──────────────────────────────────────
-      `[data-nova-transcript] .lang-btn {
+      `[data-nova="transcript"] .lang-btn {
         background: var(--nova-input-bg);
         color: var(--nova-text-secondary);
         border: 1px solid var(--nova-input-border);
@@ -805,13 +806,13 @@ export class TranscriptBar implements ITranscriptBar {
         transition: background 0.2s;
         pointer-events: auto;
       }`,
-      `[data-nova-transcript] .lang-btn:hover {
+      `[data-nova="transcript"] .lang-btn:hover {
         background: var(--nova-input-border);
         color: var(--nova-text-primary);
       }`,
 
       // ── Language menu ────────────────────────────────────────
-      `[data-nova-transcript] .lang-menu {
+      `[data-nova="transcript"] .lang-menu {
         position: absolute;
         bottom: 48px;
         right: 0;
@@ -826,10 +827,10 @@ export class TranscriptBar implements ITranscriptBar {
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
         pointer-events: auto;
       }`,
-      `[data-nova-transcript] .lang-menu.hidden {
+      `[data-nova="transcript"] .lang-menu.hidden {
         display: none;
       }`,
-      `[data-nova-transcript] .lang-item {
+      `[data-nova="transcript"] .lang-item {
         background: transparent;
         color: var(--nova-text-secondary);
         border: 1px solid transparent;
@@ -840,11 +841,11 @@ export class TranscriptBar implements ITranscriptBar {
         cursor: pointer;
         transition: all 0.15s;
       }`,
-      `[data-nova-transcript] .lang-item:hover {
+      `[data-nova="transcript"] .lang-item:hover {
         background: var(--nova-dropdown-hover);
         color: var(--nova-text-primary);
       }`,
-      `[data-nova-transcript] .lang-item.active {
+      `[data-nova="transcript"] .lang-item.active {
         background: var(--nova-accent);
         color: #fff;
         border-color: var(--nova-accent);

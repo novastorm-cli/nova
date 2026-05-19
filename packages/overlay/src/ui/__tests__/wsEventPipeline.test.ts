@@ -81,27 +81,27 @@ describe('WS Event → UI Pipeline', () => {
   // ── Helpers ──────────────────────────────────────────────────────
 
   function getActivityPanel(): HTMLElement | null {
-    const host = container.querySelector('[data-nova-activity-log]');
+    const host = container.querySelector('[data-nova="activity-log"]');
     return host?.shadowRoot?.querySelector('.activity-panel') ?? null;
   }
 
   function getActivityEntries(): NodeListOf<Element> {
-    const host = container.querySelector('[data-nova-activity-log]');
+    const host = container.querySelector('[data-nova="activity-log"]');
     return host?.shadowRoot?.querySelectorAll('[data-nova="entry"]') ?? ([] as any);
   }
 
   function getTaskPanel(): HTMLElement | null {
-    const host = container.querySelector('[data-nova-task-panel]');
+    const host = container.querySelector('[data-nova="task-panel"]');
     return host?.shadowRoot?.querySelector('.task-panel') ?? null;
   }
 
   function getTaskRows(): NodeListOf<Element> {
-    const host = container.querySelector('[data-nova-task-panel]');
+    const host = container.querySelector('[data-nova="task-panel"]');
     return host?.shadowRoot?.querySelectorAll('.task-row') ?? ([] as any);
   }
 
   function isDiffVisible(): boolean {
-    const host = container.querySelector('[data-nova-diff-modal]');
+    const host = container.querySelector('[data-nova="diff-modal"]');
     const overlay = host?.shadowRoot?.querySelector('.diff-overlay');
     return overlay ? !overlay.classList.contains('hidden') : false;
   }
@@ -373,7 +373,7 @@ describe('WS Event → UI Pipeline', () => {
     activityLog.addDiffEntry('src/App.tsx', diffContent, 'code');
 
     // Click the diff link in ActivityLog
-    const host = container.querySelector('[data-nova-activity-log]');
+    const host = container.querySelector('[data-nova="activity-log"]');
     const diffLink = host?.shadowRoot?.querySelector('.diff-link') as HTMLElement;
     expect(diffLink).not.toBeNull();
 
@@ -383,7 +383,7 @@ describe('WS Event → UI Pipeline', () => {
     expect(isDiffVisible()).toBe(true);
 
     // Close the modal
-    const modalHost = container.querySelector('[data-nova-diff-modal]');
+    const modalHost = container.querySelector('[data-nova="diff-modal"]');
     const closeBtn = modalHost?.shadowRoot?.querySelector(
       '[data-nova="close"]',
     ) as HTMLElement;
@@ -413,7 +413,7 @@ describe('WS Event → UI Pipeline', () => {
       canOpen: true,
     });
 
-    const modalHost = container.querySelector('[data-nova-diff-modal]');
+    const modalHost = container.querySelector('[data-nova="diff-modal"]');
     const shadow = modalHost!.shadowRoot!;
 
     // Stats badge: +2 -0
@@ -457,7 +457,7 @@ describe('WS Event → UI Pipeline', () => {
       canOpen: false,
     });
 
-    const modalHost = container.querySelector('[data-nova-diff-modal]');
+    const modalHost = container.querySelector('[data-nova="diff-modal"]');
     const shadow = modalHost!.shadowRoot!;
     const openBtn = shadow.querySelector('[data-nova="open-file"]');
     expect(openBtn).toBeNull(); // Not rendered when canOpen=false
@@ -479,7 +479,7 @@ describe('WS Event → UI Pipeline', () => {
       onRevert,
     });
 
-    const modalHost = container.querySelector('[data-nova-diff-modal]');
+    const modalHost = container.querySelector('[data-nova="diff-modal"]');
     const shadow = modalHost!.shadowRoot!;
     const revertBtn = shadow.querySelector('[data-nova="revert"]') as HTMLElement;
     expect(revertBtn).not.toBeNull();

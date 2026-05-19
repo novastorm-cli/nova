@@ -64,14 +64,14 @@ describe('TaskPanel', () => {
   it('mount(container) creates shadow DOM and renders the panel', () => {
     taskPanel.mount(container);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]');
+    const hostEl = container.querySelector('[data-nova="task-panel"]');
     expect(hostEl).not.toBeNull();
     expect(hostEl!.shadowRoot).not.toBeNull();
   });
 
   it('panel starts hidden after mount and has data-nova="task-panel"', () => {
     taskPanel.mount(container);
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel');
     expect(panelEl).not.toBeNull();
@@ -90,7 +90,7 @@ describe('TaskPanel', () => {
 
   it('renders a close button with aria-label and data-nova attribute', () => {
     taskPanel.mount(container);
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const closeBtn = shadow.querySelector('.task-panel-close');
     expect(closeBtn).not.toBeNull();
@@ -102,7 +102,7 @@ describe('TaskPanel', () => {
     taskPanel.mount(container);
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test task', lane: 1 }]);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
     expect(panelEl.classList.contains('hidden')).toBe(false);
@@ -119,7 +119,7 @@ describe('TaskPanel', () => {
     taskPanel.setTaskCompleted('t1', 'abc1234');
 
     // At this point, the auto-hide timer should be pending (5s)
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
     expect(panelEl.classList.contains('hidden')).toBe(false);
@@ -141,7 +141,7 @@ describe('TaskPanel', () => {
     taskPanel.mount(container);
     taskPanel.setPendingTasks([{ id: 't1', description: 'Task 1', lane: 1 }]);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
 
@@ -163,7 +163,7 @@ describe('TaskPanel', () => {
       { id: 't2', description: 'Task 2', lane: 2 },
     ]);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
 
@@ -180,7 +180,7 @@ describe('TaskPanel', () => {
     taskPanel.mount(container);
     taskPanel.setPendingTasks([{ id: 't1', description: 'Task 1', lane: 1 }]);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
 
@@ -203,7 +203,7 @@ describe('TaskPanel', () => {
     taskPanel.mount(container);
     taskPanel.setPendingTasks([{ id: 't1', description: 'Task 1', lane: 1 }]);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
 
@@ -229,7 +229,7 @@ describe('TaskPanel', () => {
   it('setPendingTasks shows panel and renders task rows', () => {
     taskPanel.mount(container);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
 
     taskPanel.setPendingTasks([
@@ -249,7 +249,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
     taskPanel.setTaskStarted('t1');
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const row = shadow.querySelector('.task-row')!;
     expect(row.className).toContain('status-executing');
@@ -260,7 +260,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
     taskPanel.setTaskCompleted('t1', 'abc1234567');
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const row = shadow.querySelector('.task-row')!;
     expect(row.className).toContain('status-completed');
@@ -275,7 +275,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
     taskPanel.setTaskFailed('t1', 'Something went wrong');
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const row = shadow.querySelector('.task-row')!;
     expect(row.className).toContain('status-failed');
@@ -290,7 +290,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Task 1', lane: 1 }]);
     taskPanel.addTask({ id: 't2', description: 'Task 2', lane: 2 });
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     expect(shadow.querySelectorAll('.task-row').length).toBe(2);
   });
@@ -300,7 +300,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Task 1', lane: 1 }]);
     taskPanel.addTask({ id: 't1', description: 'Task 1 dup', lane: 2 });
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     expect(shadow.querySelectorAll('.task-row').length).toBe(1);
   });
@@ -311,7 +311,7 @@ describe('TaskPanel', () => {
     taskPanel.mount(container);
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const chip = shadow.querySelector('.task-confirm-chip')!;
     expect(chip).not.toBeNull();
@@ -322,7 +322,7 @@ describe('TaskPanel', () => {
     taskPanel.mount(container);
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1, preConfirmed: true }]);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const chip = shadow.querySelector('.task-confirm-chip')!;
     expect(chip).not.toBeNull();
@@ -334,7 +334,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
     taskPanel.setTaskStarted('t1');
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const chip = shadow.querySelector('.task-confirm-chip')!;
     expect(chip.textContent).toBe('confirmed');
@@ -345,7 +345,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1, preConfirmed: true }]);
     taskPanel.setTaskStarted('t1');
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const chip = shadow.querySelector('.task-confirm-chip')!;
     expect(chip.textContent).toBe('auto-execute on');
@@ -356,7 +356,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
     taskPanel.setTaskCompleted('t1', 'abc1234567');
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const chip = shadow.querySelector('.task-confirm-chip') as HTMLElement;
     expect(chip.style.display).toBe('none');
@@ -367,7 +367,7 @@ describe('TaskPanel', () => {
     taskPanel.setPendingTasks([{ id: 't1', description: 'Test', lane: 1 }]);
     taskPanel.setTaskFailed('t1', 'Error');
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const chip = shadow.querySelector('.task-confirm-chip') as HTMLElement;
     expect(chip.style.display).toBe('none');
@@ -488,7 +488,7 @@ describe('TaskPanel', () => {
 
     taskPanel.showHistory();
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
     expect(panelEl.classList.contains('hidden')).toBe(false);
@@ -504,7 +504,7 @@ describe('TaskPanel', () => {
 
     taskPanel.showHistory();
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
     // Panel should stay hidden when there's no history to show
@@ -522,7 +522,7 @@ describe('TaskPanel', () => {
 
     taskPanel.mount(container);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
     expect(panelEl.classList.contains('hidden')).toBe(false);
@@ -539,7 +539,7 @@ describe('TaskPanel', () => {
 
     taskPanel.mount(container);
 
-    const hostEl = container.querySelector('[data-nova-task-panel]')!;
+    const hostEl = container.querySelector('[data-nova="task-panel"]')!;
     const shadow = hostEl.shadowRoot!;
     const panelEl = shadow.querySelector('.task-panel')!;
     expect(panelEl.classList.contains('hidden')).toBe(true);

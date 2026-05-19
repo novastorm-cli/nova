@@ -18,6 +18,7 @@ export class SuggestionPanel implements ISuggestionPanel {
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-suggestion-panel', '');
+    this.host.setAttribute('data-nova', 'suggestion-panel');
     this.host.style.position = 'fixed';
     this.host.style.bottom = '80px';
     this.host.style.left = '20px';

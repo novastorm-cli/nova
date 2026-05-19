@@ -365,7 +365,7 @@ function boot(): void {
 
   /** Position the status line adjacent to the pill. */
   function positionStatusLine(): void {
-    const pillHost = document.querySelector('[data-nova-pill]');
+    const pillHost = document.querySelector('[data-nova="pill"]');
     if (!pillHost || !statusLine) return;
     const pillRect = pillHost.getBoundingClientRect();
     const statusHeight = statusLine.getBoundingClientRect().height || 24;
@@ -510,8 +510,8 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     const target = e.target as HTMLElement;
     if (
       target.closest('#nova-root') ||
-      target.closest('[data-nova-pill]') ||
-      target.closest('[data-nova-transcript]')
+      target.closest('[data-nova="pill"]') ||
+      target.closest('[data-nova="transcript"]')
     )
       return;
 
@@ -551,8 +551,8 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
     // Skip Nova UI elements
     if (
       target.closest('#nova-root') ||
-      target.closest('[data-nova-pill]') ||
-      target.closest('[data-nova-transcript]')
+      target.closest('[data-nova="pill"]') ||
+      target.closest('[data-nova="transcript"]')
     )
       return;
 
@@ -605,7 +605,7 @@ IMPORTANT: Only modify the minimum code needed. If the element is inside a compo
           '[class*="modal"], [class*="dropdown"], [class*="tooltip"], [class*="popover"], [class*="menu"], [role="dialog"], [role="menu"], [role="listbox"], [role="tooltip"]';
         const nearbyNew =
           clickedElement.parentElement?.querySelector(overlaySelector) ||
-          document.body.querySelector(overlaySelector + ':not([data-nova-pill])');
+          document.body.querySelector(overlaySelector + ':not([data-nova="pill"])');
         if (nearbyNew) return;
 
         // Nothing happened — suggest adding functionality
@@ -641,21 +641,21 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   // Watch for removal and re-mount if React or error boundaries nuke the elements
   const overlaySelectors = [
     {
-      attr: 'data-nova-pill',
+      attr: '[data-nova="pill"]',
       remount: () => {
         pill.unmount();
         pill.mount(novaRoot!);
       },
     },
     {
-      attr: 'data-nova-transcript',
+      attr: '[data-nova="transcript"]',
       remount: () => {
         transcriptBar.unmount();
         transcriptBar.mount(novaRoot!);
       },
     },
     {
-      attr: 'data-nova-task-panel',
+      attr: '[data-nova="task-panel"]',
       remount: () => {
         taskPanel.unmount();
         taskPanel.mount(novaRoot!);
@@ -664,7 +664,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       },
     },
     {
-      attr: 'data-nova-activity-log',
+      attr: '[data-nova="activity-log"]',
       remount: () => {
         activityLog.unmount();
         activityLog.mount(novaRoot!);
@@ -673,7 +673,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       },
     },
     {
-      attr: 'data-nova-suggestion-panel',
+      attr: '[data-nova="suggestion-panel"]',
       remount: () => {
         suggestionPanel.unmount();
         suggestionPanel.mount(novaRoot!);
@@ -682,35 +682,35 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       },
     },
     {
-      attr: 'data-nova-diff-modal',
+      attr: '[data-nova="diff-modal"]',
       remount: () => {
         diffModal.unmount();
         diffModal.mount(novaRoot!);
       },
     },
     {
-      attr: 'data-nova-inspector',
+      attr: '[data-nova="inspector"]',
       remount: () => {
         elementInspector.unmount();
         elementInspector.mount(novaRoot!);
       },
     },
     {
-      attr: 'data-nova-multi-selector',
+      attr: '[data-nova="multi-selector"]',
       remount: () => {
         multiSelector.unmount();
         multiSelector.mount(novaRoot!);
       },
     },
     {
-      attr: 'data-nova-secret-console',
+      attr: '[data-nova="secret-console"]',
       remount: () => {
         secretConsole.unmount();
         secretConsole.mount(novaRoot!);
       },
     },
     {
-      attr: 'data-nova-mic-hint',
+      attr: '[data-nova="mic-hint"]',
       remount: () => {
         // Re-append mic-hint if it was removed from nova-root
         if (!novaRoot!.querySelector('[data-nova="mic-hint"]') && micHint.isConnected === false) {
@@ -737,7 +737,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     }
 
     for (const item of overlaySelectors) {
-      if (!novaRoot!.querySelector(`[${item.attr}]`)) {
+      if (!novaRoot!.querySelector(item.attr)) {
         try {
           item.remount();
         } catch {
@@ -1245,7 +1245,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   // Element selected -> show command input
   elementSelector.onSelect((element) => {
     selectedElement = element;
-    const pillHost = document.querySelector('[data-nova-pill]');
+    const pillHost = document.querySelector('[data-nova="pill"]');
     commandInput.show((pillHost as HTMLElement) ?? document.body);
   });
 
@@ -1595,7 +1595,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     },
     clickDiffEntry: () => {
       // Find the last diff-link in activity log and click it
-      const entry = document.querySelector('[data-nova-activity-log]');
+      const entry = document.querySelector('[data-nova="activity-log"]');
       if (entry && entry.shadowRoot) {
         const diffLink = entry.shadowRoot.querySelector('.diff-link');
         if (diffLink) {
@@ -1606,7 +1606,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     // ActivityLog state helpers for e2e testing
     getActivityLogState: () => activityLog.getState(),
     collapseActivityLog: () => {
-      const host = document.querySelector('[data-nova-activity-log]');
+      const host = document.querySelector('[data-nova="activity-log"]');
       if (host?.shadowRoot) {
         const titleBar = host.shadowRoot.querySelector('.activity-title');
         if (titleBar) (titleBar as HTMLElement).click();

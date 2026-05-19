@@ -57,6 +57,7 @@ export class TaskPanel {
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-task-panel', '');
+    this.host.setAttribute('data-nova', 'task-panel');
     this.host.style.position = 'fixed';
     this.host.style.top = 'auto';
     this.host.style.right = 'auto';

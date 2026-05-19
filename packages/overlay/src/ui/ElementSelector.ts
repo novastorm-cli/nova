@@ -53,7 +53,7 @@ export class ElementSelector implements IElementSelector {
   private handleMouseOver(e: MouseEvent): void {
     const target = e.target as HTMLElement | null;
     if (!target) return;
-    if (target.hasAttribute('data-nova-pill')) return;
+    if (target.hasAttribute('data-nova') && target.getAttribute('data-nova') === 'pill') return;
 
     // Remove outline from previous target if different
     if (this.currentTarget && this.currentTarget !== target) {

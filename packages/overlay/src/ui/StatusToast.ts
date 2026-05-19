@@ -166,6 +166,7 @@ export class StatusToast implements IStatusToast {
 
     this.container = document.createElement('div');
     this.container.setAttribute('data-nova-toast-container', '');
+    this.container.setAttribute('data-nova', 'toast-container');
     Object.assign(this.container.style, {
       position: 'fixed',
       top: '16px',

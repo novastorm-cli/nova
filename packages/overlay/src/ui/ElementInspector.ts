@@ -256,7 +256,7 @@ export class ElementInspector {
     if (this.popupEl) this.popupEl.style.display = prevPopup ?? '';
 
     // Skip nova overlay elements
-    if (el?.closest('#nova-root') || el?.closest('[data-nova-pill]')) {
+    if (el?.closest('#nova-root') || el?.closest('[data-nova="pill"]')) {
       return null;
     }
 

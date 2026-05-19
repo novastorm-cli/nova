@@ -63,11 +63,11 @@ describe('AreaSelector', () => {
     const selector = await createSelector();
 
     selector.activate();
-    const overlay = document.querySelector('[data-nova-area-selector]');
+    const overlay = document.querySelector('[data-nova="area-selector"]');
     expect(overlay).not.toBeNull();
 
     selector.deactivate();
-    const overlayAfter = document.querySelector('[data-nova-area-selector]');
+    const overlayAfter = document.querySelector('[data-nova="area-selector"]');
     expect(overlayAfter).toBeNull();
     selector.deactivate();
   });
@@ -78,7 +78,7 @@ describe('AreaSelector', () => {
     selector.activate();
     selector.activate();
 
-    const overlays = document.querySelectorAll('[data-nova-area-selector]');
+    const overlays = document.querySelectorAll('[data-nova="area-selector"]');
     expect(overlays.length).toBe(1);
 
     selector.deactivate();
@@ -111,7 +111,7 @@ describe('AreaSelector', () => {
 
     selector.activate();
 
-    const overlay = document.querySelector('[data-nova-area-selector]') as HTMLElement;
+    const overlay = document.querySelector('[data-nova="area-selector"]') as HTMLElement;
     expect(overlay).not.toBeNull();
 
     // Simulate mousedown at (100, 100)
@@ -158,7 +158,7 @@ describe('AreaSelector', () => {
 
     selector.activate();
 
-    const overlay = document.querySelector('[data-nova-area-selector]') as HTMLElement;
+    const overlay = document.querySelector('[data-nova="area-selector"]') as HTMLElement;
 
     // Start from bottom-right (300, 300), end at top-left (100, 100)
     overlay.dispatchEvent(
@@ -195,7 +195,7 @@ describe('AreaSelector', () => {
 
     selector.activate();
 
-    const overlay = document.querySelector('[data-nova-area-selector]') as HTMLElement;
+    const overlay = document.querySelector('[data-nova="area-selector"]') as HTMLElement;
 
     // Tiny drag: 5x5 pixels
     overlay.dispatchEvent(

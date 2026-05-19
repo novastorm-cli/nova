@@ -19,19 +19,19 @@ describe('SecretConsole', () => {
   });
 
   it('mounts a host element with data-nova-secret-console attribute', () => {
-    const host = container.querySelector('[data-nova-secret-console]');
+    const host = container.querySelector('[data-nova="secret-console"]');
     expect(host).not.toBeNull();
   });
 
   it('is hidden by default after mount', () => {
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     expect(host.style.display).toBe('none');
   });
 
   it('show() makes it visible and renders fields for each var', () => {
     console_.show(['API_KEY', 'DATABASE_URL']);
 
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     expect(host.style.display).toBe('flex');
 
     const shadow = host.shadowRoot!;
@@ -47,14 +47,14 @@ describe('SecretConsole', () => {
     console_.show(['API_KEY']);
     console_.hide();
 
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     expect(host.style.display).toBe('none');
   });
 
   it('inputs are password type by default', () => {
     console_.show(['SECRET']);
 
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     const input = host.shadowRoot!.querySelector('.secret-input') as HTMLInputElement;
     expect(input.type).toBe('password');
   });
@@ -62,7 +62,7 @@ describe('SecretConsole', () => {
   it('toggle button switches input type between password and text', () => {
     console_.show(['SECRET']);
 
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     const shadow = host.shadowRoot!;
     const input = shadow.querySelector('.secret-input') as HTMLInputElement;
     const toggle = shadow.querySelector('.secret-toggle') as HTMLButtonElement;
@@ -79,7 +79,7 @@ describe('SecretConsole', () => {
     console_.onSubmit(handler);
     console_.show(['API_KEY', 'DB_URL']);
 
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     const shadow = host.shadowRoot!;
     const inputs = shadow.querySelectorAll<HTMLInputElement>('.secret-input');
 
@@ -101,7 +101,7 @@ describe('SecretConsole', () => {
     console_.onSubmit(handler);
     console_.show(['API_KEY']);
 
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     const shadow = host.shadowRoot!;
 
     const saveBtn = shadow.querySelector('.secret-btn-save') as HTMLButtonElement;
@@ -115,7 +115,7 @@ describe('SecretConsole', () => {
     console_.onSkip(handler);
     console_.show(['API_KEY']);
 
-    const host = container.querySelector('[data-nova-secret-console]') as HTMLElement;
+    const host = container.querySelector('[data-nova="secret-console"]') as HTMLElement;
     const shadow = host.shadowRoot!;
 
     const skipBtn = shadow.querySelector('.secret-btn-skip') as HTMLButtonElement;
@@ -128,7 +128,7 @@ describe('SecretConsole', () => {
   it('unmount removes the host element from the container', () => {
     console_.unmount();
 
-    const host = container.querySelector('[data-nova-secret-console]');
+    const host = container.querySelector('[data-nova="secret-console"]');
     expect(host).toBeNull();
   });
 });
