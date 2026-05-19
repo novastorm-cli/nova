@@ -70,6 +70,7 @@ export class OverlayPill implements IOverlayPill {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-pill', '');
     this.host.setAttribute('data-nova', 'pill');
+    this.host.setAttribute('tabindex', '-1');
     this.shadow = this.host.attachShadow({ mode: 'open' });
 
     const style = document.createElement('style');

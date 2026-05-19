@@ -439,10 +439,10 @@ describe('installFocusTrap', () => {
     it('falls back to pill element when previouslyFocused is removed from DOM', () => {
       const { root, buttons } = createModal(3);
 
-      // Create a pill element
+      // Create a pill host element (matches OverlayPill.mount() which sets tabindex='-1')
       const pill = document.createElement('div');
       pill.setAttribute('data-nova', 'pill');
-      pill.setAttribute('tabindex', '0');
+      pill.setAttribute('tabindex', '-1');
       document.body.appendChild(pill);
 
       // Focus a button that will act as the "opener"
