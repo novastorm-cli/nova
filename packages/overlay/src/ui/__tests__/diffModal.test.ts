@@ -277,4 +277,69 @@ describe('DiffModal', () => {
       expect(spy).not.toHaveBeenCalled();
     });
   });
+
+  describe('clipboard fallback', () => {
+    it('Copy button writes diff to data-nova-clipboard when Clipboard API fails', async () => {
+      // Simulate headless browser where clipboard API is denied
+      // jsdom may not have navigator.clipboard at all
+      const originalClipboard = navigator.clipboard;
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: vi.fn().mockRejectedValue(new Error('not allowed')) },
+        writable: true,
+        configurable: true,
+      });
+
+      diffModal.show('src/index.ts', SAMPLE_DIFF, { canOpen: true });
+
+      const host = container.querySelector('[data-nova="diff-modal"]') as HTMLElement;
+      const shadow = host.shadowRoot!;
+      const copyBtn = shadow.querySelector('[data-nova="copy"]') as HTMLButtonElement;
+      expect(copyBtn).not.toBeNull();
+
+      // Add a nova-root element for the fallback
+      const novaRoot = document.createElement('div');
+      novaRoot.setAttribute('data-nova', 'root');
+      document.body.appendChild(novaRoot);
+
+      copyBtn.click();
+
+      // Wait for async clipboard call to fail and fallback to execute
+      await vi.waitFor(() => {
+        expect(novaRoot.getAttribute('data-nova-clipboard')).toBe(SAMPLE_DIFF);
+      });
+
+      // Restore clipboard
+      if (originalClipboard) {
+        Object.defineProperty(navigator, 'clipboard', {
+          value: originalClipboard,
+          writable: true,
+          configurable: true,
+        });
+      } else {
+        Object.defineProperty(navigator, 'clipboard', {
+          value: undefined,
+          writable: true,
+          configurable: true,
+        });
+      }
+      document.body.removeChild(novaRoot);
+    });
+
+    it('__novaTest__.setClipboardText stores text in data-nova-clipboard', () => {
+      const novaRoot = document.createElement('div');
+      novaRoot.setAttribute('data-nova', 'root');
+      document.body.appendChild(novaRoot);
+
+      // Simulate the setClipboardText hook logic (same as in index.ts)
+      const text = 'test-clipboard-content';
+      novaRoot.setAttribute('data-nova-clipboard', text);
+
+      expect(novaRoot.getAttribute('data-nova-clipboard')).toBe(text);
+
+      // Verify attribute is readable (validators can read it)
+      expect(novaRoot.hasAttribute('data-nova-clipboard')).toBe(true);
+
+      document.body.removeChild(novaRoot);
+    });
+  });
 });

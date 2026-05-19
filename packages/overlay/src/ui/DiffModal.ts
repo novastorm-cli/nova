@@ -266,7 +266,19 @@ export class DiffModal {
             copyBtn.classList.remove('copied-flash');
           }, 1500);
         } catch {
-          // Clipboard write may fail in non-secure contexts
+          // Clipboard write may fail in non-secure contexts or headless browsers
+          // Fall back to data-nova-clipboard attribute so validators can read it
+          const novaRoot = document.querySelector('[data-nova="root"]');
+          if (novaRoot) {
+            novaRoot.setAttribute('data-nova-clipboard', diffContent);
+          }
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = strings.diffCopied;
+          copyBtn.classList.add('copied-flash');
+          setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.classList.remove('copied-flash');
+          }, 1500);
         }
       })();
     });

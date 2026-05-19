@@ -158,8 +158,8 @@ function boot(): void {
   let autofixInProgress = false;
   let autofixToastId: string | null = null;
   let executingToastId: string | null = null;
-  let totalTasks = 0;
-  let completedTasks = 0;
+  let _totalTasks = 0;
+  let _completedTasks = 0;
   let pendingReload = false;
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let silenceHintTimer: ReturnType<typeof setTimeout> | null = null;
@@ -917,7 +917,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       void sendObservation(cmd);
     } else if (awaitingConfirmation) {
       awaitingConfirmation = false;
-      completedTasks = 0;
+      _completedTasks = 0;
       // Send confirm with optional user refinement
       if (userInput) {
         wsClient.sendRaw({ type: 'confirm', data: { userInput } });
@@ -1279,7 +1279,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     const ts = (event as NovaEvent & { _ts?: number })._ts;
     switch (event.type) {
       case 'task_completed':
-        completedTasks++;
+        _completedTasks++;
         taskPanel.setTaskCompleted(event.data.taskId, event.data.commitHash);
         {
           const taskSource = taskSourceMap.get(event.data.taskId);
@@ -1297,14 +1297,14 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           }
           fsm.send({ type: 'thinking_complete' });
           statusToast.show(strings.allTasksCompleted, 'success');
-          totalTasks = 0;
-          completedTasks = 0;
+          _totalTasks = 0;
+          _completedTasks = 0;
           // Reload page to pick up changes via hot reload
           scheduleReload();
         }
         break;
       case 'task_failed':
-        completedTasks++;
+        _completedTasks++;
         taskPanel.setTaskFailed(event.data.taskId, event.data.error);
         activityLog.addEntry(
           `Failed: ${event.data.taskId}${event.data.error ? ' - ' + event.data.error : ''}`,
@@ -1320,8 +1320,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           }
           fsm.send({ type: 'error_occurred' });
           statusToast.show(strings.someTasksFailed, 'error');
-          totalTasks = 0;
-          completedTasks = 0;
+          _totalTasks = 0;
+          _completedTasks = 0;
         }
         break;
       case 'task_started':
@@ -1401,7 +1401,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           // Track total tasks from the panel's actual state — this handles
           // both the auto-execute path (where no pending_tasks event fires)
           // and the confirmation path (where pending_tasks already set the count).
-          totalTasks = taskPanel.getTaskCount();
+          _totalTasks = taskPanel.getTaskCount();
           // Consume autoExecuteSource into per-task map (avoids race with reset in sendObservation)
           if (autoExecuteSource) {
             taskSourceMap.set(td.id, autoExecuteSource);
@@ -1446,8 +1446,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
 
         if (pendingTaskList && pendingTaskList.length > 0) {
           taskPanel.setPendingTasks(pendingTaskList);
-          totalTasks = pendingTaskList.length;
-          completedTasks = 0;
+          _totalTasks = pendingTaskList.length;
+          _completedTasks = 0;
           // Consume autoExecuteSource into per-task map for every pending task
           if (autoExecuteSource) {
             for (const t of pendingTaskList) {
@@ -1509,8 +1509,8 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           ).tasks;
           if (statusTasks && statusTasks.length > 0) {
             taskPanel.setPendingTasks(statusTasks);
-            totalTasks = statusTasks.length;
-            completedTasks = 0;
+            _totalTasks = statusTasks.length;
+            _completedTasks = 0;
             // Consume autoExecuteSource into per-task map for every pending task
             if (autoExecuteSource) {
               for (const t of statusTasks) {
