@@ -373,6 +373,122 @@ describe('installFocusTrap', () => {
     });
   });
 
+  describe('idempotent release', () => {
+    it('does not double-restore focus when release is called twice', () => {
+      const { root, buttons } = createModal(3);
+
+      // Focus button 2 (simulate opener)
+      buttons[2]!.focus();
+      const tracker = trackFocus(buttons[2]!);
+      tracker.events.length = 0; // clear initial focus event
+
+      const trap = installFocusTrap(root);
+      tracker.events.length = 0; // clear install focus events
+
+      // First release: restores focus
+      trap.release();
+      expect(tracker.events.length).toBe(1);
+      expect(tracker.events[0]!.target).toBe(buttons[2]);
+      tracker.events.length = 0;
+
+      // Second release: should NOT restore focus again
+      trap.release();
+      expect(tracker.events.length).toBe(0);
+
+      tracker.cleanup();
+    });
+
+    it('does not double-restore when Escape triggers onEscape + release', () => {
+      const { root, buttons } = createModal(3);
+
+      // Focus button 2 (simulate opener)
+      buttons[2]!.focus();
+      const tracker = trackFocus(buttons[2]!);
+      tracker.events.length = 0; // clear initial
+
+      let escapeCalled = false;
+      installFocusTrap(root, () => {
+        escapeCalled = true;
+      });
+
+      tracker.events.length = 0; // clear install focus events
+
+      // Press Escape: onEscape fires, release does NOT fire
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      );
+
+      expect(escapeCalled).toBe(true);
+
+      // After Escape with onEscape, Tab should still be trapped
+      // because the caller is expected to call release() from onEscape
+      const tabEvent = new KeyboardEvent('keydown', {
+        key: 'Tab',
+        bubbles: true,
+        cancelable: true,
+      });
+      const spy = vi.spyOn(tabEvent, 'preventDefault');
+      document.dispatchEvent(tabEvent);
+      expect(spy).toHaveBeenCalled();
+
+      tracker.cleanup();
+    });
+  });
+
+  describe('pill fallback on release', () => {
+    it('falls back to pill element when previouslyFocused is removed from DOM', () => {
+      const { root, buttons } = createModal(3);
+
+      // Create a pill element
+      const pill = document.createElement('div');
+      pill.setAttribute('data-nova', 'pill');
+      pill.setAttribute('tabindex', '0');
+      document.body.appendChild(pill);
+
+      // Focus a button that will act as the "opener"
+      buttons[2]!.focus();
+      const pillTracker = trackFocus(pill);
+      pillTracker.events.length = 0;
+
+      const trap = installFocusTrap(root);
+      pillTracker.events.length = 0;
+
+      // Simulate: previouslyFocused element was removed from DOM.
+      // We spy on its focus() to make it a no-op (simulating a disconnected node),
+      // then blur the active element so activeElement becomes document.body.
+      const focusSpy = vi.spyOn(buttons[2]!, 'focus').mockImplementation(() => {});
+      // Blur the currently focused element (set by focus trap) to reset activeElement to body
+      (document.activeElement as HTMLElement)?.blur();
+
+      // Release - focus on disconnected element should fail, fall back to pill
+      trap.release();
+      expect(focusSpy).toHaveBeenCalled();
+      // Pill should receive focus as fallback
+      expect(pillTracker.events.length).toBeGreaterThanOrEqual(1);
+      expect(pillTracker.events[0]!.target).toBe(pill);
+
+      pillTracker.cleanup();
+    });
+
+    it('does not throw when previouslyFocused and pill are both absent', () => {
+      const { root, buttons } = createModal(3);
+
+      // Focus a button that we will remove
+      buttons[2]!.focus();
+
+      const trap = installFocusTrap(root);
+
+      // Remove the opener button
+      buttons[2]!.remove();
+      // Ensure no pill element exists
+      const existingPill = document.querySelector('[data-nova="pill"]');
+      if (existingPill) existingPill.remove();
+
+      // Should not throw
+      expect(() => trap.release()).not.toThrow();
+    });
+  });
+
   describe('edge cases', () => {
     it('getFocusableDescendants returns no duplicates', () => {
       // Construct a DOM tree with nested focusable elements that would

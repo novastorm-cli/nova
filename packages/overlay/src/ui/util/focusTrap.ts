@@ -129,6 +129,7 @@ export interface FocusTrap {
  */
 export function installFocusTrap(root: HTMLElement, onEscape?: () => void): FocusTrap {
   const previouslyFocused = document.activeElement as HTMLElement | null;
+  let released = false;
 
   const focusable = getFocusableDescendants(root);
   let lastFocusedIndex = 0;
@@ -143,8 +144,9 @@ export function installFocusTrap(root: HTMLElement, onEscape?: () => void): Focu
     if (e.key === 'Escape') {
       if (onEscape) {
         onEscape();
+      } else {
+        release();
       }
-      release();
       return;
     }
 
@@ -174,9 +176,20 @@ export function installFocusTrap(root: HTMLElement, onEscape?: () => void): Focu
   document.addEventListener('keydown', handleKeyDown);
 
   function release(): void {
+    if (released) return;
+    released = true;
+
     document.removeEventListener('keydown', handleKeyDown);
     if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
       previouslyFocused.focus();
+
+      // Fall back to pill if focus restore didn't take (e.g., element was removed from DOM)
+      if (document.activeElement === document.body) {
+        const pill = document.querySelector('[data-nova="pill"]');
+        if (pill instanceof HTMLElement && typeof pill.focus === 'function') {
+          pill.focus();
+        }
+      }
     }
   }
 

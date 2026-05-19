@@ -35,6 +35,7 @@ export class DiffModal {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-diff-modal', '');
     this.host.setAttribute('data-nova', 'diff-modal');
+    this.host.setAttribute('tabindex', '-1');
     this.host.style.position = 'fixed';
     this.host.style.top = '0';
     this.host.style.left = '0';
@@ -43,7 +44,7 @@ export class DiffModal {
     this.host.style.overflow = 'visible';
     this.host.style.zIndex = String(Z_INDEX.diffModal);
 
-    this.shadow = this.host.attachShadow({ mode: 'open' });
+    this.shadow = this.host.attachShadow({ mode: 'open', delegatesFocus: true });
 
     const style = document.createElement('style');
     style.textContent = this.getStyles();
