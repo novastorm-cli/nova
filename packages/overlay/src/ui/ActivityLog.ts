@@ -53,7 +53,7 @@ export class ActivityLog {
     const supportsBackdrop =
       typeof CSS !== 'undefined' &&
       (CSS.supports('backdrop-filter', 'blur(1px)') ||
-       CSS.supports('-webkit-backdrop-filter', 'blur(1px)'));
+        CSS.supports('-webkit-backdrop-filter', 'blur(1px)'));
     this.host.setAttribute('data-opaque-fallback', String(!supportsBackdrop));
     if (!supportsBackdrop) {
       this.panelEl.setAttribute('data-opaque-fallback', '');

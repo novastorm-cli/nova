@@ -225,9 +225,7 @@ describe('WS Event → UI Pipeline', () => {
 
     // ActivityLog: error entry present
     const entries = getActivityEntries();
-    const failedEntry = Array.from(entries).find((e) =>
-      e.textContent?.includes('Failed: task-1'),
-    );
+    const failedEntry = Array.from(entries).find((e) => e.textContent?.includes('Failed: task-1'));
     expect(failedEntry).toBeDefined();
   });
 
@@ -276,9 +274,7 @@ describe('WS Event → UI Pipeline', () => {
     expect(rows.length).toBe(3);
 
     // Each task should be present
-    const descriptions = Array.from(rows).map(
-      (r) => r.querySelector('.task-desc')?.textContent,
-    );
+    const descriptions = Array.from(rows).map((r) => r.querySelector('.task-desc')?.textContent);
     expect(descriptions).toContain('Task One');
     expect(descriptions).toContain('Task Two');
     expect(descriptions).toContain('Task Three');
@@ -384,9 +380,7 @@ describe('WS Event → UI Pipeline', () => {
 
     // Close the modal
     const modalHost = container.querySelector('[data-nova="diff-modal"]');
-    const closeBtn = modalHost?.shadowRoot?.querySelector(
-      '[data-nova="close"]',
-    ) as HTMLElement;
+    const closeBtn = modalHost?.shadowRoot?.querySelector('[data-nova="close"]') as HTMLElement;
     expect(closeBtn).not.toBeNull();
     closeBtn!.click();
 

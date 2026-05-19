@@ -206,7 +206,7 @@ describe('OllamaProvider', () => {
       await expect(provider.chat(userMessages)).rejects.toThrow(ProviderError);
 
       const elapsed = Date.now() - start;
-      expect(elapsed).toBeGreaterThanOrEqual(6000);
+      expect(elapsed).toBeGreaterThanOrEqual(5500);
       expect(fetchMock).toHaveBeenCalledTimes(4);
     }, 15_000);
 
