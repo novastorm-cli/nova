@@ -1290,7 +1290,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         }
         taskSourceMap.delete(event.data.taskId); // Clean up per-task source tracking
         // Only finish when ALL tasks done
-        if (completedTasks >= totalTasks && totalTasks > 0) {
+        if (taskPanel.areAllTasksTerminal()) {
           if (executingToastId) {
             statusToast.dismiss(executingToastId);
             executingToastId = null;
@@ -1313,7 +1313,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           ts,
         );
         // Count failed as completed for tracking
-        if (completedTasks >= totalTasks && totalTasks > 0) {
+        if (taskPanel.areAllTasksTerminal()) {
           if (executingToastId) {
             statusToast.dismiss(executingToastId);
             executingToastId = null;
@@ -1398,7 +1398,10 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         const td = event.data as { id?: string; description?: string; lane?: number };
         if (td.id && td.description) {
           taskPanel.addTask({ id: td.id, description: td.description, lane: td.lane ?? 3 });
-          totalTasks = Math.max(totalTasks, 1);
+          // Track total tasks from the panel's actual state — this handles
+          // both the auto-execute path (where no pending_tasks event fires)
+          // and the confirmation path (where pending_tasks already set the count).
+          totalTasks = taskPanel.getTaskCount();
           // Consume autoExecuteSource into per-task map (avoids race with reset in sendObservation)
           if (autoExecuteSource) {
             taskSourceMap.set(td.id, autoExecuteSource);

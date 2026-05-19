@@ -41,6 +41,19 @@ export class TaskPanel {
     return this.host;
   }
 
+  /** Returns the number of tasks currently tracked in the panel. */
+  getTaskCount(): number {
+    return this.tasks.size;
+  }
+
+  /** Returns true when every tracked task has reached a terminal state (completed or failed). */
+  areAllTasksTerminal(): boolean {
+    if (this.tasks.size === 0) return false;
+    return Array.from(this.tasks.values()).every(
+      (t) => t.status === 'completed' || t.status === 'failed',
+    );
+  }
+
   mount(container: HTMLElement): void {
     this.host = document.createElement('div');
     this.host.setAttribute('data-nova-task-panel', '');

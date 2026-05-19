@@ -56,6 +56,7 @@ describe('EventRouter', () => {
     // Verify the event wiring was set up
     expect(mockEventBus.on).toHaveBeenCalledWith('observation', expect.any(Function));
     expect(mockEventBus.on).toHaveBeenCalledWith('task_created', expect.any(Function));
+    expect(mockEventBus.on).toHaveBeenCalledWith('task_started', expect.any(Function));
     expect(mockEventBus.on).toHaveBeenCalledWith('task_completed', expect.any(Function));
     expect(mockEventBus.on).toHaveBeenCalledWith('task_failed', expect.any(Function));
     expect(mockEventBus.on).toHaveBeenCalledWith('file_changed', expect.any(Function));

@@ -332,6 +332,10 @@ export function setupEventRouting(deps: EventRouterDeps): void {
     wsServer.sendEvent(event);
   });
 
+  eventBus.on('task_started', (event) => {
+    wsServer.sendEvent(event);
+  });
+
   eventBus.on('task_completed', (event) => {
     const task = taskMap.get(event.data.taskId);
     if (task) {
