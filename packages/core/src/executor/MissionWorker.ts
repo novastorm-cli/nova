@@ -269,15 +269,29 @@ export class MissionWorker implements IMissionWorker {
       });
 
       // Apply mixed blocks to disk
-      const { files: fileBlocks, deletedPaths } = await this.applyMixedBlocks(
-        mixedBlocks,
-      );
+      const { files: fileBlocks, deletedPaths, rejectedPaths } =
+        await this.applyMixedBlocks(mixedBlocks, feature.id);
 
       taskLog?.info('MissionWorker: blocks applied', {
         featureId: feature.id,
         filesWritten: fileBlocks.length,
         filesDeleted: deletedPaths.length,
+        pathsRejected: rejectedPaths.length,
       });
+
+      // If any blocks were rejected by PathGuard, fail the entire feature
+      if (rejectedPaths.length > 0) {
+        taskLog?.warn('MissionWorker: PathGuard rejected one or more blocks', {
+          featureId: feature.id,
+          rejectedPaths: rejectedPaths.map((r) => ({ path: r.path, reason: r.reason })),
+        });
+        return {
+          success: false,
+          featureId: feature.id,
+          error: `PathGuard rejected ${rejectedPaths.length} block(s): ${rejectedPaths.map((r) => r.path).join(', ')}`,
+          rejectedPaths,
+        };
+      }
 
       // If nothing was written or deleted, fail
       if (fileBlocks.length === 0 && deletedPaths.length === 0) {
@@ -490,95 +504,100 @@ export class MissionWorker implements IMissionWorker {
 
   /**
    * Apply mixed blocks to disk: write full files (FILE), apply diffs (DIFF),
-   * or delete files (DELETE). Returns normalized FileBlock[] with full content
-   * and a list of deleted file paths.
+   * or delete files (DELETE). Returns normalized FileBlock[] with full content,
+   * a list of deleted file paths, and a list of paths rejected by PathGuard.
    *
    * Path validation via PathGuard is performed on all operations.
-   * Invalid/diff-apply-failed blocks are silently skipped with a warning.
+   * Blocks rejected by PathGuard are tracked and returned to the caller
+   * so the feature can be marked as failed rather than silently succeeding.
    */
   private async applyMixedBlocks(
     blocks: ParsedBlock[],
+    featureId: string,
   ): Promise<{
     files: FileBlock[];
     deletedPaths: string[];
+    rejectedPaths: Array<{ path: string; reason: string }>;
   }> {
     const result: FileBlock[] = [];
     const deletedPaths: string[] = [];
+    const rejectedPaths: Array<{ path: string; reason: string }> = [];
 
     for (const block of blocks) {
+      // Path validation via PathGuard
+      const absPath = join(this.projectPath, block.path);
       try {
-        // Path validation via PathGuard
-        const absPath = join(this.projectPath, block.path);
         await this.pathGuard?.check(absPath);
-
-        if (block.type === 'delete') {
-          try {
-            await unlink(absPath);
-            deletedPaths.push(block.path);
-            this.logger?.info(`MissionWorker: deleted file ${block.path}`);
-          } catch (err: unknown) {
-            this.logger?.warn(
-              `MissionWorker: failed to delete ${block.path} (may not exist)`,
-              {
-                reason: err instanceof Error ? err.message : String(err),
-              },
-            );
-          }
-          continue;
-        }
-
-        if (block.type === 'file') {
-          // New file or full replacement
-          await mkdir(dirname(absPath), { recursive: true });
-          await writeFile(absPath, block.content, 'utf-8');
-          result.push({ path: block.path, content: block.content });
-          this.logger?.info(
-            `MissionWorker: wrote file ${block.path} (${block.content.length} chars)`,
-          );
-        } else {
-          // Diff block - apply to existing file
-          try {
-            await this.diffApplier.apply(absPath, block.diff);
-            const updatedContent = await readFile(absPath, 'utf-8');
-            result.push({ path: block.path, content: updatedContent });
-            this.logger?.info(
-              `MissionWorker: applied diff to ${block.path}`,
-            );
-          } catch (diffErr: unknown) {
-            const diffMsg =
-              diffErr instanceof Error ? diffErr.message : String(diffErr);
-            this.logger?.warn(
-              `MissionWorker: diff apply failed for ${block.path}, treating as full file write`,
-              { reason: diffMsg },
-            );
-
-            // Fallback: if the diff body looks like full file content, write it as-is
-            if (block.diff.length > 0) {
-              await mkdir(dirname(absPath), { recursive: true });
-              await writeFile(absPath, block.diff, 'utf-8');
-              result.push({ path: block.path, content: block.diff });
-              this.logger?.info(
-                `MissionWorker: wrote ${block.path} from diff body (fallback)`,
-              );
-            }
-          }
-        }
       } catch (pathErr: unknown) {
         const pathMsg =
           pathErr instanceof Error ? pathErr.message : String(pathErr);
         this.logger?.warn(
           `MissionWorker: path guard rejected ${block.path}`,
           {
-            featureId: this.logger ? undefined : undefined,
+            featureId,
             path: block.path,
             reason: pathMsg,
           },
         );
-        // Skip this block but continue processing others
+        // Track rejected path and skip this block
+        rejectedPaths.push({ path: block.path, reason: pathMsg });
         continue;
+      }
+
+      if (block.type === 'delete') {
+        try {
+          await unlink(absPath);
+          deletedPaths.push(block.path);
+          this.logger?.info(`MissionWorker: deleted file ${block.path}`);
+        } catch (err: unknown) {
+          this.logger?.warn(
+            `MissionWorker: failed to delete ${block.path} (may not exist)`,
+            {
+              reason: err instanceof Error ? err.message : String(err),
+            },
+          );
+        }
+        continue;
+      }
+
+      if (block.type === 'file') {
+        // New file or full replacement
+        await mkdir(dirname(absPath), { recursive: true });
+        await writeFile(absPath, block.content, 'utf-8');
+        result.push({ path: block.path, content: block.content });
+        this.logger?.info(
+          `MissionWorker: wrote file ${block.path} (${block.content.length} chars)`,
+        );
+      } else {
+        // Diff block - apply to existing file
+        try {
+          await this.diffApplier.apply(absPath, block.diff);
+          const updatedContent = await readFile(absPath, 'utf-8');
+          result.push({ path: block.path, content: updatedContent });
+          this.logger?.info(
+            `MissionWorker: applied diff to ${block.path}`,
+          );
+        } catch (diffErr: unknown) {
+          const diffMsg =
+            diffErr instanceof Error ? diffErr.message : String(diffErr);
+          this.logger?.warn(
+            `MissionWorker: diff apply failed for ${block.path}, treating as full file write`,
+            { reason: diffMsg },
+          );
+
+          // Fallback: if the diff body looks like full file content, write it as-is
+          if (block.diff.length > 0) {
+            await mkdir(dirname(absPath), { recursive: true });
+            await writeFile(absPath, block.diff, 'utf-8');
+            result.push({ path: block.path, content: block.diff });
+            this.logger?.info(
+              `MissionWorker: wrote ${block.path} from diff body (fallback)`,
+            );
+          }
+        }
       }
     }
 
-    return { files: result, deletedPaths };
+    return { files: result, deletedPaths, rejectedPaths };
   }
 }

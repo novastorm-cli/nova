@@ -483,6 +483,8 @@ export interface FeatureResult {
   deletedFiles?: string[] | undefined;
   validationErrors?: Array<{ file: string; line?: number | undefined; message: string }> | undefined;
   fixIterations?: number | undefined;
+  /** Paths rejected by PathGuard during block application. */
+  rejectedPaths?: Array<{ path: string; reason: string }> | undefined;
   error?: string | undefined;
 }
 

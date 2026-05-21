@@ -569,7 +569,8 @@ describe('MissionWorker', () => {
         check: vi.fn().mockRejectedValue(new Error('Path traversal detected')),
       };
 
-      const response = `=== FILE: ../etc/passwd ===\nmalicious content\n=== END FILE ===`;
+      // Use a path that passes sanitizePath but gets rejected by PathGuard
+      const response = `=== FILE: app/secret.tsx ===\nconst secret = "classified";\n=== END FILE ===`;
 
       mockLlm = createMockLlmClient(response);
       const worker = new MissionWorker(
@@ -580,13 +581,18 @@ describe('MissionWorker', () => {
         rejectingPathGuard,
       );
 
-      const feature = createFeature({ files: ['../etc/passwd'] });
+      const feature = createFeature({ files: ['app/secret.tsx'] });
       const projectMap = createProjectMap();
       const result = await worker.execute(feature, projectMap);
 
-      // Path guard rejection should cause all blocks to fail
-      // and the worker should return an error
+      // Path guard rejection should cause the feature to fail
+      // and the rejected paths should be tracked
       expect(result.success).toBe(false);
+      expect(result.error).toContain('PathGuard rejected');
+      expect(result.rejectedPaths).toBeDefined();
+      expect(result.rejectedPaths).toHaveLength(1);
+      expect(result.rejectedPaths![0]!.path).toBe('app/secret.tsx');
+      expect(result.rejectedPaths![0]!.reason).toContain('Path traversal');
     });
   });
 
@@ -751,6 +757,52 @@ describe('MissionWorker', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+      expect(result.error).toContain('PathGuard rejected');
+      expect(result.rejectedPaths).toBeDefined();
+      expect(result.rejectedPaths).toHaveLength(1);
+      expect(result.rejectedPaths![0]!.path).toBe('app/page.tsx');
+    });
+
+    it('fails when PathGuard rejects some blocks but others succeed', async () => {
+      const tmpDir = createTempProjectDir();
+
+      // PathGuard: allow first block, reject second
+      const selectivePathGuard: IPathGuard = {
+        ...createMockPathGuard(),
+        check: vi.fn().mockImplementation(async (absPath: string) => {
+          if (absPath.includes('blocked')) {
+            throw new Error('Path not allowed');
+          }
+          // allowed
+        }),
+      };
+
+      const response =
+        `=== FILE: app/allowed.tsx ===\nconst ok = 1;\n=== END FILE ===\n` +
+        `=== FILE: app/blocked.tsx ===\nconst nope = 2;\n=== END FILE ===`;
+
+      mockLlm = createMockLlmClient(response);
+      const worker = new MissionWorker(
+        tmpDir,
+        mockLlm,
+        'claude-sonnet-4-6',
+        mockEventBus,
+        selectivePathGuard,
+      );
+
+      const feature = createFeature({
+        files: ['app/allowed.tsx', 'app/blocked.tsx'],
+      });
+      const projectMap = createProjectMap();
+      const result = await worker.execute(feature, projectMap);
+
+      // Feature must fail because even one rejection invalidates the whole feature
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('PathGuard rejected');
+      expect(result.rejectedPaths).toBeDefined();
+      expect(result.rejectedPaths).toHaveLength(1);
+      expect(result.rejectedPaths![0]!.path).toBe('app/blocked.tsx');
+      expect(result.rejectedPaths![0]!.reason).toContain('not allowed');
     });
   });
 
