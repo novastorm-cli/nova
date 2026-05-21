@@ -16,7 +16,7 @@ export interface SlotConfig {
  * Ordered list of slot names from bottom (closest to viewport edge)
  * to top (farthest from viewport edge).
  */
-const SLOT_ORDER_BOTTOM_UP: readonly string[] = ['activityLog', 'suggestionPanel', 'taskPanel'];
+const SLOT_ORDER_BOTTOM_UP: readonly string[] = ['activityLog', 'suggestionPanel', 'taskPanel', 'missionPanel'];
 
 export const LAYOUT_GAP_PX = 8;
 export const LAYOUT_LEFT_PX = 20;
@@ -167,7 +167,7 @@ export class LayoutSlots {
     if (!shadow) return host.offsetHeight === 0;
 
     // Look for the first visible child with a meaningful class.
-    const panel = shadow.querySelector('.activity-panel, .suggestion-panel, .task-panel');
+    const panel = shadow.querySelector('.activity-panel, .suggestion-panel, .task-panel, .mission-panel');
     if (!panel) return false;
 
     if (panel.classList.contains('hidden') || (panel as HTMLElement).style.display === 'none') {

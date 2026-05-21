@@ -4,6 +4,7 @@ export { ElementSelector } from './ElementSelector.js';
 export { StatusToast } from './StatusToast.js';
 export { TranscriptBar } from './TranscriptBar.js';
 export { TaskPanel } from './TaskPanel.js';
+export { MissionPanel } from './MissionPanel.js';
 export { ActivityLog } from './ActivityLog.js';
 export { DiffModal } from './DiffModal.js';
 export { ElementInspector } from './ElementInspector.js';

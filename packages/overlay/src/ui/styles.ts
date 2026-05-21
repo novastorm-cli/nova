@@ -62,6 +62,7 @@ export const Z_INDEX = {
   activityLog: 1100,
   suggestionPanel: 1100,
   taskPanel: 1100,
+  missionPanel: 1100,
   transcriptBar: 1100,
   commandInput: 1100,
   selector: 1100,

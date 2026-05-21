@@ -107,6 +107,25 @@ export const strings = {
   taskPanelCloseAriaLabel: 'Close task panel',
   recentTasksLabel: 'Recent Tasks',
 
+  // ── Mission panel ────────────────────────────────────────
+  missionPanelTitle: 'Nova Mission',
+  missionPanelCloseAriaLabel: 'Close mission panel',
+  missionNoFeatures: 'No features to implement',
+  missionProgress: (done: number, total: number): string => `${done}/${total} features completed`,
+  missionIteration: (iter: number, max: number): string => `Review ${iter}/${max}`,
+  missionVerdictApproved: 'Director: APPROVED',
+  missionVerdictNeedsRevision: 'Director: NEEDS REVISION',
+  missionAutoApproved: 'auto-approved',
+  missionCompleted: 'Mission completed',
+  missionFailed: 'Mission failed',
+  missionPending: 'pending',
+  missionExecuting: 'executing',
+  missionFeatureStarted: (id: string): string => `Starting: ${id}`,
+  missionFeatureCompleted: (id: string): string => `Completed: ${id}`,
+  missionFeatureFailed: (id: string): string => `Failed: ${id}`,
+  missionPlanReceived: (count: number): string => `${count} feature(s) planned`,
+  missionHistoryLabel: 'Recent Missions',
+
   // ── Suggestion panel ─────────────────────────────────────
   suggestionPanelTitle: 'Nova Suggestions',
   suggestionApprove: 'Approve',

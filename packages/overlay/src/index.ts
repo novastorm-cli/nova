@@ -18,6 +18,7 @@ import { ElementSelector } from './ui/ElementSelector.js';
 import { StatusToast } from './ui/StatusToast.js';
 import { TranscriptBar } from './ui/TranscriptBar.js';
 import { TaskPanel } from './ui/TaskPanel.js';
+import { MissionPanel } from './ui/MissionPanel.js';
 import { ActivityLog } from './ui/ActivityLog.js';
 import { DiffModal } from './ui/DiffModal.js';
 import { ElementInspector } from './ui/ElementInspector.js';
@@ -133,6 +134,7 @@ function boot(): void {
   const statusToast = new StatusToast();
   const transcriptBar = new TranscriptBar();
   const taskPanel = new TaskPanel();
+  const missionPanel = new MissionPanel();
   const activityLog = new ActivityLog();
   const suggestionPanel = new SuggestionPanel();
   const diffModal = new DiffModal();
@@ -398,16 +400,18 @@ function boot(): void {
   requestAnimationFrame(() => positionStatusLine());
   transcriptBar.mount(novaRoot);
   taskPanel.mount(novaRoot);
+  missionPanel.mount(novaRoot);
   activityLog.mount(novaRoot);
   suggestionPanel.mount(novaRoot);
   diffModal.mount(novaRoot);
   elementInspector.mount(novaRoot);
 
   // Register bottom-left panels with the layout slot manager.
-  // Order from bottom to top: ActivityLog → SuggestionPanel → TaskPanel.
+  // Order from bottom to top: ActivityLog → SuggestionPanel → TaskPanel → MissionPanel.
   layoutSlots.register('activityLog', activityLog.getHost()!);
   layoutSlots.register('suggestionPanel', suggestionPanel.getHost()!);
   layoutSlots.register('taskPanel', taskPanel.getHost()!);
+  layoutSlots.register('missionPanel', missionPanel.getHost()!);
 
   // Wire diff modal to activity log
   activityLog.onDiffClick((filePath, diff) => {
@@ -661,6 +665,15 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         taskPanel.mount(novaRoot!);
         const host = taskPanel.getHost();
         if (host) layoutSlots.register('taskPanel', host);
+      },
+    },
+    {
+      attr: '[data-nova="mission-panel"]',
+      remount: () => {
+        missionPanel.unmount();
+        missionPanel.mount(novaRoot!);
+        const host = missionPanel.getHost();
+        if (host) layoutSlots.register('missionPanel', host);
       },
     },
     {
@@ -1343,6 +1356,17 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
             event.data.phase === 'reasoning' ? strings.thinkingPhase : strings.generatingCodePhase;
           taskPanel.setStreamingText(event.data.taskId, phaseLabel, event.data.phase);
         }
+        // Also stream to mission panel if this chunk belongs to a mission feature
+        const featureId = (event.data as unknown as Record<string, unknown>).featureId;
+        if (typeof featureId === 'string') {
+          const phaseLabel =
+            event.data.phase === 'reasoning' ? strings.thinkingPhase : strings.generatingCodePhase;
+          missionPanel.setStreamingText(
+            featureId,
+            phaseLabel,
+            event.data.phase,
+          );
+        }
         // Activity log: accumulate all LLM output, detect file/diff blocks in both phases
         codeBuffer += event.data.text;
 
@@ -1554,6 +1578,159 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
         }
         break;
       }
+      // ── Mission events ──────────────────────────────────
+      case 'mission_planned': {
+        const mpData = event.data as {
+          taskId?: string;
+          plan: {
+            features: Array<{
+              id: string;
+              description: string;
+              type?: string;
+              files?: string[];
+              dependencies?: string[];
+            }>;
+          };
+          autoApproved?: boolean;
+        };
+        if (mpData.plan) {
+          missionPanel.setPlan({
+            features: mpData.plan.features,
+            autoApproved: mpData.autoApproved,
+          });
+          activityLog.addEntry(
+            strings.missionPlanReceived(mpData.plan.features?.length ?? 0),
+            'info',
+            false,
+            ts,
+          );
+        }
+        // Set FSM to awaiting confirmation if not auto-approved
+        if (!mpData.autoApproved) {
+          fsm.send({ type: 'awaiting_confirmation' });
+        } else {
+          fsm.send({ type: 'thinking_started' });
+        }
+        break;
+      }
+      case 'mission_subtask_started': {
+        const md = event.data as {
+          taskId?: string;
+          featureId: string;
+          description?: string;
+        };
+        missionPanel.setFeatureStarted(md.featureId);
+        activityLog.addEntry(
+          strings.missionFeatureStarted(md.featureId),
+          'info',
+          false,
+          ts,
+        );
+        fsm.send({ type: 'thinking_started' });
+        break;
+      }
+      case 'mission_subtask_completed': {
+        const md = event.data as {
+          taskId?: string;
+          featureId: string;
+          result?: {
+            diff?: string;
+            validationStatus?: string;
+            commitHash?: string;
+          };
+        };
+        if (md.result?.validationStatus === 'failed') {
+          missionPanel.setFeatureFailed(md.featureId, md.result?.validationStatus);
+          activityLog.addEntry(
+            strings.missionFeatureFailed(md.featureId),
+            'error',
+            false,
+            ts,
+          );
+        } else {
+          missionPanel.setFeatureCompleted(md.featureId, md.result?.commitHash);
+          activityLog.addEntry(
+            strings.missionFeatureCompleted(md.featureId),
+            'success',
+            false,
+            ts,
+          );
+          // Add diff entry if available
+          if (md.result?.diff) {
+            activityLog.addDiffEntry(md.featureId, md.result.diff, 'code', ts);
+          }
+        }
+        break;
+      }
+      case 'mission_director_review': {
+        const md = event.data as {
+          taskId?: string;
+          verdict: {
+            decision: string;
+            feedback?: Array<{ featureId: string; actionItems: string[] }>;
+          };
+        };
+        missionPanel.setVerdict(md.verdict.decision, md.verdict.feedback);
+        const verdictEmoji =
+          md.verdict.decision === 'APPROVED' ? strings.successEmoji : strings.errorEmoji;
+        activityLog.addEntry(
+          `${verdictEmoji} Director review: ${md.verdict.decision}`,
+          md.verdict.decision === 'APPROVED' ? 'success' : 'error',
+          false,
+          ts,
+        );
+        break;
+      }
+      case 'mission_iteration': {
+        const md = event.data as {
+          taskId?: string;
+          iteration: number;
+          maxIterations: number;
+        };
+        missionPanel.setIteration(md.iteration, md.maxIterations);
+        activityLog.addEntry(
+          strings.missionIteration(md.iteration, md.maxIterations),
+          'info',
+          false,
+          ts,
+        );
+        break;
+      }
+      case 'mission_completed': {
+        const md = event.data as {
+          taskId?: string;
+          commitHash?: string;
+        };
+        missionPanel.setMissionCompleted(md.commitHash);
+        activityLog.addEntry(strings.missionCompleted, 'success', false, ts);
+        if (executingToastId) {
+          statusToast.dismiss(executingToastId);
+          executingToastId = null;
+        }
+        fsm.send({ type: 'thinking_complete' });
+        statusToast.show(strings.missionCompleted, 'success');
+        break;
+      }
+      case 'mission_failed': {
+        const md = event.data as {
+          taskId?: string;
+          error?: string;
+        };
+        missionPanel.setMissionFailed(md.error);
+        activityLog.addEntry(
+          `${strings.missionFailed}${md.error ? ': ' + md.error : ''}`,
+          'error',
+          false,
+          ts,
+        );
+        if (executingToastId) {
+          statusToast.dismiss(executingToastId);
+          executingToastId = null;
+        }
+        fsm.send({ type: 'error_occurred' });
+        statusToast.show(strings.missionFailed, 'error');
+        break;
+      }
     }
   });
 
@@ -1739,6 +1916,42 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
       if (novaRoot) {
         novaRoot.setAttribute('data-nova-clipboard', text);
       }
+    },
+    // ── MissionPanel test hooks ──────────────────────────
+    addMissionFeature: (id: string, description: string) => {
+      missionPanel.setPlan({
+        features: [{ id, description }],
+      });
+    },
+    startMissionFeature: (featureId: string) => {
+      missionPanel.setFeatureStarted(featureId);
+    },
+    completeMissionFeature: (featureId: string, hash?: string) => {
+      missionPanel.setFeatureCompleted(featureId, hash);
+    },
+    failMissionFeature: (featureId: string, error?: string) => {
+      missionPanel.setFeatureFailed(featureId, error);
+    },
+    getMissionState: () => missionPanel.getState(),
+    setMissionVerdict: (decision: string, feedback?: Array<{ featureId: string; actionItems: string[] }>) => {
+      missionPanel.setVerdict(decision, feedback);
+    },
+    setMissionIteration: (iteration: number, maxIterations: number) => {
+      missionPanel.setIteration(iteration, maxIterations);
+    },
+    confirmMissionPlan: () => {
+      // Simulate confirming the mission plan
+      fsm.send({ type: 'thinking_started' });
+    },
+    cancelMissionPlan: () => {
+      missionPanel.closeImmediately();
+      fsm.send({ type: 'cancelled' });
+    },
+    completeMission: (commitHash?: string) => {
+      missionPanel.setMissionCompleted(commitHash);
+    },
+    failMission: (error?: string) => {
+      missionPanel.setMissionFailed(error);
     },
   };
 }
