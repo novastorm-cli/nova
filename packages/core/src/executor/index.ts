@@ -10,6 +10,8 @@ export { Lane5Executor } from './Lane5Executor.js';
 export type { MissionConfig } from './Lane5Executor.js';
 export { MissionOrchestrator, sanitizeFilePath } from './MissionOrchestrator.js';
 export { MissionWorker } from './MissionWorker.js';
+export { MissionDirector } from './MissionDirector.js';
+export { MissionStore } from './MissionStore.js';
 export { ExecutorPool } from './ExecutorPool.js';
 export { BackgroundQueue } from './BackgroundQueue.js';
 export { ExecutorFSM, ExecutorState } from './ExecutorFSM.js';
