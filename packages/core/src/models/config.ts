@@ -10,6 +10,8 @@ export interface NovaConfig {
     standard: string;
     strong: string;
     local: boolean;
+    /** Optional orchestrator model — falls back to strong when not set. */
+    orchestrator?: string | undefined;
   };
   apiKeys: {
     provider: 'openrouter' | 'anthropic' | 'openai' | 'ollama' | 'claude-cli' | 'deepseek';
@@ -43,6 +45,13 @@ export interface NovaConfig {
         embeddingProvider?: 'openai' | 'ollama' | 'tfidf' | undefined;
       }
     | undefined;
+  mission?:
+    | {
+        enabled: boolean;
+        autoApprove: boolean;
+        maxIterations: number;
+      }
+    | undefined;
 }
 
 export const DEFAULT_CONFIG: NovaConfig = {
@@ -52,6 +61,7 @@ export const DEFAULT_CONFIG: NovaConfig = {
     standard: 'claude-sonnet-4-6',
     strong: 'claude-opus-4-6',
     local: false,
+    orchestrator: 'claude-opus-4-6',
   },
   apiKeys: { provider: 'openrouter' },
   behavior: {
@@ -62,6 +72,11 @@ export const DEFAULT_CONFIG: NovaConfig = {
   },
   voice: { enabled: true, engine: 'web' },
   telemetry: { enabled: true },
+  mission: {
+    enabled: true,
+    autoApprove: false,
+    maxIterations: 5,
+  },
 };
 
 /**

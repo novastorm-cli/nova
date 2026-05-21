@@ -583,6 +583,47 @@ micro = "test"
       expect(typoWarning).toBeDefined();
       consoleWarnSpy.mockRestore();
     });
+
+    it('does not warn about recognized [mission] section', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const toml = `
+[mission]
+enabled = true
+autoApprove = false
+maxIterations = 5
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await reader.read(tmpDir);
+      // Should NOT warn about unrecognized section since 'mission' is in KNOWN_SECTIONS
+      const warnings = consoleWarnSpy.mock.calls.map((c: unknown[]) => c[0] as string);
+      const missionWarning = warnings.find(
+        (w: string) => w.includes('mission') || w.includes('Unrecognized'),
+      );
+      expect(missionWarning).toBeUndefined();
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('suggests [mission] for typo [misson]', async () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const toml = `
+[misson]
+enabled = true
+`;
+      await fs.writeFile(path.join(tmpDir, 'nova.toml'), toml);
+
+      await reader.read(tmpDir);
+      // "misson" is 1 edit away from "mission" (substitution)
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      const warnings = consoleWarnSpy.mock.calls.map((c: unknown[]) => c[0] as string);
+      const typoWarning = warnings.find(
+        (w: string) => w.includes('misson') || w.includes('mission'),
+      );
+      expect(typoWarning).toBeDefined();
+      consoleWarnSpy.mockRestore();
+    });
   });
 
   describe('invalid TOML handling', () => {

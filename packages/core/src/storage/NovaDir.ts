@@ -6,7 +6,7 @@ import { DEFAULT_AGENT_PROMPTS } from './agentPrompts.js';
 
 const NOVA_DIR = '.nova';
 
-const SUBDIRS = ['recipes', 'history', 'cache', 'agents', 'suggestions', 'queue'] as const;
+const SUBDIRS = ['recipes', 'history', 'cache', 'agents', 'suggestions', 'queue', 'missions'] as const;
 
 const INITIAL_FILES: Record<string, string> = {
   'config.toml': '',

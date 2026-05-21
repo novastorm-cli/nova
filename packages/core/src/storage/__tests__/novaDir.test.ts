@@ -36,6 +36,56 @@ describe('NovaDir', () => {
     expect(fs.existsSync(path.join(novaPath, 'context.md'))).toBe(true);
   });
 
+  it('creates .nova/missions/ subdirectory during init', async () => {
+    const dir = await makeTmpDir();
+    await novaDir.init(dir);
+
+    const novaPath = path.join(dir, '.nova');
+    expect(fs.existsSync(path.join(novaPath, 'missions'))).toBe(true);
+  });
+
+  it('missions directory creation is idempotent', async () => {
+    const dir = await makeTmpDir();
+    await novaDir.init(dir);
+    // Create a file inside missions/
+    const missionsDir = path.join(dir, '.nova', 'missions');
+    const testFile = path.join(missionsDir, 'test-mission.json');
+    await fsp.writeFile(testFile, JSON.stringify({ id: 'm1' }), 'utf-8');
+
+    // Call init again — should not delete existing files
+    await novaDir.init(dir);
+
+    expect(fs.existsSync(testFile)).toBe(true);
+    const content = await fsp.readFile(testFile, 'utf-8');
+    expect(JSON.parse(content)).toEqual({ id: 'm1' });
+  });
+
+  it('writes orchestrator.md and worker.md to .nova/agents/ during init', async () => {
+    const dir = await makeTmpDir();
+    await novaDir.init(dir);
+
+    const agentsDir = path.join(dir, '.nova', 'agents');
+    expect(fs.existsSync(path.join(agentsDir, 'orchestrator.md'))).toBe(true);
+    expect(fs.existsSync(path.join(agentsDir, 'worker.md'))).toBe(true);
+  });
+
+  it('does not overwrite existing orchestrator.md and worker.md', async () => {
+    const dir = await makeTmpDir();
+    await novaDir.init(dir);
+
+    const agentsDir = path.join(dir, '.nova', 'agents');
+    const customOrch = 'Custom orchestrator instructions';
+    const customWorker = 'Custom worker instructions';
+    await fsp.writeFile(path.join(agentsDir, 'orchestrator.md'), customOrch, 'utf-8');
+    await fsp.writeFile(path.join(agentsDir, 'worker.md'), customWorker, 'utf-8');
+
+    // Call init again — should not overwrite
+    await novaDir.init(dir);
+
+    expect(await fsp.readFile(path.join(agentsDir, 'orchestrator.md'), 'utf-8')).toBe(customOrch);
+    expect(await fsp.readFile(path.join(agentsDir, 'worker.md'), 'utf-8')).toBe(customWorker);
+  });
+
   it('init() adds .nova to .gitignore', async () => {
     const dir = await makeTmpDir();
     await novaDir.init(dir);

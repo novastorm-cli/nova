@@ -169,6 +169,7 @@ const KNOWN_SECTIONS = [
   'telemetry',
   'license',
   'git',
+  'mission',
 ] as const;
 
 // ── Well-known provider names (must match the apiKeys.provider union) ──

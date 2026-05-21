@@ -13,6 +13,7 @@ export const NovaConfigSchema = z.object({
     standard: z.string(),
     strong: z.string(),
     local: z.boolean(),
+    orchestrator: z.string().optional(),
   }),
   apiKeys: z.object({
     provider: z.enum(['openrouter', 'anthropic', 'openai', 'ollama', 'claude-cli', 'deepseek']),
@@ -45,6 +46,14 @@ export const NovaConfigSchema = z.object({
     .object({
       embeddingProvider: z.enum(['openai', 'ollama', 'tfidf']).optional(),
     })
+    .optional(),
+  mission: z
+    .object({
+      enabled: z.boolean(),
+      autoApprove: z.boolean(),
+      maxIterations: z.number().int().min(1).max(20),
+    })
+    .passthrough()
     .optional(),
 }) satisfies z.ZodType<NovaConfig>;
 
