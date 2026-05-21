@@ -15,3 +15,4 @@ export * from './ILogger.js';
 export * from './ILane5Executor.js';
 export * from './IMissionStore.js';
 export * from './IOrchestrator.js';
+export * from './IMissionWorker.js';
