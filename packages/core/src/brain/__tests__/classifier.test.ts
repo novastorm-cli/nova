@@ -79,6 +79,87 @@ describe('LaneClassifier', () => {
     });
   });
 
+  // ── Lane 5: mission/feature/full-stack/multi-step ──────────
+
+  describe('Lane 5 — mission, feature request, full-stack, multi-step', () => {
+    it.each([
+      ['implement a mission to build user auth', ['auth.ts']],
+      ['this is a multi-step feature request for dashboard', ['Dashboard.tsx']],
+      ['build feature for search', ['Search.tsx']],
+      ['full-stack task for payments', ['api.ts', 'Payment.tsx']],
+      ['implement feature for adding a new page', ['page.tsx']],
+      ['mission: add login page', ['Login.tsx']],
+      ['feature request: add dark mode support', ['Theme.tsx']],
+    ])('"%s" with %j returns lane 5', (description, files) => {
+      expect(classifier.classify(description, files)).toBe(5);
+    });
+
+    it('classifies "implement feature" keyword as lane 5 even with single file', () => {
+      expect(classifier.classify('implement feature for login', ['Login.tsx'])).toBe(5);
+    });
+  });
+
+  // ── Lane 5 priority: Lane 4 > Lane 5 > Lane 3 ──────────────
+
+  describe('Lane 5 priority — Lane 4 beats Lane 5, Lane 5 beats Lane 3', () => {
+    it('classifies "refactor the mission module" as lane 4 (Lane 4 beats Lane 5)', () => {
+      expect(classifier.classify('refactor the mission module', ['mission.ts'])).toBe(4);
+    });
+
+    it('classifies "rewrite the feature system" as lane 4 (Lane 4 beats Lane 5)', () => {
+      expect(classifier.classify('rewrite the feature system', ['features.ts'])).toBe(4);
+    });
+
+    it('classifies "migrate full-stack app" as lane 4 (Lane 4 beats Lane 5)', () => {
+      expect(classifier.classify('migrate full-stack app to new framework', [])).toBe(4);
+    });
+
+    it('classifies "implement feature for adding a new page" as lane 5 (Lane 5 beats Lane 3)', () => {
+      expect(
+        classifier.classify('implement feature for adding a new page', ['page.tsx']),
+      ).toBe(5);
+    });
+
+    it('classifies "mission to add new page and endpoint" as lane 5 (Lane 5 beats Lane 3)', () => {
+      expect(
+        classifier.classify('mission to add new page and endpoint', ['page.tsx', 'route.ts']),
+      ).toBe(5);
+    });
+
+    it('classifies "add new page for dashboard" as lane 3 (no mission keyword)', () => {
+      expect(classifier.classify('add new page for dashboard', ['Dashboard.tsx'])).toBe(3);
+    });
+  });
+
+  // ── Lane 5: negative tests (must not return 5) ─────────────
+
+  describe('Lane 5 — negative tests (non-mission descriptions must NOT return 5)', () => {
+    it.each([
+      ['fix login bug', ['Login.tsx']],
+      ['add button', ['Button.tsx']],
+      ['update readme', ['README.md']],
+      ['change font', ['styles.css']],
+      ['remove unused import', ['utils.ts']],
+      ['add search input to this component', ['SearchPage.tsx']],
+      ['fix the login form validation', ['LoginForm.tsx']],
+    ])('"%s" with %j does NOT return lane 5', (description, files) => {
+      const result = classifier.classify(description, files);
+      expect(result).not.toBe(5);
+    });
+
+    it('"add button" returns lane 2, not lane 5', () => {
+      expect(classifier.classify('add button', ['Button.tsx'])).toBe(2);
+    });
+
+    it('"change font" returns lane 1, not lane 5', () => {
+      expect(classifier.classify('change font', ['styles.css'])).toBe(1);
+    });
+
+    it('"fix login bug" returns lane 2, not lane 5', () => {
+      expect(classifier.classify('fix login bug', ['Login.tsx'])).toBe(2);
+    });
+  });
+
   // ── Performance ────────────────────────────────────────────
 
   describe('Performance', () => {
@@ -89,6 +170,11 @@ describe('LaneClassifier', () => {
         ['add user management page with API', ['page.tsx', 'route.ts']],
         ['refactor authentication module', ['auth.ts']],
         ['change font size to 16px', ['styles.css']],
+        ['implement a mission to build user auth', ['auth.ts']],
+        ['full-stack task for payments', ['api.ts', 'Payment.tsx']],
+        ['multi-step feature request for dashboard', ['Dashboard.tsx']],
+        ['build feature for search', ['Search.tsx']],
+        ['fix login bug', ['Login.tsx']],
       ];
 
       const start = Date.now();

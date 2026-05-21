@@ -46,7 +46,7 @@ export interface IPromptBuilder {
 
 export interface ILaneClassifier {
   /**
-   * Classifies a task into a speed lane (1-4) based on description and affected files.
+   * Classifies a task into a speed lane (1-5) based on description and affected files.
    * Pure rule-based, no LLM. Must complete in < 1ms.
    *
    * Rules (checked in order):
@@ -56,11 +56,12 @@ export interface ILaneClassifier {
    * 2. Single file affected → Lane 2
    * 3. Multiple files OR keywords: add.*page, new.*endpoint, create.*component → Lane 3
    * 4. Keywords: refactor, migrate, rewrite, redesign, restructure, upgrade → Lane 4
-   * 5. Default → Lane 2
+   * 5. Keywords: mission, feature request, full-stack, multi-step → Lane 5
+   * 6. Default → Lane 2
    *
    * Special case: "add blue button" is Lane 2 (new element), not Lane 1 (not just style change)
    */
-  classify(taskDescription: string, affectedFiles: string[]): 1 | 2 | 3 | 4;
+  classify(taskDescription: string, affectedFiles: string[]): 1 | 2 | 3 | 4 | 5;
 }
 
 export class BrainError extends Error {

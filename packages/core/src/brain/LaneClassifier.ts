@@ -36,10 +36,12 @@ const STYLE_KEYWORDS: ReadonlySet<string> = new Set([
 const NEW_ELEMENT_KEYWORDS: ReadonlySet<string> = new Set(['add', 'create', 'new']);
 
 const LANE4_PATTERN = /\b(refactor|migrate|rewrite|redesign|restructure|upgrade)\b/i;
+const LANE5_PATTERN =
+  /\b(mission|feature request|implement feature|full-stack|build\s+.*feature|multi-step)\b/i;
 const LANE3_PATTERN = /\b(add\s+.*page|new\s+.*endpoint|create\s+.*component)\b/i;
 
 export class LaneClassifier implements ILaneClassifier {
-  classify(taskDescription: string, affectedFiles: string[]): 1 | 2 | 3 | 4 {
+  classify(taskDescription: string, affectedFiles: string[]): 1 | 2 | 3 | 4 | 5 {
     const lower = taskDescription.toLowerCase();
     const words = lower.split(/\s+/);
     const fileCount = affectedFiles.length;
@@ -47,6 +49,11 @@ export class LaneClassifier implements ILaneClassifier {
     // Rule 4 (highest priority): Large-scale refactoring keywords always win
     if (LANE4_PATTERN.test(lower)) {
       return 4;
+    }
+
+    // Rule 5: Mission/feature/full-stack/multi-step keywords (beats Lane 3)
+    if (LANE5_PATTERN.test(lower)) {
+      return 5;
     }
 
     // Rule 3: Keywords matching add.*page, new.*endpoint, create.*component
