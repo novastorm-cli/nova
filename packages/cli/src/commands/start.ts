@@ -184,8 +184,8 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   sp.succeed('Project indexed.');
 
   // ── 7. RAG indexing ──────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let ragIndexer: any = null; // eslint-disable-line @typescript-eslint/no-unused-vars, no-useless-assignment
+
+  let ragIndexer: any = null; // eslint-disable-line no-useless-assignment
   try {
     const { RagIndexer, VectorStore, createEmbeddingService } = await import('@novastorm-ai/core');
     let embProvider: 'openai' | 'ollama' | 'tfidf' = 'tfidf';
@@ -366,6 +366,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       agentPromptLoader,
       pathGuard,
       undefined, // lane4
+      undefined, // lane5
       commitQueue,
     );
   }

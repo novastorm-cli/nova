@@ -7,6 +7,7 @@ import type { EventBus } from '../contracts/IEventBus.js';
 import type { TaskItem, ProjectMap, ExecutionResult } from '../models/types.js';
 import type { LlmClient } from '../contracts/ILlmClient.js';
 import type { Lane4Executor } from './Lane4Executor.js';
+import type { Lane5Executor } from './Lane5Executor.js';
 import { Lane3Executor } from './Lane3Executor.js';
 import { ExecutorFSM, ExecutorState } from './ExecutorFSM.js';
 import { RetryPolicy } from './RetryPolicy.js';
@@ -33,6 +34,7 @@ export class ExecutorPool implements IExecutorPool {
     agentPromptLoader?: IAgentPromptLoader,
     pathGuard?: IPathGuard,
     private readonly lane4?: Lane4Executor,
+    private readonly lane5?: Lane5Executor,
     commitQueue?: CommitQueue,
     retryPolicy?: RetryPolicy,
   ) {
@@ -163,12 +165,15 @@ export class ExecutorPool implements IExecutorPool {
         }
         case 5: {
           // Lane 5 (mission-based) — requires Lane5Executor
-          // Placeholder until full Lane5Executor is wired in
-          result = {
-            success: false,
-            taskId: task.id,
-            error: 'Lane 5 requires LLM + Git configuration',
-          };
+          if (!this.lane5) {
+            result = {
+              success: false,
+              taskId: task.id,
+              error: 'Lane 5 requires LLM + Git configuration',
+            };
+            break;
+          }
+          result = await this.lane5.execute(task, projectMap);
           break;
         }
         default: {

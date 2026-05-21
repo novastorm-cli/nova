@@ -3,6 +3,7 @@ import type { TaskItem, ProjectMap, StackInfo, ExecutionResult } from '../../mod
 import type { ILane1Executor, ILane2Executor } from '../../contracts/IExecutor.js';
 import type { NovaEvent } from '../../models/events.js';
 import type { EventBus } from '../../contracts/IEventBus.js';
+import type { Lane5Executor } from '../Lane5Executor.js';
 
 const { ExecutorPool } = await import('../ExecutorPool.js');
 const { RetryPolicy } = await import('../RetryPolicy.js');
@@ -281,8 +282,167 @@ describe('ExecutorPool', () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       customRp,
     );
     expect(customPool.getRetryPolicy()).toBe(customRp);
+  });
+
+  // ============================================================
+  // Lane 5 tests
+  // ============================================================
+
+  function createMockLane5Executor(): Lane5Executor {
+    return {
+      execute: vi.fn().mockResolvedValue({
+        success: true,
+        taskId: 'task-pool-5',
+        diff: '--- a/app/page.tsx\n+++ b/app/page.tsx',
+        commitHash: 'def5678',
+      } satisfies ExecutionResult),
+    } as unknown as Lane5Executor;
+  }
+
+  // VAL-CORE-020: ExecutorPool routes lane 5 to Lane5Executor
+  it('routes a lane 5 task to Lane5Executor (VAL-CORE-020)', async () => {
+    const mockLane5 = createMockLane5Executor();
+    const poolWithLane5 = new ExecutorPool(
+      mockLane1,
+      mockLane2,
+      mockEventBus,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      mockLane5,
+    );
+
+    const task = createTaskItem({
+      id: 'task-pool-5',
+      lane: 5,
+      type: 'multi_file',
+      description: 'Build user auth',
+    });
+    const projectMap = createProjectMap();
+
+    const result = await poolWithLane5.execute(task, projectMap);
+
+    expect(mockLane5.execute).toHaveBeenCalledOnce();
+    expect(mockLane5.execute).toHaveBeenCalledWith(task, projectMap);
+    expect(mockLane1.execute).not.toHaveBeenCalled();
+    expect(mockLane2.execute).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(result.taskId).toBe('task-pool-5');
+  });
+
+  // VAL-CORE-021: Missing Lane5Executor returns clear error
+  it('returns error when Lane5Executor is not provided (VAL-CORE-021)', async () => {
+    // Pool without Lane5Executor (default constructor)
+    const task = createTaskItem({
+      id: 'task-pool-5-missing',
+      lane: 5,
+      type: 'multi_file',
+      description: 'Build user auth',
+    });
+    const projectMap = createProjectMap();
+
+    const result = await pool.execute(task, projectMap);
+
+    expect(result.success).toBe(false);
+    expect(result.taskId).toBe('task-pool-5-missing');
+    expect(result.error).toContain('Lane 5 requires');
+  });
+
+  // VAL-CORE-025: Lane 5 task with exception in executor returns error result
+  it('catches Lane5Executor exceptions and returns error result (VAL-CORE-025)', async () => {
+    const throwingLane5 = {
+      execute: vi.fn().mockRejectedValue(new Error('Lane 5 crashed!')),
+    } as unknown as Lane5Executor;
+
+    const poolWithThrowingLane5 = new ExecutorPool(
+      mockLane1,
+      mockLane2,
+      mockEventBus,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      throwingLane5,
+    );
+
+    const task = createTaskItem({
+      id: 'task-pool-5-crash',
+      lane: 5,
+      type: 'multi_file',
+      description: 'Build user auth',
+    });
+    const projectMap = createProjectMap();
+
+    const result = await poolWithThrowingLane5.execute(task, projectMap);
+
+    expect(result.success).toBe(false);
+    expect(result.taskId).toBe('task-pool-5-crash');
+    expect(result.error).toBe('Lane 5 crashed!');
+
+    // Verify task_failed event was emitted
+    const taskFailedCalls = (mockEventBus.emit as ReturnType<typeof vi.fn>).mock.calls
+      .map((call: unknown[]) => call[0] as NovaEvent)
+      .filter((e): e is Extract<NovaEvent, { type: 'task_failed' }> => e.type === 'task_failed');
+
+    const crashEvent = taskFailedCalls.find(
+      (e) => e.data.taskId === 'task-pool-5-crash',
+    );
+    expect(crashEvent).toBeDefined();
+  });
+
+  // VAL-CORE-023: Exhaustiveness check compiles — lane 5 handled, default is never
+  it('has exhaustiveness check that compiles (lane 5 handled, default is never) (VAL-CORE-023)', async () => {
+    // This test verifies the exhaustiveness check at runtime.
+    // Since lane 1-5 are all handled cases, any TaskItem with lane 1-5
+    // should not reach the default case. The default case would only be
+    // reached if a non-1..5 lane value were somehow assigned, in which
+    // case TypeScript's `never` would have caught it at compile time.
+    const mockLane5 = createMockLane5Executor();
+    const poolWithLane5 = new ExecutorPool(
+      mockLane1,
+      mockLane2,
+      mockEventBus,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      mockLane5,
+    );
+
+    // Test all lanes 1-5 are routed correctly
+    for (const lane of [1, 2, 3, 4, 5] as const) {
+      const task = createTaskItem({ id: `task-exhaust-${lane}`, lane, type: 'css' });
+      const projectMap = createProjectMap();
+      const result = await poolWithLane5.execute(task, projectMap);
+      // Should not hit the default case for any valid lane
+      expect(result.error).not.toBe('Unknown lane: 1');
+      expect(result.error).not.toBe('Unknown lane: 2');
+      expect(result.error).not.toBe('Unknown lane: 3');
+      expect(result.error).not.toBe('Unknown lane: 4');
+      expect(result.error).not.toBe('Unknown lane: 5');
+    }
   });
 });
