@@ -263,9 +263,10 @@ describe('EventRouter', () => {
       };
       mockEventBus._emitMock('mission_planned', planEvent);
 
-      // With autoApprove, the Lane5Executor won't emit pending_tasks,
-      // so pendingMissionTaskId should remain null
-      expect(deps.pendingMissionTaskId.current).toBeNull();
+      // The mission_planned handler now stores the real taskId from event.data
+      // (even with autoApprove, since Lane5Executor doesn't call waitForConfirmation
+      // the value is harmless — no confirm prompt is shown to the user)
+      expect(deps.pendingMissionTaskId.current).toBe('task-1');
     });
 
     it('pauses for confirmation when autoApprove is false', () => {
@@ -277,6 +278,16 @@ describe('EventRouter', () => {
       });
       setupEventRouting(deps);
 
+      // Simulate mission_planned first — this stores the real taskId
+      const planEvent = {
+        type: 'mission_planned' as const,
+        data: { taskId: 'task-1', plan: { features: [{ id: 'f1', description: 'Build login', files: [], type: 'multi_file' as const, dependencies: [] }] } },
+      };
+      mockEventBus._emitMock('mission_planned', planEvent);
+
+      // Now pendingMissionTaskId should be set to the real taskId from mission_planned
+      expect(deps.pendingMissionTaskId.current).toBe('task-1');
+
       // Simulate pending_tasks from Lane5Executor with lane-5 tasks
       const pendingEvent = {
         type: 'pending_tasks' as const,
@@ -287,8 +298,8 @@ describe('EventRouter', () => {
       };
       mockEventBus._emitMock('pending_tasks', pendingEvent);
 
-      // Should set pendingMissionTaskId
-      expect(deps.pendingMissionTaskId.current).not.toBeNull();
+      // pendingMissionTaskId should still be the real taskId (not overwritten)
+      expect(deps.pendingMissionTaskId.current).toBe('task-1');
     });
   });
 

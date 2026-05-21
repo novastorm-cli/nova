@@ -468,6 +468,8 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   // ── Mission events — forward all 7 to overlay ────────────────────
 
   eventBus.on('mission_planned', (event) => {
+    // Store the actual taskId for the mission confirmation flow
+    deps.pendingMissionTaskId.current = event.data.taskId;
     wsServer.sendEvent(event);
   });
 
@@ -496,21 +498,9 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   });
 
   // ── Mission confirmation tracking ────────────────────────────────
-  // Detect when Lane5Executor emits pending_tasks for mission features
+  // Forward pending_tasks to overlay. The actual taskId is stored
+  // by the mission_planned handler above — do NOT overwrite it here.
   eventBus.on('pending_tasks', (event) => {
-    // Check if any of the pending tasks are mission (lane 5) tasks
-    const hasMissionTasks = event.data.tasks?.some(
-      (t: { lane?: number }) => t.lane === 5,
-    );
-    if (hasMissionTasks && event.data.tasks?.length > 0) {
-      // Track that a mission is awaiting confirmation
-      // The taskId is derived from the first lane-5 task's id prefix
-      // Lane5Executor features have IDs like "f1", "f2" etc.
-      // The actual mission taskId is stored separately - we set a marker
-      // and use it in confirm/cancel handlers
-      deps.pendingMissionTaskId.current = 'active';
-    }
-    // Forward to overlay so it shows the confirmation prompt
     wsServer.sendEvent(event);
   });
 
