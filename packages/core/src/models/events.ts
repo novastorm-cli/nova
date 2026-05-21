@@ -4,6 +4,9 @@ import type {
   BehaviorEvent,
   BehaviorPattern,
   PassiveSuggestion,
+  MissionPlan,
+  FeatureResult,
+  DirectorVerdict,
 } from './types.js';
 
 export type NovaEvent =
@@ -59,6 +62,25 @@ export type NovaEvent =
   | {
       type: 'provider_fallback';
       data: { fromModel: string; toModel: string; reason: string };
-    };
+    }
+  | { type: 'mission_planned'; data: { taskId: string; plan: MissionPlan } }
+  | {
+      type: 'mission_subtask_started';
+      data: { taskId: string; featureId: string; description: string };
+    }
+  | {
+      type: 'mission_subtask_completed';
+      data: { taskId: string; featureId: string; result: FeatureResult };
+    }
+  | {
+      type: 'mission_director_review';
+      data: { taskId: string; verdict: DirectorVerdict };
+    }
+  | {
+      type: 'mission_iteration';
+      data: { taskId: string; iteration: number; maxIterations: number };
+    }
+  | { type: 'mission_completed'; data: { taskId: string; commitHash: string } }
+  | { type: 'mission_failed'; data: { taskId: string; error: string } };
 
 export type NovaEventType = NovaEvent['type'];

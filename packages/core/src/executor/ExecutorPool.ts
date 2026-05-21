@@ -161,6 +161,16 @@ export class ExecutorPool implements IExecutorPool {
           result = await this.lane3Strong.execute(task, projectMap);
           break;
         }
+        case 5: {
+          // Lane 5 (mission-based) — requires Lane5Executor
+          // Placeholder until full Lane5Executor is wired in
+          result = {
+            success: false,
+            taskId: task.id,
+            error: 'Lane 5 requires LLM + Git configuration',
+          };
+          break;
+        }
         default: {
           const _exhaustive: never = task.lane;
           result = {

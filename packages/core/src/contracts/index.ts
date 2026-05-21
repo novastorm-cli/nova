@@ -12,3 +12,6 @@ export * from './ITeamDetector.js';
 export * from './IPathGuard.js';
 export * from './IManifestStore.js';
 export * from './ILogger.js';
+export * from './ILane5Executor.js';
+export * from './IMissionStore.js';
+export * from './IOrchestrator.js';

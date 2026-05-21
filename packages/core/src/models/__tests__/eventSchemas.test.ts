@@ -29,6 +29,21 @@ describe('NovaEventSchema', () => {
     expect(() => parseNovaEvent(event)).not.toThrow();
   });
 
+  it('should parse task_created event with lane 5', () => {
+    const event = {
+      type: 'task_created',
+      data: {
+        id: '2',
+        description: 'mission task',
+        files: ['app/page.tsx'],
+        type: 'multi_file',
+        lane: 5,
+        status: 'pending',
+      },
+    };
+    expect(() => parseNovaEvent(event)).not.toThrow();
+  });
+
   it('should parse task_started event', () => {
     expect(() => parseNovaEvent({ type: 'task_started', data: { taskId: '1' } })).not.toThrow();
   });
@@ -127,6 +142,98 @@ describe('NovaEventSchema', () => {
       parseNovaEvent({
         type: 'provider_fallback',
         data: { fromModel: 'gpt-4o', toModel: 'gpt-4o-mini', reason: 'All retries exhausted' },
+      }),
+    ).not.toThrow();
+  });
+
+  // Mission events
+  it('should parse mission_planned event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'mission_planned',
+        data: {
+          taskId: 'task-1',
+          plan: {
+            features: [
+              {
+                id: 'feat-1',
+                description: 'Add login form',
+                files: ['app/login/page.tsx'],
+                type: 'multi_file',
+                dependencies: [],
+              },
+            ],
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse mission_subtask_started event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'mission_subtask_started',
+        data: { taskId: 'task-1', featureId: 'feat-1', description: 'Add login form' },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse mission_subtask_completed event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'mission_subtask_completed',
+        data: {
+          taskId: 'task-1',
+          featureId: 'feat-1',
+          result: {
+            success: true,
+            featureId: 'feat-1',
+            diff: '+import React',
+            generatedFiles: [{ path: 'app/login/page.tsx', content: 'code' }],
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse mission_director_review event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'mission_director_review',
+        data: {
+          taskId: 'task-1',
+          verdict: {
+            decision: 'APPROVED',
+            feedback: [],
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse mission_iteration event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'mission_iteration',
+        data: { taskId: 'task-1', iteration: 2, maxIterations: 5 },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse mission_completed event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'mission_completed',
+        data: { taskId: 'task-1', commitHash: 'abc1234' },
+      }),
+    ).not.toThrow();
+  });
+
+  it('should parse mission_failed event', () => {
+    expect(() =>
+      parseNovaEvent({
+        type: 'mission_failed',
+        data: { taskId: 'task-1', error: 'Director rejected plan' },
       }),
     ).not.toThrow();
   });

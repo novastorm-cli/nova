@@ -40,11 +40,49 @@ const TaskItemDataSchema = z.object({
   description: z.string(),
   files: z.array(z.string()),
   type: z.enum(['css', 'single_file', 'multi_file', 'refactor']),
-  lane: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  lane: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
   status: z.enum(['pending', 'running', 'done', 'failed', 'rolled_back']),
   commitHash: z.string().optional(),
   diff: z.string().optional(),
   error: z.string().optional(),
+});
+
+// Mission type schemas
+const MissionFeatureDataSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  files: z.array(z.string()),
+  type: z.enum(['css', 'single_file', 'multi_file', 'refactor']),
+  dependencies: z.array(z.string()),
+});
+
+const MissionPlanDataSchema = z.object({
+  features: z.array(MissionFeatureDataSchema),
+});
+
+const FeatureResultDataSchema = z.object({
+  success: z.boolean(),
+  featureId: z.string(),
+  diff: z.string().optional(),
+  generatedFiles: z
+    .array(z.object({ path: z.string(), content: z.string() }))
+    .optional(),
+  deletedFiles: z.array(z.string()).optional(),
+  validationErrors: z
+    .array(z.object({ file: z.string(), line: z.number().optional(), message: z.string() }))
+    .optional(),
+  fixIterations: z.number().optional(),
+  error: z.string().optional(),
+});
+
+const DirectorVerdictDataSchema = z.object({
+  decision: z.enum(['APPROVED', 'NEEDS_REVISION', 'REJECTED']),
+  feedback: z.array(
+    z.object({
+      featureId: z.string(),
+      actionItems: z.array(z.string()),
+    }),
+  ),
 });
 
 export const NovaEventSchema = z.discriminatedUnion('type', [
@@ -101,6 +139,35 @@ export const NovaEventSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('provider_fallback'),
     data: z.object({ fromModel: z.string(), toModel: z.string(), reason: z.string() }),
+  }),
+  // Mission events
+  z.object({
+    type: z.literal('mission_planned'),
+    data: z.object({ taskId: z.string(), plan: MissionPlanDataSchema }),
+  }),
+  z.object({
+    type: z.literal('mission_subtask_started'),
+    data: z.object({ taskId: z.string(), featureId: z.string(), description: z.string() }),
+  }),
+  z.object({
+    type: z.literal('mission_subtask_completed'),
+    data: z.object({ taskId: z.string(), featureId: z.string(), result: FeatureResultDataSchema }),
+  }),
+  z.object({
+    type: z.literal('mission_director_review'),
+    data: z.object({ taskId: z.string(), verdict: DirectorVerdictDataSchema }),
+  }),
+  z.object({
+    type: z.literal('mission_iteration'),
+    data: z.object({ taskId: z.string(), iteration: z.number(), maxIterations: z.number() }),
+  }),
+  z.object({
+    type: z.literal('mission_completed'),
+    data: z.object({ taskId: z.string(), commitHash: z.string() }),
+  }),
+  z.object({
+    type: z.literal('mission_failed'),
+    data: z.object({ taskId: z.string(), error: z.string() }),
   }),
 ]);
 

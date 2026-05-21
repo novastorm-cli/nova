@@ -128,7 +128,7 @@ export interface Observation {
 
 export type TaskType = 'css' | 'single_file' | 'multi_file' | 'refactor';
 export type TaskStatus = 'pending' | 'running' | 'done' | 'failed' | 'rolled_back';
-export type Lane = 1 | 2 | 3 | 4;
+export type Lane = 1 | 2 | 3 | 4 | 5;
 
 export interface TaskItem {
   id: string;
@@ -448,4 +448,61 @@ export interface RecipeVariable {
   description: string;
   defaultValue?: string | undefined;
   required: boolean;
+}
+
+// ============================================================
+// Mission (Lane 5)
+// ============================================================
+
+export type MissionStatus =
+  | 'planning'
+  | 'awaiting_confirmation'
+  | 'executing'
+  | 'reviewing'
+  | 'completed'
+  | 'failed';
+
+export interface MissionFeature {
+  id: string;
+  description: string;
+  files: string[];
+  type: TaskType;
+  /** Feature IDs that must complete before this feature can start. */
+  dependencies: string[];
+}
+
+export interface MissionPlan {
+  features: MissionFeature[];
+}
+
+export interface FeatureResult {
+  success: boolean;
+  featureId: string;
+  diff?: string | undefined;
+  generatedFiles?: Array<{ path: string; content: string }> | undefined;
+  deletedFiles?: string[] | undefined;
+  validationErrors?: Array<{ file: string; line?: number | undefined; message: string }> | undefined;
+  fixIterations?: number | undefined;
+  error?: string | undefined;
+}
+
+export type DirectorDecision = 'APPROVED' | 'NEEDS_REVISION' | 'REJECTED';
+
+export interface DirectorVerdict {
+  decision: DirectorDecision;
+  feedback: Array<{
+    featureId: string;
+    actionItems: string[];
+  }>;
+}
+
+export interface MissionState {
+  id: string;
+  taskId: string;
+  status: MissionStatus;
+  plan?: MissionPlan | undefined;
+  featureResults: Record<string, FeatureResult>;
+  directorVerdict?: DirectorVerdict | undefined;
+  iteration: number;
+  maxIterations: number;
 }
