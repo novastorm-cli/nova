@@ -57,6 +57,7 @@ const TRANSITIONS: Record<FsmState, Partial<Record<FsmEventType, FsmState>>> = {
   idle: {
     voice_started: 'listening',
     thinking_started: 'thinking',
+    awaiting_confirmation: 'awaiting-confirmation',
     quick_edit_start: 'quick-edit',
     multi_edit_start: 'multi-edit',
     gesture_mode_start: 'gesture',
@@ -84,6 +85,7 @@ const TRANSITIONS: Record<FsmState, Partial<Record<FsmEventType, FsmState>>> = {
   'awaiting-confirmation': {
     confirmed: 'thinking',
     cancelled: 'idle',
+    thinking_started: 'thinking',
     error_occurred: 'error',
   },
 

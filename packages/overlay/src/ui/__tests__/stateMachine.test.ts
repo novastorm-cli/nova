@@ -53,6 +53,13 @@ describe('OverlayStateMachine', () => {
     expect(fsm.label).toBe('Gesture mode');
   });
 
+  it('awaiting_confirmation from idle → awaiting-confirmation', () => {
+    const result = fsm.send({ type: 'awaiting_confirmation' });
+    expect(result).toBe(true);
+    expect(fsm.state).toBe('awaiting-confirmation');
+    expect(fsm.label).toBe('Awaiting confirmation');
+  });
+
   it('error_occurred from idle → error', () => {
     const result = fsm.send({ type: 'error_occurred' });
     expect(result).toBe(true);
@@ -149,6 +156,14 @@ describe('OverlayStateMachine', () => {
     const result = fsm.send({ type: 'cancelled' });
     expect(result).toBe(true);
     expect(fsm.state).toBe('idle');
+  });
+
+  it('thinking_started from awaiting-confirmation → thinking', () => {
+    fsm.send({ type: 'thinking_started' });
+    fsm.send({ type: 'awaiting_confirmation' });
+    const result = fsm.send({ type: 'thinking_started' });
+    expect(result).toBe(true);
+    expect(fsm.state).toBe('thinking');
   });
 
   // ── quick-edit transitions ─────────────────────────────────
@@ -372,6 +387,8 @@ describe('OverlayStateMachine', () => {
     const allTransitions: Array<{ event: FsmEventType; expectedState: FsmState }> = [
       { event: 'voice_started', expectedState: 'listening' },
       { event: 'voice_stopped', expectedState: 'idle' },
+      { event: 'awaiting_confirmation', expectedState: 'awaiting-confirmation' },
+      { event: 'cancelled', expectedState: 'idle' },
       { event: 'thinking_started', expectedState: 'thinking' },
       { event: 'thinking_complete', expectedState: 'idle' },
       { event: 'thinking_started', expectedState: 'thinking' },
