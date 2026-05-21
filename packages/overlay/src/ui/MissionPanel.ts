@@ -478,13 +478,13 @@ export class MissionPanel {
     if (hasDeps) {
       const arrow = document.createElement('span');
       arrow.className = 'mission-dep-arrow depends-on';
-      arrow.innerHTML = '└→';
+      arrow.innerHTML = strings.missionDepArrow;
       arrow.setAttribute('aria-label', 'Depends on another feature');
       row.appendChild(arrow);
     } else if (isDependedOn) {
       const arrow = document.createElement('span');
       arrow.className = 'mission-dep-arrow depended-by';
-      arrow.innerHTML = '├─';
+      arrow.innerHTML = strings.missionDepArrowDependedBy;
       arrow.setAttribute('aria-label', 'Depended on by other features');
       row.appendChild(arrow);
     } else {

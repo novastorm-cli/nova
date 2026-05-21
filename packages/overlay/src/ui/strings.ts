@@ -125,6 +125,8 @@ export const strings = {
   missionFeatureFailed: (id: string): string => `Failed: ${id}`,
   missionPlanReceived: (count: number): string => `${count} feature(s) planned`,
   missionHistoryLabel: 'Recent Missions',
+  missionDepArrow: '\u2514\u2192',
+  missionDepArrowDependedBy: '\u251C\u2500',
 
   // ── Suggestion panel ─────────────────────────────────────
   suggestionPanelTitle: 'Nova Suggestions',

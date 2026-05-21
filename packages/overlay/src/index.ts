@@ -1357,15 +1357,17 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
           taskPanel.setStreamingText(event.data.taskId, phaseLabel, event.data.phase);
         }
         // Also stream to mission panel if this chunk belongs to a mission feature
-        const featureId = (event.data as unknown as Record<string, unknown>).featureId;
-        if (typeof featureId === 'string') {
-          const phaseLabel =
-            event.data.phase === 'reasoning' ? strings.thinkingPhase : strings.generatingCodePhase;
-          missionPanel.setStreamingText(
-            featureId,
-            phaseLabel,
-            event.data.phase,
-          );
+        {
+          const featureId = (event.data as unknown as Record<string, unknown>).featureId;
+          if (typeof featureId === 'string') {
+            const phaseLabel =
+              event.data.phase === 'reasoning' ? strings.thinkingPhase : strings.generatingCodePhase;
+            missionPanel.setStreamingText(
+              featureId,
+              phaseLabel,
+              event.data.phase,
+            );
+          }
         }
         // Activity log: accumulate all LLM output, detect file/diff blocks in both phases
         codeBuffer += event.data.text;

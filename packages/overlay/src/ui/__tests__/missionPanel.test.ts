@@ -693,7 +693,7 @@ describe('MissionPanel', () => {
     const list = getList();
     expect(list).not.toBeNull();
     // The list is scrollable
-    const overflowY = window.getComputedStyle(list!).overflowY;
+    const _overflowY = window.getComputedStyle(list!).overflowY;
     // In jsdom all computed styles may return empty; the CSS class should handle scroll
     expect(list!.className).toContain('mission-feature-list');
     expect(getFeatureRows().length).toBe(25);
