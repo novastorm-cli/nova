@@ -14,6 +14,7 @@ import {
   ExecutorPool,
   Lane1Executor,
   Lane2Executor,
+  Lane5Executor,
   GitManager,
   AgentPromptLoader,
   PathGuard,
@@ -108,6 +109,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   const taskMap = new Map<string, TaskItem>();
   const pendingTasks: TaskItem[] = [];
   const lastObservation: { current: Observation | null } = { current: null };
+  const pendingMissionTaskId: { current: string | null } = { current: null };
   const sp = ora();
 
   // ── 1. Config & license ──────────────────────────────────────────
@@ -352,6 +354,30 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     const manifest = await manifestStore.load(cwd);
     if (manifest?.boundaries) pathGuard.loadBoundaries(manifest.boundaries);
     const agentPromptLoader = new AgentPromptLoader();
+
+    // ── Lane 5 (mission) executor ──────────────────────────────────
+    let lane5Executor: Lane5Executor | undefined;
+    if (config.mission?.enabled !== false) {
+      const missionConfig = {
+        enabled: config.mission?.enabled ?? true,
+        autoApprove: config.mission?.autoApprove ?? false,
+        maxIterations: config.mission?.maxIterations ?? 5,
+      };
+      lane5Executor = new Lane5Executor(
+        cwd,
+        llmClient,
+        gitManager,
+        eventBus,
+        config.models.orchestrator ?? config.models.strong,
+        missionConfig,
+        agentPromptLoader,
+        pathGuard,
+        commitQueue,
+        undefined, // logger
+        config.models.standard,
+      );
+    }
+
     executorPool = new ExecutorPool(
       new Lane1Executor(cwd, pathGuard),
       new Lane2Executor(cwd, llmClient, gitManager, pathGuard, commitQueue),
@@ -366,7 +392,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       agentPromptLoader,
       pathGuard,
       undefined, // lane4
-      undefined, // lane5
+      lane5Executor, // lane5
       commitQueue,
     );
   }
@@ -410,6 +436,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     projectMap,
     taskMap,
     pendingTasks,
+    pendingMissionTaskId,
     lastObservation,
   });
 

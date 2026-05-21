@@ -36,6 +36,7 @@ export interface EventRouterDeps {
   projectMap: ProjectMap;
   taskMap: Map<string, TaskItem>;
   pendingTasks: TaskItem[];
+  pendingMissionTaskId: { current: string | null };
   lastObservation: { current: Observation | null };
 }
 
@@ -225,6 +226,21 @@ export function setupEventRouting(deps: EventRouterDeps): void {
 
   // ── Confirmation handlers ─────────────────────────────────────────
   wsServer.onConfirm(() => {
+    // Check for pending mission first — independent from regular tasks
+    if (deps.pendingMissionTaskId.current) {
+      log.info('Mission confirmed via terminal. Executing...');
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: 'Mission confirmed, executing features...' },
+      });
+      eventBus.emit({
+        type: 'confirm_tasks',
+        data: { taskIds: [deps.pendingMissionTaskId.current] },
+      } as any);
+      deps.pendingMissionTaskId.current = null;
+      return;
+    }
+
     if (deps.pendingTasks.length === 0) return;
     log.info(`Confirmed ${deps.pendingTasks.length} task(s). Executing...`);
     wsServer.sendEvent({
@@ -237,6 +253,21 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   });
 
   wsServer.onConfirmTasks(() => {
+    // Check for pending mission first — independent from regular tasks
+    if (deps.pendingMissionTaskId.current) {
+      log.info('Mission confirmed via overlay. Executing...');
+      wsServer.sendEvent({
+        type: 'status',
+        data: { message: 'Mission confirmed, executing features...' },
+      });
+      eventBus.emit({
+        type: 'confirm_tasks',
+        data: { taskIds: [deps.pendingMissionTaskId.current] },
+      } as any);
+      deps.pendingMissionTaskId.current = null;
+      return;
+    }
+
     if (deps.pendingTasks.length === 0) return;
     log.info(`Confirmed ${deps.pendingTasks.length} task(s) via overlay. Executing...`);
     wsServer.sendEvent({
@@ -249,10 +280,20 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   });
 
   wsServer.onCancel(() => {
-    if (deps.pendingTasks.length === 0) return;
-    log.warn(`Cancelled ${deps.pendingTasks.length} task(s).`);
-    wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } });
-    deps.pendingTasks.length = 0;
+    // Handle pending mission cancellation
+    if (deps.pendingMissionTaskId.current) {
+      log.warn('Mission cancelled.');
+      wsServer.sendEvent({ type: 'status', data: { message: 'Mission cancelled.' } });
+      eventBus.emit({ type: 'cancel', data: {} } as any);
+      deps.pendingMissionTaskId.current = null;
+    }
+
+    // Also clear regular pending tasks (mission and regular cancellations are independent)
+    if (deps.pendingTasks.length > 0) {
+      log.warn(`Cancelled ${deps.pendingTasks.length} task(s).`);
+      wsServer.sendEvent({ type: 'status', data: { message: 'Tasks cancelled.' } });
+      deps.pendingTasks.length = 0;
+    }
   });
 
   // ── DiffModal revert handler -- reverts a specific file change ──────
@@ -421,6 +462,55 @@ export function setupEventRouting(deps: EventRouterDeps): void {
   });
 
   eventBus.on('status', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  // ── Mission events — forward all 7 to overlay ────────────────────
+
+  eventBus.on('mission_planned', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  eventBus.on('mission_subtask_started', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  eventBus.on('mission_subtask_completed', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  eventBus.on('mission_director_review', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  eventBus.on('mission_iteration', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  eventBus.on('mission_completed', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  eventBus.on('mission_failed', (event) => {
+    wsServer.sendEvent(event);
+  });
+
+  // ── Mission confirmation tracking ────────────────────────────────
+  // Detect when Lane5Executor emits pending_tasks for mission features
+  eventBus.on('pending_tasks', (event) => {
+    // Check if any of the pending tasks are mission (lane 5) tasks
+    const hasMissionTasks = event.data.tasks?.some(
+      (t: { lane?: number }) => t.lane === 5,
+    );
+    if (hasMissionTasks && event.data.tasks?.length > 0) {
+      // Track that a mission is awaiting confirmation
+      // The taskId is derived from the first lane-5 task's id prefix
+      // Lane5Executor features have IDs like "f1", "f2" etc.
+      // The actual mission taskId is stored separately - we set a marker
+      // and use it in confirm/cancel handlers
+      deps.pendingMissionTaskId.current = 'active';
+    }
+    // Forward to overlay so it shows the confirmation prompt
     wsServer.sendEvent(event);
   });
 
