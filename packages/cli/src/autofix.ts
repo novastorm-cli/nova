@@ -7,7 +7,14 @@ import type {
   ILogger,
   ExecutionResult,
 } from '@novastorm-ai/core';
-import { Lane2Executor, Lane3Executor, CommitQueue, StructuredLogger } from '@novastorm-ai/core';
+import {
+  Lane2Executor,
+  Lane3Executor,
+  Lane5Executor,
+  CommitQueue,
+  StructuredLogger,
+} from '@novastorm-ai/core';
+import type { MissionConfig } from '@novastorm-ai/core';
 import type { WebSocketServer } from '@novastorm-ai/proxy';
 
 // Patterns that indicate fixable compilation errors
@@ -76,6 +83,8 @@ export class ErrorAutoFixer {
     private readonly commitQueue?: CommitQueue,
     private readonly microModel?: string,
     logger?: ILogger,
+    private readonly lane5Executor?: Lane5Executor,
+    private readonly missionConfig?: MissionConfig,
   ) {
     this.logger = logger ?? new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
   }
@@ -169,6 +178,7 @@ export class ErrorAutoFixer {
       // Each retry includes failure context from previous attempt.
       const isImageError = IMAGE_PATTERNS.some((p) => p.test(errorOutput));
       let previousFailure = '';
+      let usedLane = 0; // Track which lane was used for budget exhaustion context
 
       for (let attempt = 1; attempt <= this.MAX_FIX_ATTEMPTS; attempt++) {
         // Clear Next.js/Turbopack cache before each retry to avoid stale errors
@@ -189,8 +199,11 @@ export class ErrorAutoFixer {
 
         if (isImageError) {
           result = await this.executeImageFixCore(errorOutput, taskDescription);
+          usedLane = 3;
         } else {
-          result = await this.executeCompilationFixCore(errorOutput, taskDescription);
+          const coreResult = await this.executeCompilationFixCore(errorOutput, taskDescription);
+          result = coreResult.result;
+          usedLane = coreResult.usedLane;
         }
 
         if (result.success) {
@@ -238,6 +251,7 @@ export class ErrorAutoFixer {
       this.logger.error(
         JSON.stringify({
           event: 'autofix_budget_exhausted',
+          lane: usedLane,
           lastError: errorOutput.slice(0, 300),
           failedTaskIds: [...this.failedTaskIds],
           totalAttempts: this.MAX_FIX_ATTEMPTS,
@@ -287,7 +301,8 @@ export class ErrorAutoFixer {
       description +=
         '\n\nIMPORTANT: This error indicates conflicting or duplicate files. ' +
         'You MUST REMOVE or DELETE one of the conflicting files, NOT create new ones. ' +
-        "Prefer deletion over creation when resolving conflicts. Use the 'delete' action.";
+        'Use === DELETE: path/to/file.tsx === to delete the conflicting file. ' +
+        'Do NOT empty the file -- use DELETE to remove it entirely.';
     }
 
     // Include previous failure context on retry so the LLM tries a different approach
@@ -307,7 +322,7 @@ export class ErrorAutoFixer {
   private async executeCompilationFixCore(
     errorOutput: string,
     taskDescription: string,
-  ): Promise<ExecutionResult> {
+  ): Promise<{ result: ExecutionResult; usedLane: number }> {
     this.logger.warn('[Nova] Detected compilation error -- attempting auto-fix');
     this.wsServer.sendEvent({
       type: 'status',
@@ -315,6 +330,54 @@ export class ErrorAutoFixer {
     });
 
     let targetFile = this.extractFilePath(errorOutput);
+
+    // ── Lane 5 routing: complex errors → mission execution ────────
+    const isImageError = IMAGE_PATTERNS.some((p) => p.test(errorOutput));
+    if (!isImageError && this.shouldUseLane5(errorOutput) && this.lane5Executor) {
+      const knownFiles = Array.from(this.projectMap.fileContexts.keys());
+      const affectedFiles = knownFiles.filter((f) => errorOutput.includes(f));
+      if (targetFile && !affectedFiles.includes(targetFile)) {
+        affectedFiles.push(targetFile);
+      }
+
+      // For route conflicts, include conflicting route files
+      const routeConflictMatch = errorOutput.match(/both match path:\s*(\S+)/i);
+      if (routeConflictMatch) {
+        const conflictPath = routeConflictMatch[1]!;
+        const conflictingFiles = this.findConflictingRouteFiles(conflictPath);
+        for (const cf of conflictingFiles) {
+          if (!affectedFiles.includes(cf)) affectedFiles.push(cf);
+        }
+        this.logger.info(
+          `[Nova] Route conflict detected for ${conflictPath}: routing to Lane 5`,
+        );
+      }
+
+      const result = await this.executeLane5Core(taskDescription, affectedFiles);
+      return { result, usedLane: 5 };
+    }
+
+    // ── Lane 3: route conflicts when mission is disabled ───────────
+    const routeConflictMatch = errorOutput.match(
+      /both match path:\s*(\S+)/i,
+    );
+    if (routeConflictMatch) {
+      const conflictPath = routeConflictMatch[1]!;
+      const conflictingFiles = this.findConflictingRouteFiles(conflictPath);
+      if (conflictingFiles.length > 0) {
+        this.logger.info(
+          `[Nova] Route conflict detected for ${conflictPath}: ${conflictingFiles.join(', ')}`,
+        );
+        // Use Lane3 with conflicting files so LLM sees and can delete one
+        const enhancedDescription =
+          taskDescription +
+          `\n\nConflicting files:\n` +
+          conflictingFiles.map((f) => `  - ${f} (DELETE this file)`).join('\n') +
+          `\n\nYou MUST use === DELETE: ... === to remove ONE of these conflicting files.`;
+        const result = await this.executeLane3Core(enhancedDescription, conflictingFiles);
+        return { result, usedLane: 3 };
+      }
+    }
 
     // Fallback: scan project map for files mentioned in error text
     if (!targetFile) {
@@ -341,7 +404,7 @@ export class ErrorAutoFixer {
         ? await this.executeLane2Core(targetFile, taskDescription)
         : await this.executeLane3Core(taskDescription);
 
-    return result;
+    return { result, usedLane: targetFile && this.projectMap.fileContexts.has(targetFile) ? 2 : 3 };
   }
 
   private async executeLane2Core(
@@ -377,11 +440,14 @@ export class ErrorAutoFixer {
     return result;
   }
 
-  private async executeLane3Core(taskDescription: string): Promise<ExecutionResult> {
+  private async executeLane3Core(
+    taskDescription: string,
+    files: string[] = [],
+  ): Promise<ExecutionResult> {
     const task: TaskItem = {
       id: crypto.randomUUID(),
       description: taskDescription,
-      files: [],
+      files,
       type: 'multi_file',
       lane: 3,
       status: 'pending',
@@ -454,6 +520,85 @@ export class ErrorAutoFixer {
     const result = await executor.execute(task, this.projectMap);
     setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
     return result;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Lane 5 (mission) execution for complex errors
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Execute an auto-fix via Lane 5 (mission-based execution).
+   * Emits autofix_start before execution and relies on the Lane5Executor
+   * to emit mission lifecycle events (mission_planned, etc.).
+   */
+  private async executeLane5Core(
+    taskDescription: string,
+    files: string[] = [],
+  ): Promise<ExecutionResult> {
+    if (!this.lane5Executor) {
+      return {
+        success: false,
+        taskId: '',
+        error: 'Lane 5 executor not available',
+      };
+    }
+
+    const task: TaskItem = {
+      id: crypto.randomUUID(),
+      description: taskDescription,
+      files,
+      type: 'multi_file',
+      lane: 5,
+      status: 'pending',
+    };
+    this.autofixTaskIds.add(task.id);
+
+    this.logger.info('[Nova] Auto-fixing complex error via Lane 5 (mission)...');
+    this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_start' } });
+    this.eventBus.emit({ type: 'task_started', data: { taskId: task.id } });
+    this.wsServer.sendEvent({ type: 'task_created', data: task });
+
+    const result = await this.lane5Executor.execute(task, this.projectMap);
+    setTimeout(() => this.autofixTaskIds.delete(task.id), 5000);
+    return result;
+  }
+
+  /**
+   * Determine whether a compilation error should be routed to Lane 5 instead
+   * of Lane 2/3.  Checks mission config gating first, then inspects the error
+   * output for complex-error signals: route conflicts, high file count,
+   * or duplicate/conflicting keywords.
+   */
+  private shouldUseLane5(errorOutput: string): boolean {
+    // Mission config gating: when no [mission] section, default to disabled (Lane 3)
+    if (!this.missionConfig?.enabled) return false;
+    if (!this.lane5Executor) return false;
+
+    // Route conflict: "both match path" (Next.js App/Pages router conflict)
+    if (/both match path/i.test(errorOutput)) return true;
+
+    // Duplicate/conflicting keywords (use the existing DELETION_INTENT_KEYWORDS)
+    if (DELETION_INTENT_KEYWORDS.some((p) => p.test(errorOutput))) return true;
+
+    // High file count: error affects >3 project files
+    const affectedCount = this.countAffectedFiles(errorOutput);
+    if (affectedCount > 3) return true;
+
+    return false;
+  }
+
+  /**
+   * Count how many project files are mentioned in the error output text.
+   */
+  private countAffectedFiles(errorOutput: string): number {
+    const knownFiles = Array.from(this.projectMap.fileContexts.keys());
+    let count = 0;
+    for (const f of knownFiles) {
+      if (errorOutput.includes(f)) {
+        count++;
+      }
+    }
+    return count;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -541,11 +686,13 @@ export class ErrorAutoFixer {
 
   private extractFilePath(errorOutput: string): string | null {
     // Common patterns for file paths in error output.
-    // Turbopack format: "⨯ ./app/page.tsx:2:1" on its own line, or
-    // "  ./app/page.tsx:2:1" with leading whitespace.
+    // Turbopack/Next.js format: "⨯ ./app/page.tsx:2:1" or "❌ ./app/page.tsx:2:1"
+    // on its own line, or "  ./app/page.tsx:2:1" with leading whitespace.
     const patterns = [
-      // Turbopack standalone path with optional leading whitespace + ⨯
-      /^\s*[⨯✗✘]\s+(\.\/)?([^\s:]+\.[tj]sx?)\s*:\d+/m,
+      // Turbopack/Next.js standalone path with optional leading whitespace + error marker
+      /^\s*[⨯✗✘❌]\s+(\.\/)?([^\s:]+\.[tj]sx?)\s*:\d+/m,
+      // Next.js [error] format: "❌ [error] ./path/to/file.tsx"
+      /\[error\]\s+(\.\/)?([^\s:]+\.[tj]sx?)/i,
       // "./path/to/file.tsx" anywhere in the text
       /\.\/([^\s:]+\.[tj]sx?)/,
       // "in/at/from path/to/file.tsx"
@@ -556,11 +703,61 @@ export class ErrorAutoFixer {
     for (const p of patterns) {
       const match = errorOutput.match(p);
       if (match) {
-        // Turbopack pattern has two capture groups; use the one that's not undefined
+        // Turbopack/Next.js patterns have two capture groups; use the one that's not undefined
         const filePath = match[2] ?? match[1]!;
         return filePath;
       }
     }
     return null;
+  }
+
+  /**
+   * Given a route path (e.g., "/" or "/admin"), finds the conflicting
+   * App Router and Pages Router files that both resolve to that path.
+   * Returns an array of file paths relative to project root.
+   */
+  private findConflictingRouteFiles(routePath: string): string[] {
+    const knownFiles = Array.from(this.projectMap.fileContexts.keys());
+
+    // Map route path to Next.js file conventions
+    const result: string[] = [];
+
+    if (routePath === '/') {
+      // Root path: app/page.tsx vs pages/index.tsx
+      const appFile = knownFiles.find(
+        (f) =>
+          f === 'app/page.tsx' || f === 'app/page.ts' || f === 'app/page.jsx' || f === 'app/page.js',
+      );
+      const pagesFile = knownFiles.find(
+        (f) =>
+          f === 'pages/index.tsx' ||
+          f === 'pages/index.ts' ||
+          f === 'pages/index.jsx' ||
+          f === 'pages/index.js',
+      );
+      if (appFile) result.push(appFile);
+      if (pagesFile) result.push(pagesFile);
+    } else {
+      // Nested routes: e.g., /admin -> app/admin/page.tsx vs pages/admin.tsx
+      const normalized = routePath.replace(/^\/+/, '');
+      const appFile = knownFiles.find(
+        (f) =>
+          f === `app/${normalized}/page.tsx` ||
+          f === `app/${normalized}/page.ts` ||
+          f === `app/${normalized}/page.jsx` ||
+          f === `app/${normalized}/page.js`,
+      );
+      const pagesFile = knownFiles.find(
+        (f) =>
+          f === `pages/${normalized}.tsx` ||
+          f === `pages/${normalized}.ts` ||
+          f === `pages/${normalized}.jsx` ||
+          f === `pages/${normalized}.js`,
+      );
+      if (appFile) result.push(appFile);
+      if (pagesFile) result.push(pagesFile);
+    }
+
+    return result;
   }
 }

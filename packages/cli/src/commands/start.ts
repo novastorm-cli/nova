@@ -336,6 +336,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
   // ── 15. Executor & AutoFixer ─────────────────────────────────────
   let executorPool: any = null;
+  let autoFixer: any = null;
   const commitQueue = new CommitQueue(
     gitManager,
     {
@@ -356,13 +357,13 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     const agentPromptLoader = new AgentPromptLoader();
 
     // ── Lane 5 (mission) executor ──────────────────────────────────
+    const missionConfig = {
+      enabled: config.mission?.enabled ?? true,
+      autoApprove: config.mission?.autoApprove ?? false,
+      maxIterations: config.mission?.maxIterations ?? 5,
+    };
     let lane5Executor: Lane5Executor | undefined;
     if (config.mission?.enabled !== false) {
-      const missionConfig = {
-        enabled: config.mission?.enabled ?? true,
-        autoApprove: config.mission?.autoApprove ?? false,
-        maxIterations: config.mission?.maxIterations ?? 5,
-      };
       lane5Executor = new Lane5Executor(
         cwd,
         llmClient,
@@ -395,10 +396,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       lane5Executor, // lane5
       commitQueue,
     );
-  }
 
-  let autoFixer: any = null;
-  if (llmClient && executorPool)
     autoFixer = new ErrorAutoFixer(
       cwd,
       llmClient,
@@ -408,7 +406,12 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       projectMap,
       commitQueue,
       config.models.micro,
+      undefined, // logger
+      lane5Executor,
+      missionConfig,
     );
+  }
+
   devServer.onOutput((o: string) => autoFixer?.handleOutput(o));
 
   const envDetector = new EnvDetector();
