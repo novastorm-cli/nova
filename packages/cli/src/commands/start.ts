@@ -258,12 +258,13 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   await ensureDependencies(cwd, stack, options, llmClient);
 
   // ── 11. Dev server ───────────────────────────────────────────────
+  let autoFixer: any = null; // declared early for recoverDevServer below
   sp.start(`Starting dev server (${chalk.dim(devCommand)})...`);
   try {
     await devServer.spawn(devCommand, cwd, devPort);
   } catch (err) {
     sp.fail('Dev server failed to start.');
-    await recoverDevServer(err, devCommand, cwd, devPort, options, llmClient, devServer);
+    await recoverDevServer(err, devCommand, cwd, devPort, options, llmClient, devServer, autoFixer);
   }
   const actualPort = devServer.getActualPort();
   if (actualPort && actualPort !== devPort) {
@@ -336,7 +337,6 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
   // ── 15. Executor & AutoFixer ─────────────────────────────────────
   let executorPool: any = null;
-  let autoFixer: any = null;
   const commitQueue = new CommitQueue(
     gitManager,
     {
@@ -687,7 +687,7 @@ async function acquirePorts(
   }
 }
 
-async function recoverDevServer(
+export async function recoverDevServer(
   err: unknown,
   devCommand: string,
   cwd: string,
@@ -695,9 +695,23 @@ async function recoverDevServer(
   options: StartOptions,
   llmClient: any,
   devServer: DevServerRunner,
+  autoFixer: any,
 ): Promise<void> {
   const msg = err instanceof Error ? err.message : String(err);
   logger.error(`\n${msg}`);
+
+  // Show dev server logs before the interactive prompt
+  const rawLogs = devServer.getLogs();
+  const logLines = rawLogs.split('\n').filter((l) => l.length > 0);
+  if (logLines.length > 50) {
+    const truncated = logLines.slice(-50);
+    logger.error(
+      `\nDev server output (last 50 of ${logLines.length} lines):\n${truncated.join('\n')}`,
+    );
+  } else if (logLines.length > 0) {
+    logger.error(`\nDev server output:\n${logLines.join('\n')}`);
+  }
+
   if (isNonInteractive(options)) {
     logger.error('Cannot recover in non-interactive mode.');
     process.exit(1);
@@ -767,27 +781,22 @@ async function recoverDevServer(
         return;
       }
       if (action === 'ai-fix') {
-        const desc = await input({ message: 'Describe what to fix:' });
-        if (!desc.trim() || !llmClient) continue;
-        const resp = await llmClient.chat(
-          [
-            {
-              role: 'system',
-              content: 'Output fixed files:\n=== FILE: path ===\ncontent\n=== END FILE ===',
-            },
-            { role: 'user', content: `Error: ${msg.slice(0, 800)}\nUser: ${desc.trim()}` },
-          ],
-          { temperature: 0, maxTokens: 4096 },
-        );
-        const { mkdirSync, writeFileSync: wf } = await import('node:fs');
-        let m: RegExpExecArray | null;
-        const re = /=== FILE: (.+?) ===\n([\s\S]*?)\n=== END FILE ===/g;
-        while ((m = re.exec(resp.content)) !== null) {
-          mkdirSync(path.dirname(path.join(cwd, m[1]!.trim())), { recursive: true });
-          wf(path.join(cwd, m[1]!.trim()), m[2]!);
+        if (!autoFixer) {
+          logger.error('Auto-fix unavailable (no AI configured).');
+          continue;
         }
-        await devServer.spawn(devCommand, cwd, devPort);
-        return;
+        const fullErrorText = `Error: ${msg}\n\nDev server output:\n${rawLogs}`;
+        try {
+          await autoFixer.forceFixNow(fullErrorText);
+          logger.info('Auto-fix succeeded. Retrying dev server...');
+          await devServer.spawn(devCommand, cwd, devPort);
+          return;
+        } catch (e) {
+          logger.error(
+            `Auto-fix failed: ${e instanceof Error ? e.message : String(e)}`,
+          );
+          continue;
+        }
       }
     } catch (e) {
       logger.error(`Failed: ${e instanceof Error ? e.message : String(e)}`);
