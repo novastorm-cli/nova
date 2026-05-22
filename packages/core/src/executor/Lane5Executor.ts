@@ -37,13 +37,14 @@ export class Lane5Executor implements ILane5Executor {
   private readonly maxIterations: number;
   private readonly autoApprove: boolean;
   private readonly workerModel: string;
+  private readonly orchestratorModel: string;
 
   constructor(
     private readonly projectPath: string,
     private readonly llmClient: LlmClient,
     private readonly gitManager: IGitManager,
     private readonly eventBus: EventBus,
-    private readonly orchestratorModel?: string,
+    orchestratorModel?: string,
     private readonly missionConfig?: MissionConfig,
     private readonly agentPromptLoader?: IAgentPromptLoader,
     private readonly pathGuard?: IPathGuard,
@@ -53,12 +54,25 @@ export class Lane5Executor implements ILane5Executor {
   ) {
     this.commitQueue = commitQueue ?? new CommitQueue(this.gitManager);
 
-    const orchModel = orchestratorModel ?? 'claude-sonnet-4-6';
-    this.workerModel = workerModel ?? orchModel;
+    // Resolve the orchestrator model:
+    // - Explicit non-empty string → use it
+    // - Empty string → user intentionally cleared, error
+    // - undefined / missing → fall back to default
+    let resolvedOrchModel: string;
+    const trimmed = orchestratorModel?.trim();
+    if (trimmed) {
+      resolvedOrchModel = trimmed;
+    } else if (orchestratorModel === '' || trimmed === '') {
+      resolvedOrchModel = '';
+    } else {
+      resolvedOrchModel = 'claude-sonnet-4-6';
+    }
+    this.orchestratorModel = resolvedOrchModel;
+    this.workerModel = workerModel ?? resolvedOrchModel;
 
     this.missionStore = new MissionStore(this.projectPath, this.logger);
-    this.orchestrator = new MissionOrchestrator(this.llmClient, orchModel, this.logger);
-    this.director = new MissionDirector(this.llmClient, orchModel, this.logger);
+    this.orchestrator = new MissionOrchestrator(this.llmClient, resolvedOrchModel, this.logger);
+    this.director = new MissionDirector(this.llmClient, resolvedOrchModel, this.logger);
     this.maxIterations = this.missionConfig?.maxIterations ?? 5;
     this.autoApprove = this.missionConfig?.autoApprove ?? false;
   }
@@ -78,8 +92,8 @@ export class Lane5Executor implements ILane5Executor {
         };
       }
 
-      // Check for missing orchestrator model
-      if (!this.orchestratorModel) {
+      // Check for empty orchestrator model (user explicitly cleared it)
+      if (this.orchestratorModel === '') {
         const errorMsg =
           'Lane 5 requires an orchestrator model. Set [models] orchestrator in nova.toml.';
         taskLog?.warn(errorMsg, { taskId: task.id });

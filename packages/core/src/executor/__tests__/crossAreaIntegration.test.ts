@@ -240,6 +240,29 @@ function createAlwaysNeedsRevisionLlm(featureCount = 1): LlmClient {
   } as unknown as LlmClient;
 }
 
+function createMultiMissionLlm(missionCount: number): LlmClient {
+  let chatCall = 0;
+  return {
+    supportsVision: true,
+    chat: vi.fn().mockImplementation(async () => {
+      chatCall++;
+      // Odd calls = orchestrator plans, even calls = director reviews
+      if (chatCall % 2 === 1) {
+        return {
+          content: JSON.stringify({
+            features: [
+              { id: `feat-call${chatCall}`, description: `Feature for call ${chatCall}`, files: [`f-${chatCall}.ts`], type: 'multi_file' as const, dependencies: [] },
+            ],
+          }),
+        } as ChatResponse;
+      }
+      return { content: JSON.stringify({ decision: 'APPROVED' as const, feedback: [] }) } as ChatResponse;
+    }),
+    chatWithVision: vi.fn(),
+    stream: vi.fn().mockImplementation(makeStream('=== FILE: gen.ts ===\n// code\n=== END FILE ===')),
+  } as unknown as LlmClient;
+}
+
 function createDependentFeaturesLlm(): LlmClient {
   return {
     supportsVision: true,
@@ -1004,27 +1027,25 @@ describe('Cross-Area Integration', () => {
     });
 
     it('orchestrator model falls back to default when not configured', async () => {
-      // When orchestratorModel is not explicitly set, the internal orchModel falls back
-      // to 'claude-sonnet-4-6' (the constructor default). But execute() still requires
-      // a truthy orchestratorModel parameter. This test verifies the default value
-      // is used when an explicit empty string is passed (falsy).
+      // When orchestratorModel is not explicitly set, the Lane5Executor falls back
+      // to 'claude-sonnet-4-6' (the hardcoded default) and uses it for both
+      // planning and director review.
       const modelTracker: string[] = [];
       const llm = createOrchestratorModelVerificationLlm(modelTracker);
 
-      // Pass undefined orchestratorModel — constructor defaults orchModel to 'claude-sonnet-4-6'
-      // BUT execute() checks: if (!this.orchestratorModel) returns error
-      // So we must pass a non-empty orchestratorModel to allow execution
+      // Pass undefined orchestratorModel — the fallback should be used
       const executor = new Lane5Executor(
         projectDir,
         llm,
         mockGit,
         mockEventBus,
-        'claude-sonnet-4-6', // explicit orchestratorModel
+        undefined, // no orchestratorModel → fallback
         { enabled: true, autoApprove: true, maxIterations: 5 },
       );
 
       await executor.execute(createTaskItem(), createProjectMap());
 
+      // Both planning and director review should use the fallback model
       expect(modelTracker.length).toBeGreaterThanOrEqual(2);
       for (const model of modelTracker) {
         expect(model).toBe('claude-sonnet-4-6');
@@ -1344,28 +1365,22 @@ describe('Cross-Area Integration', () => {
     });
 
     it('Lane5Executor is stateless between executions', async () => {
-      // Use separate LLM instances since the mock has internal mutable state (chatCall counter)
-      const llm1 = createFullMissionLlm(1);
-      const executor1 = makeExecutor({
-        llm: llm1,
+      // Verify a single executor instance can be reused for multiple missions
+      // without carrying over state from previous executions.
+      const llm = createMultiMissionLlm(2);
+      const executor = makeExecutor({
+        llm,
         missionConfig: { enabled: true, autoApprove: true, maxIterations: 5 },
       });
 
-      // Run the same executor twice with different tasks (but separate LLMs to avoid mock state sharing)
-      const r1 = await executor1.execute(
+      // Run the same executor instance twice
+      const r1 = await executor.execute(
         createTaskItem({ id: 'first-task' }),
         createProjectMap(),
       );
       expect(r1.success).toBe(true);
 
-      // Fresh LLM for second execution
-      const llm2 = createFullMissionLlm(1);
-      const executor2 = makeExecutor({
-        llm: llm2,
-        missionConfig: { enabled: true, autoApprove: true, maxIterations: 5 },
-      });
-
-      const r2 = await executor2.execute(
+      const r2 = await executor.execute(
         createTaskItem({ id: 'second-task' }),
         createProjectMap(),
       );

@@ -270,15 +270,19 @@ describe('Lane5Executor', () => {
   // ── VAL-CORE-022: Missing orchestrator model ────────────────────────
 
   describe('missing orchestrator model (VAL-CORE-022)', () => {
-    it('returns error without orchestrator model', async () => {
-      // Construct directly without makeExecutor so orchestratorModel is truly undefined
+    it('falls back to default when orchestrator model is undefined', async () => {
+      // Undefined orchestratorModel should fall back to the default ('claude-sonnet-4-6')
+      // and proceed with execution (the bare LLM mock will fail on planning, but it
+      // should NOT be blocked by the orchestrator model check itself).
       const executor = new Lane5Executor(
         projectDir, createBareMockLlm(), mockGit, mockEventBus,
-        undefined, // orchestratorModel
+        undefined, // orchestratorModel → fallback
       );
       const result = await executor.execute(createTaskItem(), createProjectMap());
       expect(result.success).toBe(false);
-      expect(result.error).toContain('orchestrator');
+      // Should fail because of the bare mock LLM, NOT because of missing orchestrator model
+      expect(result.error).not.toContain('orchestrator');
+      expect(result.error).not.toContain('Set [models]');
     });
 
     it('returns error with empty orchestrator model', async () => {
