@@ -841,4 +841,286 @@ describe('MissionPanel', () => {
     expect(verdict.textContent).toContain('orchestrator timeout');
     expect(verdict.classList.contains('mission-verdict-failed')).toBe(true);
   });
+
+  // ── __novaTest__ e2e test hooks (VAL-UX-053) ──────────────────
+
+  /** Helper to get typed __novaTest__ object from window. */
+  function getTestHooks(): Record<string, unknown> {
+    return (window as unknown as Record<string, unknown>).__novaTest__ as Record<string, unknown>;
+  }
+
+  it('exposes all 11 mission test hooks on window.__novaTest__ after mount', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    expect(hooks).toBeDefined();
+
+    const expectedHooks = [
+      'addMissionFeature',
+      'startMissionFeature',
+      'completeMissionFeature',
+      'failMissionFeature',
+      'getMissionState',
+      'setMissionVerdict',
+      'setMissionIteration',
+      'confirmMissionPlan',
+      'cancelMissionPlan',
+      'completeMission',
+      'failMission',
+    ];
+
+    for (const hookName of expectedHooks) {
+      expect(hooks[hookName]).toBeDefined();
+      expect(typeof hooks[hookName]).toBe('function');
+    }
+  });
+
+  it('addMissionFeature adds a feature row to MissionPanel', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Test Feature 1');
+
+    const rows = getFeatureRows();
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.querySelector('.mission-feature-desc')!.textContent).toBe('Test Feature 1');
+    expect(rows[0]!.className).toContain('status-pending');
+
+    // Panel should be visible
+    const panelEl = getPanelEl()!;
+    expect(panelEl.classList.contains('hidden')).toBe(false);
+  });
+
+  it('addMissionFeature accumulates multiple features without clearing', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature One');
+    (hooks['addMissionFeature'] as Function)('f2', 'Feature Two');
+    (hooks['addMissionFeature'] as Function)('f3', 'Feature Three');
+
+    const rows = getFeatureRows();
+    expect(rows.length).toBe(3);
+    const descs = Array.from(rows).map((r) => r.querySelector('.mission-feature-desc')?.textContent);
+    expect(descs).toEqual(['Feature One', 'Feature Two', 'Feature Three']);
+  });
+
+  it('startMissionFeature transitions feature to executing', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['startMissionFeature'] as Function)('f1');
+
+    const row = getFeatureRows()[0]!;
+    expect(row.className).toContain('status-executing');
+  });
+
+  it('completeMissionFeature transitions feature to completed with hash', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['startMissionFeature'] as Function)('f1');
+    (hooks['completeMissionFeature'] as Function)('f1', 'abc1234');
+
+    const row = getFeatureRows()[0]!;
+    expect(row.className).toContain('status-completed');
+
+    const meta = row.querySelector('.mission-feature-meta');
+    expect(meta).not.toBeNull();
+    expect(meta!.textContent).toBe('abc1234');
+  });
+
+  it('failMissionFeature transitions feature to failed with error', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['startMissionFeature'] as Function)('f1');
+    (hooks['failMissionFeature'] as Function)('f1', 'Build failure');
+
+    const row = getFeatureRows()[0]!;
+    expect(row.className).toContain('status-failed');
+
+    const meta = row.querySelector('.mission-feature-meta');
+    expect(meta).not.toBeNull();
+    expect(meta!.textContent).toContain('Build failure');
+  });
+
+  it('getMissionState returns current feature statuses', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature One');
+    (hooks['addMissionFeature'] as Function)('f2', 'Feature Two');
+    (hooks['startMissionFeature'] as Function)('f1');
+    (hooks['completeMissionFeature'] as Function)('f1', 'hash');
+
+    const state = (hooks['getMissionState'] as Function)() as {
+      features: Array<{ id: string; description: string; status: string }>;
+      isVisible: boolean;
+      iteration: number;
+      maxIterations: number;
+    };
+    expect(state.features).toHaveLength(2);
+    expect(state.features[0]!.status).toBe('completed');
+    expect(state.features[1]!.status).toBe('pending');
+    expect(state.isVisible).toBe(true);
+    expect(state.maxIterations).toBe(5);
+  });
+
+  it('setMissionVerdict shows APPROVED banner', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['setMissionVerdict'] as Function)('APPROVED');
+
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = hostEl.shadowRoot!;
+    const verdict = shadow.querySelector('.mission-verdict')!;
+    expect(verdict.classList.contains('mission-verdict-approved')).toBe(true);
+    expect(verdict.textContent).toContain('APPROVED');
+  });
+
+  it('setMissionVerdict shows NEEDS_REVISION and highlights failed features', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature One');
+    (hooks['addMissionFeature'] as Function)('f2', 'Feature Two');
+    (hooks['failMissionFeature'] as Function)('f2', 'Error');
+    (hooks['setMissionVerdict'] as Function)('NEEDS_REVISION', [
+      { featureId: 'f2', actionItems: ['fix error'] },
+    ]);
+
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = hostEl.shadowRoot!;
+    const verdict = shadow.querySelector('.mission-verdict')!;
+    expect(verdict.classList.contains('mission-verdict-revision')).toBe(true);
+    expect(verdict.textContent).toContain('NEEDS REVISION');
+
+    const rows = getFeatureRows();
+    expect(rows[1]!.classList.contains('needs-revision')).toBe(true);
+  });
+
+  it('setMissionIteration updates the iteration badge', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['setMissionIteration'] as Function)(2, 5);
+
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = hostEl.shadowRoot!;
+    const badge = shadow.querySelector('.mission-iteration-badge')!;
+    expect(badge.classList.contains('hidden')).toBe(false);
+    expect(badge.textContent).toBe('Review 2/5');
+  });
+
+  it('confirmMissionPlan shows the panel', () => {
+    missionPanel.mount(container);
+
+    // Panel starts hidden
+    const panelEl = getPanelEl()!;
+    expect(panelEl.classList.contains('hidden')).toBe(true);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['confirmMissionPlan'] as Function)();
+
+    // Panel should now be visible
+    expect(panelEl.classList.contains('hidden')).toBe(false);
+  });
+
+  it('cancelMissionPlan closes panel and clears features', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['addMissionFeature'] as Function)('f2', 'Feature');
+
+    expect(getFeatureRows().length).toBe(2);
+
+    (hooks['cancelMissionPlan'] as Function)();
+
+    const panelEl = getPanelEl()!;
+    expect(panelEl.classList.contains('hidden')).toBe(true);
+    expect(getFeatureRows().length).toBe(0);
+  });
+
+  it('completeMission shows APPROVED verdict with commit hash', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['completeMissionFeature'] as Function)('f1', 'abc1234567');
+    (hooks['completeMission'] as Function)('abc1234567');
+
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = hostEl.shadowRoot!;
+    const verdict = shadow.querySelector('.mission-verdict')!;
+    expect(verdict.textContent).toContain('abc1234');
+    expect(verdict.classList.contains('mission-verdict-approved')).toBe(true);
+  });
+
+  it('failMission shows error message in verdict banner', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+    (hooks['addMissionFeature'] as Function)('f1', 'Feature');
+    (hooks['failMission'] as Function)('orchestrator crash');
+
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = hostEl.shadowRoot!;
+    const verdict = shadow.querySelector('.mission-verdict')!;
+    expect(verdict.textContent).toContain('orchestrator crash');
+    expect(verdict.classList.contains('mission-verdict-failed')).toBe(true);
+  });
+
+  it('full lifecycle through __novaTest__ hooks: add → start → complete → mission done', () => {
+    missionPanel.mount(container);
+
+    const hooks = getTestHooks();
+
+    // Add features
+    (hooks['addMissionFeature'] as Function)('f1', 'Login page');
+    (hooks['addMissionFeature'] as Function)('f2', 'Dashboard');
+    expect(getFeatureRows().length).toBe(2);
+
+    // Start both
+    (hooks['startMissionFeature'] as Function)('f1');
+    (hooks['startMissionFeature'] as Function)('f2');
+
+    let rows = getFeatureRows();
+    expect(rows[0]!.className).toContain('status-executing');
+    expect(rows[1]!.className).toContain('status-executing');
+
+    // Complete f1, fail f2
+    (hooks['completeMissionFeature'] as Function)('f1', 'hash1');
+    (hooks['failMissionFeature'] as Function)('f2', 'Error');
+
+    rows = getFeatureRows();
+    expect(rows[0]!.className).toContain('status-completed');
+    expect(rows[1]!.className).toContain('status-failed');
+
+    // Set iteration
+    (hooks['setMissionIteration'] as Function)(1, 5);
+
+    // Set verdict
+    (hooks['setMissionVerdict'] as Function)('NEEDS_REVISION', [
+      { featureId: 'f2', actionItems: ['fix error'] },
+    ]);
+
+    // Complete mission
+    (hooks['completeMission'] as Function)('final-hash');
+
+    const state = (hooks['getMissionState'] as Function)() as {
+      features: Array<{ id: string; status: string }>;
+      iteration: number;
+    };
+    expect(state.features).toHaveLength(2);
+    expect(state.iteration).toBe(1);
+  });
 });

@@ -1745,7 +1745,10 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
   wsClient.connect(`ws://localhost:${port}/nova-ws`);
 
   // Test hook: expose DiffModal and some internals for e2e testing
-  (window as unknown as Record<string, unknown>).__novaTest__ = {
+  const win = window as unknown as Record<string, unknown>;
+  const existingTest = win.__novaTest__ as Record<string, unknown> | undefined;
+  win.__novaTest__ = {
+    ...(existingTest ?? {}),
     showDiffModal: (filePath: string, diff: string, absPath?: string, firstLine?: number) => {
       diffModal.show(filePath, diff, {
         absPath: absPath,
@@ -1921,9 +1924,7 @@ IMPORTANT: Only modify the minimum code needed. Do not restructure other parts o
     },
     // ── MissionPanel test hooks ──────────────────────────
     addMissionFeature: (id: string, description: string) => {
-      missionPanel.setPlan({
-        features: [{ id, description }],
-      });
+      missionPanel.addFeature({ id, description });
     },
     startMissionFeature: (featureId: string) => {
       missionPanel.setFeatureStarted(featureId);

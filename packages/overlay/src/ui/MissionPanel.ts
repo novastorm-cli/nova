@@ -151,6 +151,54 @@ export class MissionPanel {
 
     // Restore state after hot reload
     this.restoreState();
+
+    // ── Expose e2e test hooks on window.__novaTest__ ──────────────
+    this.exposeTestHooks();
+  }
+
+  /**
+   * Register this component's e2e test hooks on window.__novaTest__.
+   * Merges with any existing hooks so other components' hooks are preserved.
+   */
+  private exposeTestHooks(): void {
+    const win = window as unknown as Record<string, unknown>;
+    const existing = win.__novaTest__ as Record<string, unknown> | undefined;
+
+    win.__novaTest__ = {
+      ...(existing ?? {}),
+      addMissionFeature: (id: string, description: string) => {
+        this.addFeature({ id, description });
+      },
+      startMissionFeature: (featureId: string) => {
+        this.setFeatureStarted(featureId);
+      },
+      completeMissionFeature: (featureId: string, hash?: string) => {
+        this.setFeatureCompleted(featureId, hash);
+      },
+      failMissionFeature: (featureId: string, error?: string) => {
+        this.setFeatureFailed(featureId, error);
+      },
+      getMissionState: () => this.getState(),
+      setMissionVerdict: (decision: string, feedback?: Array<{ featureId: string; actionItems: string[] }>) => {
+        this.setVerdict(decision, feedback);
+      },
+      setMissionIteration: (iteration: number, maxIterations: number) => {
+        this.setIteration(iteration, maxIterations);
+      },
+      confirmMissionPlan: () => {
+        // Show panel if hidden — confirmation is handled by the FSM in index.ts
+        this.show();
+      },
+      cancelMissionPlan: () => {
+        this.closeImmediately();
+      },
+      completeMission: (commitHash?: string) => {
+        this.setMissionCompleted(commitHash);
+      },
+      failMission: (error?: string) => {
+        this.setMissionFailed(error);
+      },
+    };
   }
 
   unmount(): void {
@@ -250,6 +298,63 @@ export class MissionPanel {
       this.verdictBanner.className = 'mission-verdict mission-auto-approved';
       this.verdictBanner.textContent = strings.missionAutoApproved;
     }
+
+    this.updateProgress();
+    this.show();
+    this.saveState();
+  }
+
+  /**
+   * Add a single feature to the existing plan without clearing other features.
+   * Used by e2e test hooks to incrementally build up a mission plan.
+   */
+  addFeature(feature: {
+    id: string;
+    description: string;
+    type?: string | undefined;
+    files?: string[] | undefined;
+    dependencies?: string[] | undefined;
+  }): void {
+    // Clear "empty" placeholder if present
+    const emptyMsg = this.listEl?.querySelector('.mission-empty');
+    if (emptyMsg) {
+      emptyMsg.remove();
+    }
+
+    // If this is the first feature, reset the hidden state
+    if (this.features.size === 0 && !this.verdictBanner?.textContent) {
+      this.isHistoryMode = false;
+      // Keep existing verdict/iteration state if already set
+    }
+
+    const hasDeps = (feature.dependencies?.length ?? 0) > 0;
+    // Check if any existing feature depends on this new one
+    let isDependedOn = false;
+    for (const [_, existing] of this.features) {
+      if (existing.dependencies.includes(feature.id)) {
+        isDependedOn = true;
+        break;
+      }
+    }
+
+    const element = this.createFeatureRow(
+      feature.description,
+      'pending',
+      feature.type,
+      feature.files?.length,
+      hasDeps,
+      isDependedOn,
+    );
+    this.listEl?.appendChild(element);
+    this.features.set(feature.id, {
+      id: feature.id,
+      description: feature.description,
+      type: feature.type,
+      files: feature.files,
+      dependencies: feature.dependencies ?? [],
+      status: 'pending',
+      element,
+    });
 
     this.updateProgress();
     this.show();
