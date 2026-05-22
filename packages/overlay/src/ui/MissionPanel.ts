@@ -41,6 +41,17 @@ const STORAGE_KEY = 'nova-mission-panel-state';
 const RECENT_MISSIONS_KEY = 'nova:recent-missions';
 const MAX_RECENT_MISSIONS = 10;
 
+type BufferedEvent =
+  | { type: 'setPlan'; plan: Parameters<MissionPanel['setPlan']>[0] }
+  | { type: 'setFeatureStarted'; featureId: string }
+  | { type: 'setFeatureCompleted'; featureId: string; commitHash: string | undefined }
+  | { type: 'setFeatureFailed'; featureId: string; error: string | undefined }
+  | { type: 'setStreamingText'; featureId: string; text: string; phase: string }
+  | { type: 'setVerdict'; decision: string; feedback: Array<{ featureId: string; actionItems: string[] }> | undefined }
+  | { type: 'setIteration'; iteration: number; maxIterations: number }
+  | { type: 'setMissionCompleted'; commitHash: string | undefined }
+  | { type: 'setMissionFailed'; error: string | undefined };
+
 export class MissionPanel {
   private host: HTMLElement | null = null;
   private shadow: ShadowRoot | null = null;
@@ -57,6 +68,13 @@ export class MissionPanel {
   private currentMissionId: string | null = null;
   private currentIteration = 0;
   private maxIterations = 5;
+  /** Buffer for events that arrive before mount() completes. */
+  private eventBuffer: BufferedEvent[] = [];
+
+  /** Returns whether the panel has been mounted. */
+  private get isMounted(): boolean {
+    return this.host !== null;
+  }
 
   /** Returns the host element (for layout manager registration). */
   getHost(): HTMLElement | null {
@@ -154,6 +172,50 @@ export class MissionPanel {
 
     // ── Expose e2e test hooks on window.__novaTest__ ──────────────
     this.exposeTestHooks();
+
+    // Replay buffered events that arrived before mount
+    this.replayBuffer();
+  }
+
+  /**
+   * Replay all buffered events that arrived before mount() completed.
+   * Clears the buffer after replay.
+   */
+  private replayBuffer(): void {
+    if (this.eventBuffer.length === 0) return;
+    const events = this.eventBuffer;
+    this.eventBuffer = [];
+    for (const event of events) {
+      switch (event.type) {
+        case 'setPlan':
+          this.setPlan(event.plan);
+          break;
+        case 'setFeatureStarted':
+          this.setFeatureStarted(event.featureId);
+          break;
+        case 'setFeatureCompleted':
+          this.setFeatureCompleted(event.featureId, event.commitHash);
+          break;
+        case 'setFeatureFailed':
+          this.setFeatureFailed(event.featureId, event.error);
+          break;
+        case 'setStreamingText':
+          this.setStreamingText(event.featureId, event.text, event.phase);
+          break;
+        case 'setVerdict':
+          this.setVerdict(event.decision, event.feedback);
+          break;
+        case 'setIteration':
+          this.setIteration(event.iteration, event.maxIterations);
+          break;
+        case 'setMissionCompleted':
+          this.setMissionCompleted(event.commitHash);
+          break;
+        case 'setMissionFailed':
+          this.setMissionFailed(event.error);
+          break;
+      }
+    }
   }
 
   /**
@@ -203,6 +265,7 @@ export class MissionPanel {
 
   unmount(): void {
     this.clearHideTimer();
+    this.eventBuffer = [];
     this.host?.remove();
     this.host = null;
     this.shadow = null;
@@ -228,6 +291,12 @@ export class MissionPanel {
     }>;
     autoApproved?: boolean | undefined;
   }): void {
+    // Buffer event if not yet mounted
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setPlan', plan });
+      return;
+    }
+
     // Only show the latest plan — clear previous mission
     this.clearHideTimer();
     this.features.clear();
@@ -315,6 +384,17 @@ export class MissionPanel {
     files?: string[] | undefined;
     dependencies?: string[] | undefined;
   }): void {
+    // Buffer event if not yet mounted
+    if (!this.isMounted) {
+      this.eventBuffer.push({
+        type: 'setPlan',
+        plan: {
+          features: [feature],
+        },
+      });
+      return;
+    }
+
     // Clear "empty" placeholder if present
     const emptyMsg = this.listEl?.querySelector('.mission-empty');
     if (emptyMsg) {
@@ -362,6 +442,10 @@ export class MissionPanel {
   }
 
   setFeatureStarted(featureId: string): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setFeatureStarted', featureId });
+      return;
+    }
     const entry = this.features.get(featureId);
     if (!entry) return;
     entry.status = 'executing';
@@ -371,6 +455,10 @@ export class MissionPanel {
   }
 
   setFeatureCompleted(featureId: string, commitHash?: string): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setFeatureCompleted', featureId, commitHash });
+      return;
+    }
     const entry = this.features.get(featureId);
     if (!entry) return;
     entry.status = 'completed';
@@ -383,6 +471,10 @@ export class MissionPanel {
   }
 
   setFeatureFailed(featureId: string, error?: string): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setFeatureFailed', featureId, error });
+      return;
+    }
     const entry = this.features.get(featureId);
     if (!entry) return;
     entry.status = 'failed';
@@ -395,6 +487,10 @@ export class MissionPanel {
   }
 
   setStreamingText(featureId: string, text: string, phase: string): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setStreamingText', featureId, text, phase });
+      return;
+    }
     const entry = this.features.get(featureId);
     if (!entry || !this.shadow) return;
 
@@ -413,6 +509,10 @@ export class MissionPanel {
 
   /** Show the director's verdict. */
   setVerdict(decision: string, feedback?: Array<{ featureId: string; actionItems: string[] }>): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setVerdict', decision, feedback });
+      return;
+    }
     if (!this.verdictBanner) return;
 
     const isApproved = decision === 'APPROVED';
@@ -436,6 +536,10 @@ export class MissionPanel {
 
   /** Update the iteration badge. */
   setIteration(iteration: number, maxIterations: number): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setIteration', iteration, maxIterations });
+      return;
+    }
     this.currentIteration = iteration;
     this.maxIterations = maxIterations;
 
@@ -449,6 +553,10 @@ export class MissionPanel {
 
   /** Set the mission to completed state with optional commit hash. */
   setMissionCompleted(commitHash?: string): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setMissionCompleted', commitHash });
+      return;
+    }
     if (this.verdictBanner) {
       if (!this.verdictBanner.textContent?.includes(strings.missionVerdictApproved)) {
         this.verdictBanner.className = 'mission-verdict mission-verdict-approved';
@@ -465,6 +573,10 @@ export class MissionPanel {
 
   /** Set the mission to failed state. */
   setMissionFailed(error?: string): void {
+    if (!this.isMounted) {
+      this.eventBuffer.push({ type: 'setMissionFailed', error });
+      return;
+    }
     if (this.verdictBanner) {
       this.verdictBanner.className = 'mission-verdict mission-verdict-failed';
       this.verdictBanner.textContent =
@@ -707,11 +819,17 @@ export class MissionPanel {
         verdict: this.verdictBanner?.textContent ?? undefined,
         missionStatus: this.features.size === 0
           ? 'empty'
-          : Array.from(this.features.values()).every(
-              (f) => f.status === 'completed' || f.status === 'failed',
-            )
-            ? 'terminal'
-            : 'in-progress',
+          : this.verdictBanner?.classList.contains('mission-verdict-approved')
+              ? 'terminal'
+              : this.verdictBanner?.classList.contains('mission-verdict-failed')
+                ? 'terminal'
+                : this.verdictBanner?.classList.contains('mission-verdict-revision')
+                  ? 'in-progress'
+                  : Array.from(this.features.values()).every(
+                      (f) => f.status === 'completed' || f.status === 'failed',
+                    )
+                    ? 'terminal'
+                    : 'in-progress',
       };
 
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -754,6 +872,8 @@ export class MissionPanel {
           this.verdictBanner.className = 'mission-verdict mission-verdict-approved';
         } else if (data.verdict.includes('NEEDS REVISION')) {
           this.verdictBanner.className = 'mission-verdict mission-verdict-revision';
+        } else if (data.verdict.includes(strings.missionFailed)) {
+          this.verdictBanner.className = 'mission-verdict mission-verdict-failed';
         }
         this.verdictBanner.textContent = data.verdict;
       }
@@ -786,6 +906,18 @@ export class MissionPanel {
 
         if (stored.status === 'completed' || stored.status === 'failed') {
           this.updateFeatureRow(entry);
+        }
+      }
+
+      // Restore needs-revision highlights on failed features when verdict is NEEDS_REVISION
+      if (data.verdict && data.verdict.includes('NEEDS REVISION')) {
+        for (const stored of data.features) {
+          if (stored.status === 'failed') {
+            const entry = this.features.get(stored.id);
+            if (entry) {
+              entry.element.classList.add('needs-revision');
+            }
+          }
         }
       }
 

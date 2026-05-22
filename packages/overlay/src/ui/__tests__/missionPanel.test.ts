@@ -1123,4 +1123,310 @@ describe('MissionPanel', () => {
     expect(state.features).toHaveLength(2);
     expect(state.iteration).toBe(1);
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  // VAL-UX-049: Event buffering — events before mount() are
+  // buffered and replayed once the panel is mounted.
+  // ═══════════════════════════════════════════════════════════════
+
+  it('buffers setPlan events before mount, replays them on mount (VAL-UX-049)', () => {
+    // Fire setPlan BEFORE mounting
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Buffered Feature 1', dependencies: [] },
+        { id: 'f2', description: 'Buffered Feature 2', type: 'fix', dependencies: [] },
+      ],
+    });
+
+    // Nothing should be in the DOM yet — the panel isn't mounted
+    expect(container.querySelector('[data-nova="mission-panel"]')).toBeNull();
+
+    // Now mount
+    missionPanel.mount(container);
+
+    // After mount, the buffered plan should be rendered
+    const hostEl = container.querySelector('[data-nova="mission-panel"]');
+    expect(hostEl).not.toBeNull();
+
+    const rows = getFeatureRows();
+    expect(rows.length).toBe(2);
+    expect(rows[0]!.querySelector('.mission-feature-desc')!.textContent).toBe('Buffered Feature 1');
+    expect(rows[1]!.querySelector('.mission-feature-desc')!.textContent).toBe('Buffered Feature 2');
+
+    // Panel should be visible (setPlan shows the panel)
+    const panelEl = getPanelEl()!;
+    expect(panelEl.classList.contains('hidden')).toBe(false);
+  });
+
+  it('buffers multiple event types before mount, replays all in order (VAL-UX-049)', () => {
+    // Fire multiple event types BEFORE mounting
+    missionPanel.setPlan({
+      features: [{ id: 'f1', description: 'Feature 1', dependencies: [] }],
+    });
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setIteration(1, 3);
+    missionPanel.setVerdict('APPROVED');
+    missionPanel.setMissionCompleted('abc1234');
+
+    // Nothing in DOM yet
+    expect(container.querySelector('[data-nova="mission-panel"]')).toBeNull();
+
+    // Mount
+    missionPanel.mount(container);
+
+    // All events should be replayed
+    const rows = getFeatureRows();
+    expect(rows.length).toBe(1);
+    // After replay: plan → started → completed (via setMissionCompleted triggers checkAllDone)
+    expect(rows[0]!.className).toContain('status-executing');
+
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = hostEl.shadowRoot!;
+
+    // Iteration badge should be updated
+    const badge = shadow.querySelector('.mission-iteration-badge')!;
+    expect(badge.classList.contains('hidden')).toBe(false);
+    expect(badge.textContent).toBe('Review 1/3');
+
+    // Verdict should be shown
+    const verdict = shadow.querySelector('.mission-verdict')!;
+    expect(verdict.classList.contains('hidden')).toBe(false);
+    expect(verdict.classList.contains('mission-verdict-approved')).toBe(true);
+    expect(verdict.textContent).toContain('APPROVED');
+  });
+
+  it('buffers setMissionFailed before mount and replays it (VAL-UX-049)', () => {
+    // Fire setPlan + setMissionFailed before mount
+    missionPanel.setPlan({
+      features: [{ id: 'f1', description: 'Feature 1', dependencies: [] }],
+    });
+    missionPanel.setMissionFailed('orchestrator timeout');
+
+    expect(container.querySelector('[data-nova="mission-panel"]')).toBeNull();
+
+    // Mount
+    missionPanel.mount(container);
+
+    // Verdict should show failure
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = hostEl.shadowRoot!;
+    const verdict = shadow.querySelector('.mission-verdict')!;
+    expect(verdict.classList.contains('mission-verdict-failed')).toBe(true);
+    expect(verdict.textContent).toContain('orchestrator timeout');
+
+    // Panel should be visible (failure does not auto-hide)
+    const panelEl = getPanelEl()!;
+    expect(panelEl.classList.contains('hidden')).toBe(false);
+  });
+
+  it('event buffer is cleared on unmount (VAL-UX-049)', () => {
+    // Buffer some events then unmount
+    missionPanel.setPlan({
+      features: [{ id: 'f1', description: 'F1', dependencies: [] }],
+    });
+    missionPanel.setFeatureStarted('f1');
+
+    // Mount — events replay
+    missionPanel.mount(container);
+    expect(getFeatureRows().length).toBe(1);
+
+    // Unmount
+    missionPanel.unmount();
+
+    // Now buffer new events without mounting
+    missionPanel.setPlan({
+      features: [{ id: 'f2', description: 'After Unmount', dependencies: [] }],
+    });
+
+    // Mount again — only the new event should replay
+    missionPanel.mount(container);
+    const rows = getFeatureRows();
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.querySelector('.mission-feature-desc')!.textContent).toBe('After Unmount');
+  });
+
+  it('buffers streaming text events before mount and replays them (VAL-UX-049)', () => {
+    missionPanel.setPlan({
+      features: [{ id: 'f1', description: 'F1', dependencies: [] }],
+    });
+    missionPanel.setStreamingText('f1', 'Generating code...', 'code');
+
+    expect(container.querySelector('[data-nova="mission-panel"]')).toBeNull();
+
+    missionPanel.mount(container);
+
+    const row = getFeatureRows()[0]!;
+    const stream = row.querySelector('.mission-stream');
+    expect(stream).not.toBeNull();
+    expect(stream!.classList.contains('phase-code')).toBe(true);
+    expect(stream!.textContent).toBe('Generating code...');
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // VAL-UX-004: MutationObserver remount — simulate DOM removal,
+  // assert re-mount triggers and panel restores state from
+  // sessionStorage.
+  // ═══════════════════════════════════════════════════════════════
+
+  it('survives DOM removal and re-mounts with state from sessionStorage (VAL-UX-004)', () => {
+    // 1. Mount and populate state
+    missionPanel.mount(container);
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Login page', type: 'page', dependencies: [] },
+        { id: 'f2', description: 'Dashboard', type: 'page', dependencies: ['f1'] },
+      ],
+    });
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setFeatureCompleted('f1', 'hash1');
+    missionPanel.setIteration(1, 5);
+
+    // Verify state is in sessionStorage
+    const storedBefore = JSON.parse(mockSessionStorage['nova-mission-panel-state']!);
+    expect(storedBefore.features).toHaveLength(2);
+    expect(storedBefore.features[0].status).toBe('completed');
+    expect(storedBefore.features[1].status).toBe('pending');
+    expect(storedBefore.missionStatus).toBe('in-progress');
+
+    // 2. Simulate DOM removal (e.g., React error boundary nukes #nova-root)
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    expect(hostEl).not.toBeNull();
+    hostEl.remove();
+    expect(container.querySelector('[data-nova="mission-panel"]')).toBeNull();
+
+    // 3. Simulate MutationObserver remount callback
+    //    (the real index.ts does: missionPanel.unmount(); missionPanel.mount(novaRoot))
+    missionPanel.unmount();
+    missionPanel.mount(container);
+
+    // 4. Assert re-mount worked — host element reappears with data-nova attribute
+    const reMountedHost = container.querySelector('[data-nova="mission-panel"]');
+    expect(reMountedHost).not.toBeNull();
+    expect(reMountedHost!.getAttribute('data-nova')).toBe('mission-panel');
+    expect(reMountedHost!.shadowRoot).not.toBeNull();
+
+    // 5. Assert state was restored from sessionStorage
+    const rows = getFeatureRows();
+    expect(rows.length).toBe(2);
+
+    // Feature descriptions restored
+    expect(rows[0]!.querySelector('.mission-feature-desc')!.textContent).toBe('Login page');
+    expect(rows[1]!.querySelector('.mission-feature-desc')!.textContent).toBe('Dashboard');
+
+    // Feature statuses restored: f1 completed, f2 pending
+    expect(rows[0]!.className).toContain('status-completed');
+    expect(rows[1]!.className).toContain('status-pending');
+
+    // Dependency arrows restored
+    const arrow1 = rows[0]!.querySelector('.mission-dep-arrow')!;
+    expect(arrow1.classList.contains('depended-by')).toBe(true);
+
+    const arrow2 = rows[1]!.querySelector('.mission-dep-arrow')!;
+    expect(arrow2.classList.contains('depends-on')).toBe(true);
+
+    // Iteration badge restored
+    const verdictHost = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = verdictHost.shadowRoot!;
+    const badge = shadow.querySelector('.mission-iteration-badge')!;
+    expect(badge.classList.contains('hidden')).toBe(false);
+    expect(badge.textContent).toBe('Review 1/5');
+
+    // Panel should be visible after restore
+    const panelEl = shadow.querySelector('.mission-panel')!;
+    expect(panelEl.classList.contains('hidden')).toBe(false);
+  });
+
+  it('re-mount preserves progress counter from sessionStorage (VAL-UX-004)', () => {
+    // Mount with features, complete some
+    missionPanel.mount(container);
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Task A', dependencies: [] },
+        { id: 'f2', description: 'Task B', dependencies: [] },
+        { id: 'f3', description: 'Task C', dependencies: [] },
+      ],
+    });
+    missionPanel.setFeatureCompleted('f1', 'h1');
+    missionPanel.setFeatureCompleted('f2', 'h2');
+
+    // Verify progress in sessionStorage
+    const stored = JSON.parse(mockSessionStorage['nova-mission-panel-state']!);
+    expect(stored.features[0].status).toBe('completed');
+    expect(stored.features[1].status).toBe('completed');
+    expect(stored.features[2].status).toBe('pending');
+
+    // Remove and re-mount
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    hostEl.remove();
+    missionPanel.unmount();
+    missionPanel.mount(container);
+
+    // Progress counter should show 2/3
+    const reMountedHost = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = reMountedHost.shadowRoot!;
+    const progress = shadow.querySelector('.mission-progress')!;
+    expect(progress.textContent).toBe('2/3 features completed');
+
+    // Feature statuses restored correctly
+    const rows = getFeatureRows();
+    expect(rows[0]!.className).toContain('status-completed');
+    expect(rows[1]!.className).toContain('status-completed');
+    expect(rows[2]!.className).toContain('status-pending');
+  });
+
+  it('re-mount discards stale terminal state from sessionStorage (VAL-UX-004)', () => {
+    // Pre-populate sessionStorage with terminal state
+    mockSessionStorage['nova-mission-panel-state'] = JSON.stringify({
+      missionId: 'completed-mission',
+      features: [
+        { id: 'f1', description: 'Done', type: 'page', files: [], dependencies: [], status: 'completed', commitHash: 'abc' },
+        { id: 'f2', description: 'Failed', type: 'fix', files: [], dependencies: [], status: 'failed', error: 'err' },
+      ],
+      iteration: 2,
+      maxIterations: 5,
+      missionStatus: 'terminal',
+    });
+
+    missionPanel.mount(container);
+
+    // Terminal state should be discarded — panel hidden, no features
+    const panelEl = getPanelEl()!;
+    expect(panelEl.classList.contains('hidden')).toBe(true);
+    expect(getFeatureRows().length).toBe(0);
+
+    // sessionStorage should have been cleaned up
+    expect(mockSessionStorage['nova-mission-panel-state']).toBeUndefined();
+  });
+
+  it('re-mount after DOM removal preserves verdict banner state (VAL-UX-004)', () => {
+    missionPanel.mount(container);
+    missionPanel.setPlan({
+      features: [{ id: 'f1', description: 'Feature', dependencies: [] }],
+    });
+    missionPanel.setFeatureFailed('f1', 'Type error');
+    missionPanel.setVerdict('NEEDS_REVISION', [
+      { featureId: 'f1', actionItems: ['fix type error'] },
+    ]);
+
+    // Save to sessionStorage happened
+    const stored = JSON.parse(mockSessionStorage['nova-mission-panel-state']!);
+    expect(stored.verdict).toContain('NEEDS REVISION');
+
+    // Remove and re-mount
+    const hostEl = container.querySelector('[data-nova="mission-panel"]')!;
+    hostEl.remove();
+    missionPanel.unmount();
+    missionPanel.mount(container);
+
+    // Verdict banner should be restored
+    const reMountedHost = container.querySelector('[data-nova="mission-panel"]')!;
+    const shadow = reMountedHost.shadowRoot!;
+    const verdict = shadow.querySelector('.mission-verdict')!;
+    expect(verdict.classList.contains('mission-verdict-revision')).toBe(true);
+    expect(verdict.textContent).toContain('NEEDS REVISION');
+
+    // Failed feature row should have needs-revision highlight
+    const rows = getFeatureRows();
+    expect(rows[0]!.classList.contains('needs-revision')).toBe(true);
+  });
 });
