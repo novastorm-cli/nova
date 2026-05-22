@@ -242,4 +242,218 @@ describe('ActivityLog', () => {
     activityLog.addCollapsibleEntry('Summary', 'Details...', 'info');
     expect(isLogCollapsed()).toBe(true);
   });
+
+  // ── VAL-UX-030: Mission event → ActivityLog wiring ──────────────
+
+  describe('mission event → ActivityLog wiring', () => {
+    it('mission_planned produces ActivityLog info entry with plan received message', () => {
+      activityLog.mount(container);
+      // Simulate the call from mission_planned handler:
+      // activityLog.addEntry(strings.missionPlanReceived(plan.features.length), 'info', ...)
+      activityLog.addEntry('3 feature(s) planned', 'info');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      expect(entries).not.toBeNull();
+      expect(entries!.length).toBeGreaterThanOrEqual(1);
+
+      const firstEntry = entries![0]!;
+      expect(firstEntry.className).toContain('entry-info');
+      expect(firstEntry.textContent).toContain('3 feature(s) planned');
+
+      // Panel should be visible
+      expect(isPanelHidden()).toBe(false);
+    });
+
+    it('mission_subtask_completed produces ActivityLog success entry for completed feature', () => {
+      activityLog.mount(container);
+      // Simulate the call from mission_subtask_completed handler (success path):
+      // activityLog.addEntry(strings.missionFeatureCompleted(featureId), 'success', ...)
+      activityLog.addEntry('Completed: feature-login-form', 'success');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      expect(entries).not.toBeNull();
+
+      const successEntry = Array.from(entries!).find(
+        (e) => e.textContent?.includes('Completed: feature-login-form'),
+      );
+      expect(successEntry).toBeDefined();
+      expect(successEntry!.className).toContain('entry-success');
+    });
+
+    it('mission_subtask_completed adds diff entry when result includes diff', () => {
+      activityLog.mount(container);
+      // First add the success entry
+      activityLog.addEntry('Completed: feature-login-form', 'success');
+
+      // Then simulate the diff entry from mission_subtask_completed handler:
+      // activityLog.addDiffEntry(featureId, result.diff, 'code', ...)
+      const diffContent = [
+        '--- a/Login.tsx',
+        '+++ b/Login.tsx',
+        '@@ -1,3 +1,15 @@',
+        '+import { useState } from "react";',
+        '+',
+        '+export function LoginForm() {',
+        '+  const [email, setEmail] = useState("");',
+        '+  return <form>...</form>;',
+        '+}',
+      ].join('\n');
+      activityLog.addDiffEntry('feature-login-form', diffContent, 'code');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      expect(entries).not.toBeNull();
+
+      // Should have both success and code entries
+      expect(entries!.length).toBeGreaterThanOrEqual(2);
+
+      const diffEntry = Array.from(entries!).find(
+        (e) => e.textContent?.includes('feature-login-form') && e.className.includes('entry-code'),
+      );
+      expect(diffEntry).toBeDefined();
+      expect(diffEntry!.className).toContain('entry-code');
+
+      // Diff entry should have a clickable diff-link
+      const diffLink = diffEntry!.querySelector('.diff-link');
+      expect(diffLink).not.toBeNull();
+    });
+
+    it('mission_subtask_completed with validation failure produces error entry', () => {
+      activityLog.mount(container);
+      // Simulate the call from mission_subtask_completed handler (failure path):
+      // activityLog.addEntry(strings.missionFeatureFailed(featureId), 'error', ...)
+      activityLog.addEntry('Failed: feature-broken-build', 'error');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      expect(entries).not.toBeNull();
+
+      const errorEntry = Array.from(entries!).find(
+        (e) => e.textContent?.includes('Failed: feature-broken-build'),
+      );
+      expect(errorEntry).toBeDefined();
+      expect(errorEntry!.className).toContain('entry-error');
+
+      // Error entry should auto-uncollapse if collapsed
+      expect(isLogCollapsed()).toBe(false);
+    });
+
+    it('mission_completed produces ActivityLog success entry', () => {
+      activityLog.mount(container);
+      // Simulate the call from mission_completed handler:
+      // activityLog.addEntry(strings.missionCompleted, 'success', ...)
+      activityLog.addEntry('Mission completed', 'success');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      expect(entries).not.toBeNull();
+
+      const completedEntry = Array.from(entries!).find(
+        (e) => e.textContent?.includes('Mission completed'),
+      );
+      expect(completedEntry).toBeDefined();
+      expect(completedEntry!.className).toContain('entry-success');
+    });
+
+    it('mission_failed produces ActivityLog error entry with failure reason', () => {
+      activityLog.mount(container);
+      // Simulate the call from mission_failed handler:
+      // activityLog.addEntry("Mission failed: Build errors in 2 features", 'error', ...)
+      activityLog.addEntry('Mission failed: Build errors in 2 features', 'error');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      expect(entries).not.toBeNull();
+
+      const failedEntry = Array.from(entries!).find(
+        (e) => e.textContent?.includes('Mission failed'),
+      );
+      expect(failedEntry).toBeDefined();
+      expect(failedEntry!.className).toContain('entry-error');
+      expect(failedEntry!.textContent).toContain('Build errors in 2 features');
+
+      // Error should auto-uncollapse
+      expect(isLogCollapsed()).toBe(false);
+    });
+
+    it('mission_failed without error detail still produces an error entry', () => {
+      activityLog.mount(container);
+      // Simulate: mission_failed with no error detail
+      // activityLog.addEntry("Mission failed", 'error', ...)
+      activityLog.addEntry('Mission failed', 'error');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      const failedEntry = Array.from(entries!).find(
+        (e) => e.textContent?.includes('Mission failed'),
+      );
+      expect(failedEntry).toBeDefined();
+      expect(failedEntry!.className).toContain('entry-error');
+    });
+
+    it('full mission lifecycle produces entries in correct order with correct types', () => {
+      activityLog.mount(container);
+
+      // Simulate the full mission lifecycle as the WS event handlers would:
+      // 1. mission_planned → info
+      activityLog.addEntry('3 feature(s) planned', 'info');
+
+      // 2. mission_subtask_started → info
+      activityLog.addEntry('Starting: feature-1', 'info');
+
+      // 3. mission_subtask_completed (success) → success + diff
+      activityLog.addEntry('Completed: feature-1', 'success');
+      activityLog.addDiffEntry('feature-1', '- old\n+ new', 'code');
+
+      // 4. Another feature
+      activityLog.addEntry('Starting: feature-2', 'info');
+      activityLog.addEntry('Completed: feature-2', 'success');
+
+      // 5. mission_completed → success
+      activityLog.addEntry('Mission completed', 'success');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      expect(entries).not.toBeNull();
+
+      const entryArray = Array.from(entries!);
+      // Verify order and types
+      const typesInOrder = entryArray.map((e) => {
+        if (e.className.includes('entry-info')) return 'info';
+        if (e.className.includes('entry-success')) return 'success';
+        if (e.className.includes('entry-code')) return 'code';
+        if (e.className.includes('entry-error')) return 'error';
+        return 'unknown';
+      });
+
+      expect(typesInOrder).toEqual(['info', 'info', 'success', 'code', 'info', 'success', 'success']);
+
+      // Verify specific content
+      expect(entryArray[0]!.textContent).toContain('3 feature(s) planned');
+      expect(entryArray[2]!.textContent).toContain('Completed: feature-1');
+      expect(entryArray[3]!.className).toContain('entry-code');
+      expect(entryArray[6]!.textContent).toContain('Mission completed');
+    });
+
+    it('mission lifecycle with failure produces correct entry types', () => {
+      activityLog.mount(container);
+
+      // Simulate: plan → feature fails → mission fails
+      activityLog.addEntry('2 feature(s) planned', 'info');
+      activityLog.addEntry('Starting: feature-1', 'info');
+      activityLog.addEntry('Failed: feature-1', 'error');
+      activityLog.addEntry('Mission failed: Feature execution error', 'error');
+
+      const entries = getLogEl()?.querySelectorAll('[data-nova="entry"]');
+      const entryArray = Array.from(entries!);
+
+      const typesInOrder = entryArray.map((e) => {
+        if (e.className.includes('entry-info')) return 'info';
+        if (e.className.includes('entry-success')) return 'success';
+        if (e.className.includes('entry-code')) return 'code';
+        if (e.className.includes('entry-error')) return 'error';
+        return 'unknown';
+      });
+
+      expect(typesInOrder).toEqual(['info', 'info', 'error', 'error']);
+
+      // The mission_failed error should be the last entry
+      expect(entryArray[3]!.textContent).toContain('Mission failed');
+      expect(entryArray[3]!.className).toContain('entry-error');
+    });
+  });
 });
