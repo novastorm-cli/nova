@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ActivityLog } from '../ActivityLog.js';
 import { TaskPanel } from '../TaskPanel.js';
 import { DiffModal } from '../DiffModal.js';
+import { MissionPanel } from '../MissionPanel.js';
 
 /**
  * Integration test: simulate the WS event → UI pipeline.
@@ -18,6 +19,7 @@ describe('WS Event → UI Pipeline', () => {
   let activityLog: ActivityLog;
   let taskPanel: TaskPanel;
   let diffModal: DiffModal;
+  let missionPanel: MissionPanel;
   let mockSessionStorage: Record<string, string>;
   let mockLocalStorage: Record<string, string>;
 
@@ -29,6 +31,7 @@ describe('WS Event → UI Pipeline', () => {
     activityLog = new ActivityLog();
     taskPanel = new TaskPanel();
     diffModal = new DiffModal();
+    missionPanel = new MissionPanel();
 
     mockSessionStorage = {};
     vi.stubGlobal('sessionStorage', {
@@ -73,6 +76,7 @@ describe('WS Event → UI Pipeline', () => {
     activityLog.unmount();
     taskPanel.unmount();
     diffModal.unmount();
+    missionPanel.unmount();
     document.body.innerHTML = '';
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -104,6 +108,26 @@ describe('WS Event → UI Pipeline', () => {
     const host = container.querySelector('[data-nova="diff-modal"]');
     const overlay = host?.shadowRoot?.querySelector('.diff-overlay');
     return overlay ? !overlay.classList.contains('hidden') : false;
+  }
+
+  function getMissionPanel(): HTMLElement | null {
+    const host = container.querySelector('[data-nova="mission-panel"]');
+    return host?.shadowRoot?.querySelector('.mission-panel') ?? null;
+  }
+
+  function getMissionPanelInner(): HTMLElement | null {
+    const host = container.querySelector('[data-nova="mission-panel"]');
+    return host?.shadowRoot?.querySelector('[data-nova="mission-panel-inner"]') ?? null;
+  }
+
+  function getMissionFeatureRows(): NodeListOf<Element> {
+    const host = container.querySelector('[data-nova="mission-panel"]');
+    return host?.shadowRoot?.querySelectorAll('.mission-feature-row') ?? ([] as any);
+  }
+
+  function getMissionVerdictBanner(): HTMLElement | null {
+    const host = container.querySelector('[data-nova="mission-panel"]');
+    return host?.shadowRoot?.querySelector('.mission-verdict') ?? null;
   }
 
   // ── VAL-OVERLAY-XXX: task_created → ActivityLog + TaskPanel ──────
@@ -480,5 +504,239 @@ describe('WS Event → UI Pipeline', () => {
 
     revertBtn!.click();
     expect(onRevert).toHaveBeenCalledWith('src/App.tsx');
+  });
+
+  // ── VAL-UX-055: mission_* event pipeline ───────────────────────
+
+  it('mission_planned triggers MissionPanel.setPlan() and renders feature rows', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      missionId: 'mission-001',
+      features: [
+        { id: 'f1', description: 'Add login form', type: 'feature', files: ['Login.tsx'] },
+        { id: 'f2', description: 'Style header', type: 'ui', files: ['Header.css', 'Header.tsx'] },
+        { id: 'f3', description: 'Wire API', dependencies: ['f1'] },
+      ],
+    });
+
+    const panel = getMissionPanelInner();
+    expect(panel).not.toBeNull();
+    expect(panel!.classList.contains('hidden')).toBe(false);
+
+    const rows = getMissionFeatureRows();
+    expect(rows.length).toBe(3);
+
+    const descs = Array.from(rows).map((r) => r.querySelector('.mission-feature-desc')?.textContent);
+    expect(descs).toContain('Add login form');
+    expect(descs).toContain('Style header');
+    expect(descs).toContain('Wire API');
+
+    // Verify dependency arrow on f3
+    const f3Row = Array.from(rows).find((r) =>
+      r.querySelector('.mission-feature-desc')?.textContent?.includes('Wire API'),
+    );
+    expect(f3Row).toBeDefined();
+    const arrow = f3Row!.querySelector('.mission-dep-arrow.depends-on');
+    expect(arrow).not.toBeNull();
+  });
+
+  it('mission_subtask_started updates row to executing status', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Add login form' },
+        { id: 'f2', description: 'Style header' },
+      ],
+    });
+
+    missionPanel.setFeatureStarted('f1');
+
+    const rows = getMissionFeatureRows();
+    const f1Row = Array.from(rows).find((r) =>
+      r.querySelector('.mission-feature-desc')?.textContent?.includes('Add login form'),
+    );
+    expect(f1Row).toBeDefined();
+    expect(f1Row!.className).toContain('status-executing');
+
+    // f2 should still be pending
+    const f2Row = Array.from(rows).find((r) =>
+      r.querySelector('.mission-feature-desc')?.textContent?.includes('Style header'),
+    );
+    expect(f2Row).toBeDefined();
+    expect(f2Row!.className).toContain('status-pending');
+  });
+
+  it('mission_subtask_completed updates row to completed with commit hash', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      features: [{ id: 'f1', description: 'Add login form' }],
+    });
+
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setFeatureCompleted('f1', 'abc1234567');
+
+    const rows = getMissionFeatureRows();
+    const row = rows[0]!;
+    expect(row.className).toContain('status-completed');
+
+    const meta = row.querySelector('.mission-feature-meta');
+    expect(meta).not.toBeNull();
+    expect(meta!.textContent).toBe('abc1234');
+  });
+
+  it('mission_subtask_failed updates row to failed with error', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      features: [{ id: 'f1', description: 'Add login form' }],
+    });
+
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setFeatureFailed('f1', 'Type error in Login.tsx');
+
+    const rows = getMissionFeatureRows();
+    const row = rows[0]!;
+    expect(row.className).toContain('status-failed');
+
+    const meta = row.querySelector('.mission-feature-meta');
+    expect(meta).not.toBeNull();
+    expect(meta!.textContent).toContain('Type error in Login.tsx');
+  });
+
+  it('mission_director_review shows verdict banner (APPROVED)', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Add login form' },
+        { id: 'f2', description: 'Style header' },
+      ],
+    });
+
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setFeatureCompleted('f1', 'abc123');
+    missionPanel.setFeatureStarted('f2');
+    missionPanel.setFeatureCompleted('f2', 'def456');
+
+    missionPanel.setVerdict('APPROVED');
+
+    const banner = getMissionVerdictBanner();
+    expect(banner).not.toBeNull();
+    expect(banner!.classList.contains('hidden')).toBe(false);
+    expect(banner!.textContent).toContain('Director: APPROVED');
+    expect(banner!.className).toContain('mission-verdict-approved');
+  });
+
+  it('mission_director_review shows verdict banner (NEEDS_REVISION)', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Add login form' },
+        { id: 'f2', description: 'Style header' },
+      ],
+    });
+
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setFeatureFailed('f1', 'Type error');
+    missionPanel.setFeatureStarted('f2');
+    missionPanel.setFeatureCompleted('f2', 'def456');
+
+    missionPanel.setVerdict('NEEDS_REVISION', [
+      { featureId: 'f1', actionItems: ['Fix type error'] },
+    ]);
+
+    const banner = getMissionVerdictBanner();
+    expect(banner).not.toBeNull();
+    expect(banner!.classList.contains('hidden')).toBe(false);
+    expect(banner!.textContent).toContain('Director: NEEDS REVISION');
+    expect(banner!.className).toContain('mission-verdict-revision');
+
+    // Failed feature row should be marked for revision
+    const rows = getMissionFeatureRows();
+    const f1Row = Array.from(rows).find((r) =>
+      r.querySelector('.mission-feature-desc')?.textContent?.includes('Add login form'),
+    );
+    expect(f1Row).toBeDefined();
+    expect(f1Row!.classList.contains('needs-revision')).toBe(true);
+  });
+
+  it('mission_completed hides panel after 5 seconds when all features done', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Add login form' },
+        { id: 'f2', description: 'Style header' },
+      ],
+    });
+
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setFeatureCompleted('f1', 'abc123');
+    missionPanel.setFeatureStarted('f2');
+    missionPanel.setFeatureCompleted('f2', 'def456');
+
+    // Trigger mission completed
+    missionPanel.setMissionCompleted('final-hash');
+
+    // Panel should still be visible immediately
+    let panel = getMissionPanelInner();
+    expect(panel).not.toBeNull();
+    expect(panel!.classList.contains('hidden')).toBe(false);
+
+    // Advance 5 seconds — auto-hide should kick in
+    vi.advanceTimersByTime(5000);
+
+    panel = getMissionPanelInner();
+    expect(panel!.classList.contains('hidden')).toBe(true);
+  });
+
+  it('mission_failed shows error banner and does NOT auto-hide', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      features: [
+        { id: 'f1', description: 'Add login form' },
+        { id: 'f2', description: 'Style header' },
+      ],
+    });
+
+    missionPanel.setFeatureStarted('f1');
+    missionPanel.setFeatureFailed('f1', 'Build failed');
+    missionPanel.setFeatureStarted('f2');
+    missionPanel.setFeatureCompleted('f2', 'def456');
+
+    missionPanel.setMissionFailed('Mission aborted');
+
+    const banner = getMissionVerdictBanner();
+    expect(banner).not.toBeNull();
+    expect(banner!.classList.contains('hidden')).toBe(false);
+    expect(banner!.className).toContain('mission-verdict-failed');
+    expect(banner!.textContent).toContain('Mission aborted');
+
+    // Advance 10 seconds — panel should still be visible
+    vi.advanceTimersByTime(10000);
+
+    const panel = getMissionPanelInner();
+    expect(panel!.classList.contains('hidden')).toBe(false);
+  });
+
+  it('mission_completed with empty plan shows empty message', () => {
+    missionPanel.mount(container);
+
+    missionPanel.setPlan({
+      missionId: 'empty-mission',
+      features: [],
+    });
+
+    const rows = getMissionFeatureRows();
+    expect(rows.length).toBe(0);
+
+    const emptyMsg = getMissionPanel()?.querySelector('.mission-empty');
+    expect(emptyMsg).not.toBeNull();
+    expect(emptyMsg!.textContent).toContain('No features to implement');
   });
 });
