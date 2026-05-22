@@ -925,7 +925,7 @@ describe('ErrorAutoFixer', () => {
       'pages/index.tsx': DEFAULT_FILE_CONTENT,
     });
 
-    // No missionConfig passed → shouldUseLane5 returns false
+    // missionConfig.enabled=false is the real production default when no [mission] section exists
     const autofix = new ErrorAutoFixer(
       tmpDir,
       createMockLlmClient([validDiff()]),
@@ -937,7 +937,7 @@ describe('ErrorAutoFixer', () => {
       'test-model',
       createMockLogger(),
       mockLane5,
-      undefined, // no missionConfig → defaults to Lane 3
+      createMissionConfig({ enabled: false }), // real production default: Lane 5 is opt-in
     );
 
     const errorOutput =

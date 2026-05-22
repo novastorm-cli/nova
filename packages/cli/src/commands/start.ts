@@ -358,12 +358,12 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
 
     // ── Lane 5 (mission) executor ──────────────────────────────────
     const missionConfig = {
-      enabled: config.mission?.enabled ?? true,
+      enabled: config.mission?.enabled ?? false,
       autoApprove: config.mission?.autoApprove ?? false,
       maxIterations: config.mission?.maxIterations ?? 5,
     };
     let lane5Executor: Lane5Executor | undefined;
-    if (config.mission?.enabled !== false) {
+    if (missionConfig.enabled) {
       lane5Executor = new Lane5Executor(
         cwd,
         llmClient,
