@@ -240,7 +240,7 @@ function createAlwaysNeedsRevisionLlm(featureCount = 1): LlmClient {
   } as unknown as LlmClient;
 }
 
-function createMultiMissionLlm(missionCount: number): LlmClient {
+function createMultiMissionLlm(_missionCount: number): LlmClient {
   let chatCall = 0;
   return {
     supportsVision: true,
