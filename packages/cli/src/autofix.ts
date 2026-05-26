@@ -69,6 +69,8 @@ export class ErrorAutoFixer {
   private readonly MAX_FIX_ATTEMPTS = 3;
   private lastErrorSignature = '';
   private cooldownUntil = 0;
+  private consecutiveEmptyFixes = 0;
+  private readonly MAX_CONSECUTIVE_EMPTY_FIXES = 3;
   readonly autofixTaskIds = new Set<string>();
   private readonly failedTaskIds = new Set<string>();
   private readonly logger: ILogger;
@@ -85,6 +87,7 @@ export class ErrorAutoFixer {
     logger?: ILogger,
     private readonly lane5Executor?: Lane5Executor,
     private readonly missionConfig?: MissionConfig,
+    private readonly restartDevServer?: () => Promise<void>,
   ) {
     this.logger = logger ?? new StructuredLogger({ isTTY: process.stderr?.isTTY ?? false });
   }
@@ -148,9 +151,11 @@ export class ErrorAutoFixer {
       const errorSig = errorOutput.slice(0, 200);
       if (errorSig === this.lastErrorSignature) {
         this.fixAttempts++;
+        this.consecutiveEmptyFixes++;
       } else {
         this.lastErrorSignature = errorSig;
         this.fixAttempts = 1;
+        this.consecutiveEmptyFixes = 0;
       }
 
       if (this.fixAttempts > this.MAX_FIX_ATTEMPTS) {
@@ -158,6 +163,16 @@ export class ErrorAutoFixer {
           `[Nova] AutoFixer: same error after ${this.MAX_FIX_ATTEMPTS} attempts, stopping. Fix manually.`,
         );
         this.cooldownUntil = Date.now() + 60_000; // 1 minute cooldown
+        this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
+        return;
+      }
+
+      // Stop after consecutive "successful" fixes that didn't resolve the error
+      if (this.consecutiveEmptyFixes >= this.MAX_CONSECUTIVE_EMPTY_FIXES) {
+        this.logger.warn(
+          `[Nova] AutoFixer: fix reported success ${this.MAX_CONSECUTIVE_EMPTY_FIXES} times but error persists. Fix manually.`,
+        );
+        this.cooldownUntil = Date.now() + 120_000; // 2 minute cooldown
         this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
         return;
       }
@@ -220,6 +235,21 @@ export class ErrorAutoFixer {
             },
           });
           this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_end' } });
+
+          // Restart dev server to verify the fix actually resolved the error
+          if (this.restartDevServer) {
+            try {
+              await this.restartDevServer();
+            } catch {
+              this.logger.warn('[Nova] AutoFixer: dev server restart after fix failed');
+            }
+          }
+
+          // Reset dedup tracking so a re-appearing error triggers fresh fix attempts
+          // (not blocked by stale cooldown or dedup counter from before the fix)
+          this.lastErrorSignature = '';
+          this.fixAttempts = 0;
+
           return;
         }
 
@@ -310,6 +340,16 @@ export class ErrorAutoFixer {
       description +=
         `\n\nPrevious attempt ${attempt - 1} failed: ${previousFailure}. ` +
         'Try a DIFFERENT approach. Do not repeat the same fix.';
+
+      // If deletion was needed but the LLM didn't produce a DELETE block,
+      // be extremely explicit about the required format
+      if (hasDeletionIntent) {
+        description +=
+          '\n\nCRITICAL: You MUST use EXACTLY this format to delete files:\n' +
+          '=== DELETE: path/to/file.ts ===\n' +
+          'No other content, no explanations, no FILE or DIFF blocks for the conflicting file.\n' +
+          'Just the single === DELETE: ... === line.';
+      }
     }
 
     return description;
