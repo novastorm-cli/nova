@@ -304,6 +304,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       async () => {
         // Restart dev server after autofix to verify the fix resolved the error
         try {
+          await devServer.kill();
           await devServer.spawn(devCommand, cwd, devPort);
         } catch {
           // Server may already be running or restart may fail — that's OK,
