@@ -94,4 +94,9 @@ export const PROVIDER_MODEL_DEFAULTS: Record<
     standard: 'deepseek-v4-pro',
     strong: 'deepseek-v4-pro',
   },
+  ollama: {
+    micro: 'llama3.2',
+    standard: 'llama3.1',
+    strong: 'llama3.1',
+  },
 };
