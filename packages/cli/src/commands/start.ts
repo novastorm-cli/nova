@@ -257,8 +257,53 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
   // ── 10. Install deps ─────────────────────────────────────────────
   await ensureDependencies(cwd, stack, options, llmClient);
 
+  // ── 10.5 Git ─────────────────────────────────────────────────────
+  try {
+    (await import('node:child_process')).execSync('git rev-parse --git-dir', {
+      cwd,
+      stdio: 'ignore',
+    });
+  } catch {
+    const { execSync } = await import('node:child_process');
+    execSync('git init', { cwd, stdio: 'ignore' });
+    execSync('git add -A && git commit -m "Initial commit (before Nova)" --allow-empty', {
+      cwd,
+      stdio: 'ignore',
+      shell: '/bin/sh',
+    });
+  }
+  const gitManager = new GitManager(cwd);
+
+  // ── 10.6 Commit queue ────────────────────────────────────────────
+  const commitQueue = new CommitQueue(
+    gitManager,
+    {
+      ...(config.git?.allowProtectedBranchCommits !== undefined
+        ? { allowProtectedBranchCommits: config.git.allowProtectedBranchCommits }
+        : {}),
+    },
+    undefined,
+    eventBus,
+  );
+
+  // ── 10.7 AutoFixer (created early for initial dev server recovery) ──
+  let autoFixer: any = null;
+  if (llmClient) {
+    autoFixer = new ErrorAutoFixer(
+      cwd,
+      llmClient,
+      gitManager,
+      eventBus,
+      wsServer,
+      projectMap,
+      commitQueue,
+      config.models.micro,
+    );
+  }
+
+  devServer.onOutput((o: string) => autoFixer?.handleOutput(o));
+
   // ── 11. Dev server ───────────────────────────────────────────────
-  let autoFixer: any = null; // declared early for recoverDevServer below
   sp.start(`Starting dev server (${chalk.dim(devCommand)})...`);
   try {
     await devServer.spawn(devCommand, cwd, devPort);
@@ -313,40 +358,15 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
     ...(options.noOpen !== undefined ? { noOpen: options.noOpen } : {}),
   });
 
-  // ── 14. Git ──────────────────────────────────────────────────────
-  try {
-    (await import('node:child_process')).execSync('git rev-parse --git-dir', {
-      cwd,
-      stdio: 'ignore',
-    });
-  } catch {
-    const { execSync } = await import('node:child_process');
-    execSync('git init', { cwd, stdio: 'ignore' });
-    execSync('git add -A && git commit -m "Initial commit (before Nova)" --allow-empty', {
-      cwd,
-      stdio: 'ignore',
-      shell: '/bin/sh',
-    });
-  }
-  const gitManager = new GitManager(cwd);
+  // ── 14. Branch ───────────────────────────────────────────────────
   try {
     logger.debug(
       `Working on branch: ${await gitManager.createBranch(config.behavior.branchPrefix)}`,
     );
   } catch {}
 
-  // ── 15. Executor & AutoFixer ─────────────────────────────────────
+  // ── 15. Executor ─────────────────────────────────────────────────
   let executorPool: any = null;
-  const commitQueue = new CommitQueue(
-    gitManager,
-    {
-      ...(config.git?.allowProtectedBranchCommits !== undefined
-        ? { allowProtectedBranchCommits: config.git.allowProtectedBranchCommits }
-        : {}),
-    },
-    undefined,
-    eventBus,
-  );
   if (llmClient) {
     const pathGuard = new PathGuard(cwd);
     if (config.project.frontend) pathGuard.allow(resolve(cwd, config.project.frontend));
@@ -396,23 +416,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       lane5Executor, // lane5
       commitQueue,
     );
-
-    autoFixer = new ErrorAutoFixer(
-      cwd,
-      llmClient,
-      gitManager,
-      eventBus,
-      wsServer,
-      projectMap,
-      commitQueue,
-      config.models.micro,
-      undefined, // logger
-      lane5Executor,
-      missionConfig,
-    );
   }
-
-  devServer.onOutput((o: string) => autoFixer?.handleOutput(o));
 
   const envDetector = new EnvDetector();
   wsServer.onSecretsSubmit((secrets: Record<string, string>) => {

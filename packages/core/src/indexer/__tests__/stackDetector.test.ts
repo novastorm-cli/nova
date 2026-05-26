@@ -229,12 +229,12 @@ describe('StackDetector', () => {
       expect(port).toBe(5173);
     });
 
-    it('should return 3000 for unknown stack (fallback)', async () => {
+    it('should return 8478 for unknown stack (fallback)', async () => {
       const projectPath = fixturePath('empty-project');
       const stack = await detector.detectStack(projectPath);
       const port = await detector.detectPort(stack, projectPath);
 
-      expect(port).toBe(3000);
+      expect(port).toBe(8478);
     });
 
     it('should return 3000 for Rails (default port)', async () => {

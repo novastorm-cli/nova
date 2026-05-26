@@ -175,7 +175,7 @@ export class Lane4Executor {
     return {
       stack: { framework: 'unknown', language: 'typescript', typescript: true },
       devCommand: '',
-      port: 3000,
+      port: 8478,
       routes: [],
       components: [],
       endpoints: [],

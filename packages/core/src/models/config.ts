@@ -55,7 +55,7 @@ export interface NovaConfig {
 }
 
 export const DEFAULT_CONFIG: NovaConfig = {
-  project: { devCommand: '', port: 3000 },
+  project: { devCommand: '', port: 8478 },
   models: {
     micro: 'claude-haiku-4-5-20251001',
     standard: 'claude-sonnet-4-6',

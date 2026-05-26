@@ -487,7 +487,7 @@ export class StackDetector implements IStackDetector {
     if (configPort) return configPort;
 
     // Framework defaults
-    return DEFAULT_PORTS[stack.framework] ?? 3000;
+    return DEFAULT_PORTS[stack.framework] ?? 8478;
   }
 
   // ---------------------------------------------------------------------------
