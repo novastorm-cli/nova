@@ -71,6 +71,8 @@ export class ErrorAutoFixer {
   private cooldownUntil = 0;
   private consecutiveEmptyFixes = 0;
   private readonly MAX_CONSECUTIVE_EMPTY_FIXES = 3;
+  /** Errors queued while a fix is in progress — processed when it finishes. */
+  private pendingErrors: string[] = [];
   readonly autofixTaskIds = new Set<string>();
   private readonly failedTaskIds = new Set<string>();
   private readonly logger: ILogger;
@@ -105,7 +107,9 @@ export class ErrorAutoFixer {
 
     if (!hasError) return;
     if (this.isFixing) {
-      this.logger.debug('[Nova] AutoFixer: already fixing, queuing...');
+      // Queue the error for processing after the current fix completes
+      this.pendingErrors.push(output);
+      this.logger.debug('[Nova] AutoFixer: already fixing, queued error for later');
       return;
     }
     if (Date.now() < this.cooldownUntil) {
@@ -307,6 +311,14 @@ export class ErrorAutoFixer {
     } finally {
       clearTimeout(safetyTimer);
       this.isFixing = false;
+
+      // Process any errors that arrived while the fix was in progress
+      // (e.g. from the restarted dev server after a successful fix)
+      if (this.pendingErrors.length > 0) {
+        const queued = this.pendingErrors.join('\n');
+        this.pendingErrors = [];
+        this.handleOutput(queued);
+      }
     }
   }
 

@@ -516,10 +516,9 @@ export function setupEventRouting(deps: EventRouterDeps): void {
     });
   });
 
-  // ── Browser errors → autoFixer ────────────────────────────────────
+  // ── Browser errors → log only (build errors come via devServer.onOutput) ──
   wsServer.onBrowserError((error: string) => {
     log.warn(`[Nova] Browser error: ${error.slice(0, 150)}`);
-    autoFixer?.handleOutput(error);
   });
 }
 
