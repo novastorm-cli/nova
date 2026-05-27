@@ -566,6 +566,12 @@ export class ErrorAutoFixer {
       }
     }
 
+    // Module-not-found errors: try deterministic file creation for @/ aliases
+    const moduleNotFoundResult = await this.handleModuleNotFound(errorOutput);
+    if (moduleNotFoundResult) {
+      return { result: moduleNotFoundResult, usedLane: 3 };
+    }
+
     const result =
       targetFile && this.projectMap.fileContexts.has(targetFile)
         ? await this.executeLane2Core(targetFile, taskDescription)
@@ -845,6 +851,123 @@ export class ErrorAutoFixer {
       this.eventBus.emit(failEvent);
       this.wsServer.sendEvent(failEvent);
       this.wsServer.sendEvent({ type: 'status', data: { message: 'autofix_failed' } });
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Module-not-found deterministic handler
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * When Next.js reports "Module not found: Can't resolve 'X'", attempt to
+   * create the missing file deterministically instead of modifying the importing file.
+   * Returns a success result if the file was created, null if not applicable.
+   */
+  private async handleModuleNotFound(
+    errorOutput: string,
+  ): Promise<ExecutionResult | null> {
+    const match = errorOutput.match(/Module not found: Can't resolve '([^']+)'/);
+    if (!match) return null;
+
+    const unresolvedPath = match[1]!;
+    // Skip obvious external/deleted modules
+    if (
+      /node_modules/i.test(unresolvedPath) ||
+      /https?:\/\//i.test(unresolvedPath) ||
+      /\.(png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot|css|scss|sass|less)$/i.test(unresolvedPath)
+    ) {
+      return null; // Let image patterns handle images, skip CSS/fonts
+    }
+
+    // Find the importing file to resolve relative paths
+    const importingFile = this.extractFilePath(errorOutput);
+    if (!importingFile) return null;
+
+    try {
+      const { join, dirname, resolve } = await import('node:path');
+      const { readFileSync, existsSync } = await import('node:fs');
+
+      // Safety check: importing file must exist on disk (prevents false positives in tests)
+      const importingAbsPath = join(this.projectPath, importingFile);
+      if (!existsSync(importingAbsPath)) return null;
+
+      const importingDir = dirname(importingAbsPath);
+
+      let targetPath: string;
+      if (unresolvedPath.startsWith('@/')) {
+        // Path alias: @/components/foo → src/components/foo.tsx (or just components/foo.tsx)
+        const relativePath = unresolvedPath.slice(2);
+        const candidates = [
+          join(this.projectPath, 'src', relativePath + '.tsx'),
+          join(this.projectPath, relativePath + '.tsx'),
+          join(this.projectPath, 'src', relativePath, 'index.tsx'),
+          join(this.projectPath, relativePath, 'index.tsx'),
+        ];
+        const existing = candidates.find((p) => existsSync(p));
+        if (existing) return null; // File already exists, something else is wrong
+        targetPath = candidates[0]!;
+      } else {
+        // Relative or bare module: let the LLM handle it (directory structures vary)
+        return null;
+      }
+
+      // Don't create if file already exists
+      if (existsSync(targetPath)) return null;
+
+      // Create a stub component file
+      const { mkdirSync, writeFileSync } = await import('node:fs');
+      const targetDir = dirname(targetPath);
+      if (!existsSync(targetDir)) {
+        mkdirSync(targetDir, { recursive: true });
+      }
+
+      const componentName = unresolvedPath.split('/').pop()!;
+      const pascalName = componentName
+        .split(/[-_.]/)
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join('');
+
+      const stub = `export function ${pascalName}() {
+  return <div>${pascalName}</div>;
+}
+`;
+      writeFileSync(targetPath, stub, 'utf-8');
+
+      // Determine relative path for git commit
+      const relativePath = targetPath.slice(this.projectPath.length + 1);
+
+      let commitHash = '';
+      try {
+        commitHash = await this.gitManager.commit(
+          `autofix: create missing module ${relativePath}`,
+          [relativePath],
+        );
+      } catch (e) {
+        this.logger.debug(
+          `[Nova] Git commit for module creation skipped: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+
+      this.logger.info(
+        `[Nova] Created missing module: ${relativePath} (resolved from "${unresolvedPath}")`,
+      );
+
+      const taskId = `autofix-module-${Date.now()}`;
+      this.autofixTaskIds.add(taskId);
+      return {
+        success: true,
+        taskId,
+        diff: `+++ b/${relativePath}
+${stub}`,
+        commitHash,
+      };
+    } catch (e) {
+      this.logger.error(
+        `[Nova] Module-not-found deterministic fix failed: ${
+          e instanceof Error ? e.message : String(e)
+        }; falling back to LLM`,
+      );
+      return null;
     }
   }
 
