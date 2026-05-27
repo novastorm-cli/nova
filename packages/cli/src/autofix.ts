@@ -420,16 +420,36 @@ export class ErrorAutoFixer {
     );
     if (routeConflictMatch) {
       const conflictPath = routeConflictMatch[1]!;
-      const conflictingFiles = this.findConflictingRouteFiles(conflictPath);
-      const appFile = conflictingFiles.find((f) => f.startsWith('app/'));
-      const pagesFile = conflictingFiles.find((f) => f.startsWith('pages/'));
+      // Detect conflicting files directly on disk (projectMap may not index pages/)
+      const { existsSync, unlinkSync } = await import('node:fs');
+      const { join } = await import('node:path');
+      const normalized = conflictPath === '/' ? 'index' : conflictPath.replace(/^\/+/, '');
+      const appCandidates =
+        conflictPath === '/'
+          ? ['app/page.tsx', 'app/page.ts', 'app/page.jsx', 'app/page.js']
+          : [
+              `app/${normalized}/page.tsx`,
+              `app/${normalized}/page.ts`,
+              `app/${normalized}/page.jsx`,
+              `app/${normalized}/page.js`,
+            ];
+      const pagesCandidates =
+        conflictPath === '/'
+          ? ['pages/index.tsx', 'pages/index.ts', 'pages/index.jsx', 'pages/index.js']
+          : [
+              `pages/${normalized}.tsx`,
+              `pages/${normalized}.ts`,
+              `pages/${normalized}.jsx`,
+              `pages/${normalized}.js`,
+            ];
+      const appFile = appCandidates.find((p) => existsSync(join(this.projectPath, p)));
+      const pagesFile = pagesCandidates.find((p) => existsSync(join(this.projectPath, p)));
+      const conflictingFiles = [appFile, pagesFile].filter((f): f is string => !!f);
       if (appFile && pagesFile) {
         this.logger.info(
           `[Nova] Route conflict for ${conflictPath}: deterministically deleting ${pagesFile} (keeping App Router)`,
         );
         try {
-          const { unlinkSync, existsSync } = await import('node:fs');
-          const { join } = await import('node:path');
           const absPath = join(this.projectPath, pagesFile);
           if (existsSync(absPath)) unlinkSync(absPath);
           this.projectMap.fileContexts.delete(pagesFile);
