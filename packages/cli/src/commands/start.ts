@@ -303,12 +303,34 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       undefined, // missionConfig
       async () => {
         // Restart dev server after autofix to verify the fix resolved the error
+        logger.info('[Nova] Restarting dev server after autofix...');
         try {
           await devServer.kill();
-          await devServer.spawn(devCommand, cwd, devPort);
         } catch {
-          // Server may already be running or restart may fail — that's OK,
-          // the error output handler will catch any remaining errors
+          // Process may already be dead
+        }
+        await new Promise((r) => setTimeout(r, 500));
+        try {
+          await devServer.spawn(devCommand, cwd, devPort);
+          logger.info('[Nova] Dev server restarted successfully');
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logger.error(`[Nova] Dev server restart failed: ${msg}`);
+          await new Promise((r) => setTimeout(r, 2000));
+          try {
+            await devServer.spawn(devCommand, cwd, devPort);
+            logger.info('[Nova] Dev server restarted on retry');
+          } catch (e2) {
+            logger.error(
+              `[Nova] Dev server restart failed twice: ${
+                e2 instanceof Error ? e2.message : String(e2)
+              }. Restart manually (nova start).`,
+            );
+            wsServer.sendEvent({
+              type: 'status',
+              data: { message: 'Dev server restart failed. Restart manually (nova start).' },
+            });
+          }
         }
       },
     );

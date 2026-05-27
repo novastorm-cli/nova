@@ -106,6 +106,11 @@ export class ErrorAutoFixer {
       ERROR_PATTERNS.some((p) => p.test(output)) || IMAGE_PATTERNS.some((p) => p.test(output));
 
     if (!hasError) return;
+    // Skip non-fixable runtime/port errors -- nothing the LLM can fix by editing code
+    if (/EADDRINUSE/i.test(output)) {
+      this.logger.debug('[Nova] AutoFixer: EADDRINUSE port conflict, not fixable by code edits');
+      return;
+    }
     if (this.isFixing) {
       // Queue the error for processing after the current fix completes
       this.pendingErrors.push(output);
