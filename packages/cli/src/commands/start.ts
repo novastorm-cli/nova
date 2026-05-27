@@ -31,7 +31,7 @@ import { LicenseChecker } from '@novastorm-ai/licensing';
 import { ConfigReader } from '../config.js';
 import { NovaLogger } from '../logger.js';
 import { ErrorAutoFixer } from '../autofix.js';
-import { NovaChat } from '../chat.js';
+import { NovaChat, type TaskConfirmation } from '../chat.js';
 import { handleSettingsCommand } from '../settings.js';
 import { PortManager } from '../boot/PortManager.js';
 import { sendBootTelemetry } from '../boot/TelemetryEmitter.js';
@@ -577,16 +577,53 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         };
         eventBus.emit({ type: 'observation', data: lastObservation.current });
         break;
-      case 'confirm':
+      case 'confirm': {
         if (pendingTasks.length === 0) {
           chat.log(chalk.dim('Nothing to confirm.'));
           return;
         }
+
+        // Interactive per-task confirmation
+        const confirmations = await chat.confirmTasksInteractively(
+          pendingTasks.map((t) => ({ description: t.description, lane: t.lane ?? 3 })),
+        );
+
+        // Build the list of approved tasks with potentially modified descriptions
+        const approvedTasks: TaskItem[] = [];
+        for (let i = 0; i < confirmations.length; i++) {
+          const c = confirmations[i]!;
+          if (!c.approved) continue;
+          const originalTask = pendingTasks[i]!;
+          if (c.modifiedDescription) {
+            // Create a new task with the user-provided description
+            const newTask: TaskItem = {
+              ...originalTask,
+              description: c.modifiedDescription,
+              preConfirmed: undefined,
+            };
+            approvedTasks.push(newTask);
+          } else {
+            approvedTasks.push(originalTask);
+          }
+        }
+
+        pendingTasks.length = 0;
+
+        if (approvedTasks.length === 0) {
+          chat.log(chalk.yellow('All tasks skipped.'));
+          return;
+        }
+
+        // Re-populate pendingTasks with the approved tasks
+        pendingTasks.push(...approvedTasks);
+
+        // Emit approved tasks for execution
+        chat.log(chalk.green(`Executing ${approvedTasks.length} approved task(s)...`));
         eventBus.emit({
           type: 'observation',
           data: {
             screenshot: Buffer.alloc(0),
-            transcript: pendingTasks.map((t) => t.description).join('; '),
+            transcript: approvedTasks.map((t) => t.description).join('; '),
             currentUrl: `file://${cwd}`,
             timestamp: Date.now(),
             autoExecute: true,
@@ -594,6 +631,7 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
         });
         pendingTasks.length = 0;
         break;
+      }
       case 'cancel':
         pendingTasks.length = 0;
         chat.log(chalk.yellow('Tasks cancelled.'));

@@ -217,9 +217,29 @@ export class ErrorAutoFixer {
           } catch {
             /* cache dir may not exist */
           }
+
+          // Refresh projectMap with current file content to avoid context mismatches
+          if (/context mismatch/i.test(previousFailure)) {
+            const targetFile = this.extractFilePath(errorOutput);
+            if (targetFile && this.projectMap.fileContexts.has(targetFile)) {
+              try {
+                const { readFileSync } = await import('node:fs');
+                const { join: pjoin } = await import('node:path');
+                const absPath = pjoin(this.projectPath, targetFile);
+                const freshContent = readFileSync(absPath, 'utf-8');
+                const ctx = this.projectMap.fileContexts.get(targetFile)!;
+                ctx.content = freshContent;
+                this.logger.debug(
+                  `[Nova] AutoFixer: refreshed projectMap for ${targetFile} (context mismatch recovery)`,
+                );
+              } catch {
+                // File may not exist, skip
+              }
+            }
+          }
         }
 
-        const taskDescription = this.buildTaskDescription(errorOutput, attempt, previousFailure);
+        const taskDescription = await this.buildTaskDescription(errorOutput, attempt, previousFailure);
 
         let result: ExecutionResult;
 
@@ -333,11 +353,11 @@ export class ErrorAutoFixer {
    * Build the task description sent to the LLM, including deletion-intent
    * guidance when the error suggests conflicting/duplicate files.
    */
-  private buildTaskDescription(
+  private async buildTaskDescription(
     errorOutput: string,
     attempt: number,
     previousFailure?: string,
-  ): string {
+  ): Promise<string> {
     const truncatedError = errorOutput.slice(0, 500);
     let description =
       `Fix the following compilation/build error in the project. ` +
@@ -359,6 +379,24 @@ export class ErrorAutoFixer {
       description +=
         `\n\nPrevious attempt ${attempt - 1} failed: ${previousFailure}. ` +
         'Try a DIFFERENT approach. Do not repeat the same fix.';
+      // On context mismatch, include current file content so the LLM has accurate context
+      if (/context mismatch/i.test(previousFailure)) {
+        const targetFile = this.extractFilePath(errorOutput);
+        if (targetFile) {
+          try {
+            const { readFileSync } = await import('node:fs');
+            const { join } = await import('node:path');
+            const absPath = join(this.projectPath, targetFile);
+            const fileContent = readFileSync(absPath, 'utf-8');
+            description +=
+              '\n\nCURRENT FILE CONTENT of ' + targetFile + ':\n```\n' + fileContent + '\n```\n' +
+              'The previous diff failed because the file content changed. ' +
+              'Generate your diff based on the CURRENT file content shown above.';
+          } catch {
+            // File may not exist, skip
+          }
+        }
+      }
 
       // If deletion was needed but the LLM didn't produce a DELETE block,
       // be extremely explicit about the required format

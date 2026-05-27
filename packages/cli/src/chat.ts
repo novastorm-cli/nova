@@ -17,6 +17,15 @@ const SLASH_COMMANDS: Record<string, ChatCommand['type']> = {
   '/n': 'cancel',
 };
 
+export interface TaskConfirmation {
+  description: string;
+  lane: number;
+  /** Modified description when user chooses "change" */
+  modifiedDescription?: string;
+  /** true if approved (as-is or changed), false if skipped */
+  approved: boolean;
+}
+
 export class NovaChat {
   private rl: readline.Interface | null = null;
   private handlers: Array<(cmd: ChatCommand) => void> = [];
@@ -72,6 +81,77 @@ export class NovaChat {
     }
     console.log(message);
     this.rl?.prompt(true);
+  }
+
+  /**
+   * Interactive per-task confirmation. Shows each task one at a time.
+   * User presses Enter to approve, types text to change description, 'n' to skip.
+   * Returns resolved promise when all tasks are processed.
+   */
+  async confirmTasksInteractively(
+    tasks: Array<{ description: string; lane: number }>,
+  ): Promise<TaskConfirmation[]> {
+    return new Promise((resolve) => {
+      if (!this.rl || !process.stdin.isTTY) {
+        // Non-interactive mode: auto-approve all
+        resolve(
+          tasks.map((t) => ({ description: t.description, lane: t.lane, approved: true })),
+        );
+        return;
+      }
+
+      const results: TaskConfirmation[] = [];
+      let currentIndex = 0;
+      const originalHandler = this.rl.line;
+
+      const showCurrent = () => {
+        if (currentIndex >= tasks.length) {
+          // Restore original readline handler
+          this.rl?.off('line', handler);
+          this.showPrompt();
+          resolve(results);
+          return;
+        }
+
+        const task = tasks[currentIndex]!;
+        console.log(
+          `
+${chalk.bold(`Task ${currentIndex + 1}/${tasks.length}:`)} ${chalk.white(task.description)} ${chalk.dim(`(Lane ${task.lane})`)}`,
+        );
+        console.log(
+          chalk.dim(`  Press ${chalk.white('Enter')} to approve, type to modify, ${chalk.white('n')} to skip`),
+        );
+        this.rl?.setPrompt(chalk.yellow('  >>> '));
+        this.rl?.prompt();
+      };
+
+      const handler = (line: string) => {
+        const trimmed = line.trim().toLowerCase();
+        const task = tasks[currentIndex]!;
+
+        if (trimmed === 'n' || trimmed === 'no' || trimmed === 'skip') {
+          // Skip this task
+          results.push({ description: task.description, lane: task.lane, approved: false });
+        } else if (trimmed === '' || trimmed === 'y' || trimmed === 'yes') {
+          // Approve as-is
+          results.push({ description: task.description, lane: task.lane, approved: true });
+        } else {
+          // Change: use the typed text as the new task description
+          results.push({
+            description: task.description,
+            lane: task.lane,
+            approved: true,
+            modifiedDescription: line.trim(),
+          });
+        }
+
+        currentIndex++;
+        showCurrent();
+      };
+
+      this.rl.on('line', handler);
+      showCurrent();
+    });
   }
 
   stop(): void {
