@@ -28,6 +28,8 @@ const ERROR_PATTERNS = [
   /Compilation failed/i,
   /Failed to compile/i,
   /Error boundary caught/i,
+  /both match path/i,
+  /skipping\s+\S+\s+\(conflict\)/i,
 ];
 
 // Image/next-image related error patterns
@@ -398,7 +400,9 @@ export class ErrorAutoFixer {
       }
 
       // For route conflicts, include conflicting route files
-      const routeConflictMatch = errorOutput.match(/both match path:\s*(\S+)/i);
+      const routeConflictMatch =
+        errorOutput.match(/both match path:?\s*['"]?(\S+?)['"]?[\s.]/i) ||
+        errorOutput.match(/skipping\s+(\S+)\s+\(conflict\)/i);
       if (routeConflictMatch) {
         const conflictPath = routeConflictMatch[1]!;
         const conflictingFiles = this.findConflictingRouteFiles(conflictPath);
@@ -415,9 +419,9 @@ export class ErrorAutoFixer {
     }
 
     // ── Deterministic fix: App Router vs Pages Router route conflict ──
-    const routeConflictMatch = errorOutput.match(
-      /both match path:\s*(\S+)/i,
-    );
+    const routeConflictMatch =
+      errorOutput.match(/both match path:?\s*['"]?(\S+?)['"]?[\s.]/i) ||
+      errorOutput.match(/skipping\s+(\S+)\s+\(conflict\)/i);
     if (routeConflictMatch) {
       const conflictPath = routeConflictMatch[1]!;
       // Detect conflicting files directly on disk (projectMap may not index pages/)
@@ -690,8 +694,9 @@ export class ErrorAutoFixer {
     if (!this.missionConfig?.enabled) return false;
     if (!this.lane5Executor) return false;
 
-    // Route conflict: "both match path" (Next.js App/Pages router conflict)
+    // Route conflict: "both match path" (Next.js App/Pages router conflict) or Next 16 Turbopack "skipping X (conflict)"
     if (/both match path/i.test(errorOutput)) return true;
+    if (/skipping\s+\S+\s+\(conflict\)/i.test(errorOutput)) return true;
 
     // Duplicate/conflicting keywords (use the existing DELETION_INTENT_KEYWORDS)
     if (DELETION_INTENT_KEYWORDS.some((p) => p.test(errorOutput))) return true;
