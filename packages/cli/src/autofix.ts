@@ -414,18 +414,57 @@ export class ErrorAutoFixer {
       return { result, usedLane: 5 };
     }
 
-    // ── Lane 3: route conflicts when mission is disabled ───────────
+    // ── Deterministic fix: App Router vs Pages Router route conflict ──
     const routeConflictMatch = errorOutput.match(
       /both match path:\s*(\S+)/i,
     );
     if (routeConflictMatch) {
       const conflictPath = routeConflictMatch[1]!;
       const conflictingFiles = this.findConflictingRouteFiles(conflictPath);
+      const appFile = conflictingFiles.find((f) => f.startsWith('app/'));
+      const pagesFile = conflictingFiles.find((f) => f.startsWith('pages/'));
+      if (appFile && pagesFile) {
+        this.logger.info(
+          `[Nova] Route conflict for ${conflictPath}: deterministically deleting ${pagesFile} (keeping App Router)`,
+        );
+        try {
+          const { unlinkSync, existsSync } = await import('node:fs');
+          const { join } = await import('node:path');
+          const absPath = join(this.projectPath, pagesFile);
+          if (existsSync(absPath)) unlinkSync(absPath);
+          this.projectMap.fileContexts.delete(pagesFile);
+          let commitHash = '';
+          try {
+            commitHash = await this.gitManager.commit(
+              `autofix: remove conflicting route ${pagesFile}`,
+              [pagesFile],
+            );
+          } catch (e) {
+            this.logger.debug(
+              `[Nova] Git commit for deletion skipped: ${e instanceof Error ? e.message : String(e)}`,
+            );
+          }
+          const taskId = `autofix-route-${Date.now()}`;
+          this.autofixTaskIds.add(taskId);
+          const result: ExecutionResult = {
+            success: true,
+            taskId,
+            diff: `--- a/${pagesFile}\n+++ /dev/null\n`,
+            commitHash,
+          };
+          return { result, usedLane: 3 };
+        } catch (e) {
+          this.logger.error(
+            `[Nova] Deterministic route conflict fix failed: ${
+              e instanceof Error ? e.message : String(e)
+            }; falling back to LLM`,
+          );
+        }
+      }
       if (conflictingFiles.length > 0) {
         this.logger.info(
           `[Nova] Route conflict detected for ${conflictPath}: ${conflictingFiles.join(', ')}`,
         );
-        // Use Lane3 with conflicting files so LLM sees and can delete one
         const enhancedDescription =
           taskDescription +
           `\n\nConflicting files:\n` +
