@@ -449,6 +449,15 @@ export class ErrorAutoFixer {
       const appFile = appCandidates.find((p) => existsSync(join(this.projectPath, p)));
       const pagesFile = pagesCandidates.find((p) => existsSync(join(this.projectPath, p)));
       const conflictingFiles = [appFile, pagesFile].filter((f): f is string => !!f);
+      // Partial conflict (one file already deleted) -- stale log noise
+      if (conflictingFiles.length === 1) {
+        this.logger.info(
+          `[Nova] Route conflict regex matched but only ${conflictingFiles[0]} exists; conflict already resolved`,
+        );
+        const taskId = `autofix-route-noop-${Date.now()}`;
+        this.autofixTaskIds.add(taskId);
+        return { result: { success: true, taskId, diff: '', commitHash: '' }, usedLane: 3 };
+      }
       if (appFile && pagesFile) {
         this.logger.info(
           `[Nova] Route conflict for ${conflictPath}: deterministically deleting ${pagesFile} (keeping App Router)`,
