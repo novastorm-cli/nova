@@ -3,7 +3,6 @@ import { StructuredLogger } from '../StructuredLogger.js';
 import { LogLevel } from '../../contracts/ILogger.js';
 
 describe('StructuredLogger', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let writeSpy: any;
 
   beforeEach(() => {

@@ -2,7 +2,7 @@ import type { TaskItem, ProjectMap, MissionPlan } from '../models/types.js';
 
 export class CircularDependencyError extends Error {
   constructor(public readonly cyclePath: string[]) {
-    super(`Circular dependency detected: ${cyclePath.join(' → ')}`);
+    super(`Circular dependency detected: ${cyclePath.join(' -> ')}`);
     this.name = 'CircularDependencyError';
   }
 }

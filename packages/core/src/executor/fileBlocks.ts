@@ -10,7 +10,8 @@ export interface DiffBlock {
 
 export type ParsedBlock =
   | { type: 'file'; path: string; content: string }
-  | { type: 'diff'; path: string; diff: string };
+  | { type: 'diff'; path: string; diff: string }
+  | { type: 'delete'; path: string };
 
 /**
  * Add line numbers to file content for LLM context.
@@ -71,9 +72,11 @@ export function parseFileBlocks(response: string): FileBlock[] {
 }
 
 /**
- * Parse both FILE and DIFF blocks from an LLM response.
+ * Parse FILE, DIFF, and DELETE blocks from an LLM response.
  * - `=== FILE: path ===` ... `=== END FILE ===` -> full file content
  * - `=== DIFF: path ===` ... `=== END DIFF ===` -> unified diff
+ * - `=== DELETE: path ===` -> file deletion (no body or END marker needed,
+ *   but `=== END DELETE ===` is accepted and ignored)
  *
  * Falls back: if a DIFF block doesn't look like a valid diff (no @@ hunks),
  * treat it as full file content instead.
@@ -81,7 +84,18 @@ export function parseFileBlocks(response: string): FileBlock[] {
 export function parseMixedBlocks(response: string): ParsedBlock[] {
   const blocks: ParsedBlock[] = [];
 
-  // Single-pass regex to capture both FILE and DIFF blocks in document order
+  // Parse DELETE blocks first (simple marker, may or may not have END DELETE)
+  const deletePattern = /=== DELETE: (.+?) ===/g;
+  let deleteMatch: RegExpExecArray | null;
+  while ((deleteMatch = deletePattern.exec(response)) !== null) {
+    const rawPath = deleteMatch[1]!.trim();
+    const safePath = sanitizePath(rawPath);
+    if (safePath) {
+      blocks.push({ type: 'delete', path: safePath });
+    }
+  }
+
+  // Parse FILE and DIFF blocks in document order
   const pattern = /=== (FILE|DIFF): (.+?) ===([\s\S]*?)=== END (?:FILE|DIFF) ===/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(response)) !== null) {

@@ -45,7 +45,7 @@ export async function promptAndScaffold(projectPath: string): Promise<ScaffoldIn
   }
 
   let command: string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-useless-assignment
+  // eslint-disable-next-line no-useless-assignment
   let needsInstall = false;
   let label: string;
   let frontend: string | undefined;

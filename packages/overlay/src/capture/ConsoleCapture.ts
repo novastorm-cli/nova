@@ -69,7 +69,7 @@ export class ConsoleCapture implements IConsoleCapture {
         return String(value);
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+
     return String(value);
   }
 }

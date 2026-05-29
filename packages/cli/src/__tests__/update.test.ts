@@ -30,13 +30,12 @@ vi.mock('node:fs', async (importOriginal) => {
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let consoleLogSpy: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let consoleErrorSpy: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let processStderrSpy: any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let processExitSpy: any;
 
 // ── Helpers ──────────────────────────────────────────────────────────────

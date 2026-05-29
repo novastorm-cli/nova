@@ -200,7 +200,6 @@ export class CodeValidator {
     return errors;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkRelativeImports(
     filePath: string,
     content: string,

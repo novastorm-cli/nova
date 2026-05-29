@@ -42,9 +42,8 @@ describe('initCommand', () => {
     mockExists = vi.fn();
     mockWrite = vi.fn().mockResolvedValue(undefined);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     MockConfigReader.prototype.exists = mockExists as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     MockConfigReader.prototype.write = mockWrite as any;
   });
 

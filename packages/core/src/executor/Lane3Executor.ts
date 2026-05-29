@@ -1,4 +1,4 @@
-import { writeFile, mkdir, readFile } from 'node:fs/promises';
+import { writeFile, mkdir, readFile, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import type { TaskItem, ProjectMap, ExecutionResult } from '../models/types.js';
@@ -38,11 +38,15 @@ For EXISTING files (already on disk -- shown with line numbers):
  context line
 === END DIFF ===
 
-Your ENTIRE response must consist of === FILE === and/or === DIFF === blocks. Nothing else.
+For DELETING files (when a file should be removed entirely):
+=== DELETE: path/to/file.tsx ===
+
+Your ENTIRE response must consist of === FILE ===, === DIFF ===, and/or === DELETE === blocks. Nothing else.
 
 RULES:
 - For EXISTING files: output ONLY a unified diff with changed hunks. Minimal diff = fewer tokens = faster.
 - For NEW files: output COMPLETE file contents.
+- For files that must be REMOVED: output === DELETE: path/to/file.tsx ===.
 - Line numbers shown in existing file content are for reference only -- do NOT include them in diffs.
 - Use ONLY existing directory structure from the project.
 - NEVER ask questions or describe what you would do. Just output the code.
@@ -233,12 +237,17 @@ export class Lane3Executor {
         blocks: mixedBlocks.map((b) => ({
           type: b.type,
           path: b.path,
-          size: b.type === 'file' ? b.content.length : b.diff.length,
+          size:
+            b.type === 'file' ? b.content.length : b.type === 'diff' ? b.diff.length : 0,
         })),
       });
 
-      // Apply blocks: write full files or apply diffs
-      const { files: fileBlocks, failedDiffPaths } = await this.applyMixedBlocks(mixedBlocks);
+      // Apply blocks: write full files, apply diffs, or delete files
+      const {
+        files: fileBlocks,
+        failedDiffPaths,
+        deletedPaths,
+      } = await this.applyMixedBlocks(mixedBlocks);
 
       // Retry failed diffs by requesting full file content from LLM
       if (failedDiffPaths.length > 0) {
@@ -257,8 +266,8 @@ export class Lane3Executor {
         }
       }
 
-      // If no files were written at all, fail early instead of trying to commit nothing
-      if (fileBlocks.length === 0) {
+      // If no files were written or deleted, fail early instead of trying to commit nothing
+      if (fileBlocks.length === 0 && deletedPaths.length === 0) {
         this.logger?.warn('Developer: all blocks failed, nothing to commit', {
           taskId: task.id,
         });
@@ -275,15 +284,16 @@ export class Lane3Executor {
       for (const block of mixedBlocks) {
         if (block.type === 'file') {
           generatedFileContents.push(block.content);
-        } else {
+        } else if (block.type === 'diff') {
           // Extract added lines from diffs (lines starting with +, excluding +++ header)
           const addedLines = block.diff
             .split('\n')
-            .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
-            .map((line) => line.substring(1))
+            .filter((line: string) => line.startsWith('+') && !line.startsWith('+++'))
+            .map((line: string) => line.substring(1))
             .join('\n');
           if (addedLines) generatedFileContents.push(addedLines);
         }
+        // 'delete' blocks have no content to check
       }
       const missingVars = envDetector.detectMissing(this.projectPath, generatedFileContents);
       if (missingVars.length > 0 && this.eventBus) {
@@ -436,8 +446,8 @@ export class Lane3Executor {
         currentBlocks = fixedBlocks;
       }
 
-      // Collect final file list for commit
-      const writtenFiles = currentBlocks.map((b) => b.path);
+      // Collect final file list for commit (including deleted files)
+      const writtenFiles = [...currentBlocks.map((b) => b.path), ...deletedPaths];
 
       // Commit all changes (serialized via queue for parallel safety)
       const safeMsg = `nova: ${task.description
@@ -447,10 +457,15 @@ export class Lane3Executor {
         .slice(0, 72)}`;
       const commitHash = await this.commitQueue.enqueue(safeMsg, writtenFiles);
 
+      const diffLines = [
+        ...fileBlocks.map((b) => `+++ ${b.path}`),
+        ...deletedPaths.map((p) => `--- ${p}`),
+      ];
+
       return {
         success: true,
         taskId: task.id,
-        diff: fileBlocks.map((b) => `+++ ${b.path}`).join('\n'),
+        diff: diffLines.join('\n'),
         commitHash,
       };
     } catch (error: unknown) {
@@ -530,11 +545,27 @@ export class Lane3Executor {
    */
   private async applyMixedBlocks(
     blocks: ParsedBlock[],
-  ): Promise<{ files: FileBlock[]; failedDiffPaths: string[] }> {
+  ): Promise<{ files: FileBlock[]; failedDiffPaths: string[]; deletedPaths: string[] }> {
     const result: FileBlock[] = [];
     const failedDiffPaths: string[] = [];
+    const deletedPaths: string[] = [];
 
     for (const block of blocks) {
+      if (block.type === 'delete') {
+        const absPath = join(this.projectPath, block.path);
+        await this.pathGuard?.check(absPath);
+        try {
+          await unlink(absPath);
+          deletedPaths.push(block.path);
+          this.logger?.info(`Deleted file: ${block.path}`);
+        } catch (err) {
+          this.logger?.warn(`Failed to delete ${block.path}`, {
+            reason: err instanceof Error ? err.message : String(err),
+          });
+        }
+        continue;
+      }
+
       const absPath = join(this.projectPath, block.path);
 
       if (block.type === 'file') {
@@ -561,7 +592,7 @@ export class Lane3Executor {
       }
     }
 
-    return { files: result, failedDiffPaths };
+    return { files: result, failedDiffPaths, deletedPaths };
   }
 
   /**

@@ -21,7 +21,7 @@ class MockResizeObserver {
       contentBoxSize: [],
       devicePixelContentBoxSize: [],
     };
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+
     this.callback([entry], this as unknown as ResizeObserver);
   }
 
@@ -34,7 +34,7 @@ class MockResizeObserver {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
 (globalThis as any).ResizeObserver = MockResizeObserver;
 
 import { LayoutSlots } from '../layout.js';

@@ -43,7 +43,7 @@ async function setupMocksForValidKey(providerValue: string, keyValue: string) {
   vi.mocked(prompts.confirm).mockResolvedValue(true);
 
   const core = await import('@novastorm-ai/core');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   vi.mocked(core.ProviderFactory).mockImplementation((): any => ({
     create: vi.fn().mockReturnValue(createMockClient(true)),
   }));
@@ -66,7 +66,7 @@ async function setupMocksForInvalidKeyThenValid(
 
   let validationCalls = 0;
   const coreModule = await import('@novastorm-ai/core');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   vi.mocked(coreModule.ProviderFactory).mockImplementation((): any => ({
     create: vi.fn().mockImplementation(() => {
       validationCalls++;
@@ -90,7 +90,7 @@ async function setupMocksForInvalidKeyThenSkip(providerValue: string, badKey: st
   });
 
   const coreModule = await import('@novastorm-ai/core');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   vi.mocked(coreModule.ProviderFactory).mockImplementation((): any => ({
     create: vi.fn().mockReturnValue(createMockClient(false)),
   }));
@@ -104,7 +104,7 @@ async function setupMocksForLocalProvider(providerValue: string) {
   vi.mocked(prompts.confirm).mockResolvedValue(true);
 
   const core = await import('@novastorm-ai/core');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   vi.mocked(core.ProviderFactory).mockImplementation((): any => ({
     create: vi.fn().mockReturnValue(createMockClient(true)),
   }));
@@ -190,7 +190,7 @@ describe('Setup wizard', () => {
     vi.mocked(prompts.confirm).mockResolvedValue(true);
 
     const core = await import('@novastorm-ai/core');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     vi.mocked(core.ProviderFactory).mockImplementation((): any => ({
       create: vi.fn().mockReturnValue(createMockClient(true)),
     }));
@@ -335,7 +335,7 @@ describe('Setup wizard', () => {
     vi.mocked(prompts.confirm).mockResolvedValue(false);
 
     const core = await import('@novastorm-ai/core');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     vi.mocked(core.ProviderFactory).mockImplementation((): any => ({
       create: vi.fn().mockReturnValue(createMockClient(true)),
     }));
@@ -406,7 +406,7 @@ describe('Setup wizard', () => {
     try {
       // Set up ProviderFactory mock that would throw if called
       const core = await import('@novastorm-ai/core');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(core.ProviderFactory).mockImplementation((): any => ({
         create: vi.fn().mockImplementation(() => {
           throw new Error('ProviderFactory.create should not be called in mock mode');

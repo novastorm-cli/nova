@@ -15,7 +15,6 @@ describe('createEmbeddingService', () => {
   });
 
   it('throws for unknown provider', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => createEmbeddingService({ provider: 'unknown' as any })).toThrow(
       'Unknown embedding provider',
     );

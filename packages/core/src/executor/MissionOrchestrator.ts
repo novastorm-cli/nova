@@ -31,7 +31,7 @@ RULES:
 - type must be one of: "css", "single_file", "multi_file", "refactor"
 - dependencies must reference EXISTING feature IDs in the plan (no forward refs to undeclared features)
 - Prefer independent features (empty dependencies) to enable parallel execution
-- Features should be small and focused — each feature should modify 1-5 files
+- Features should be small and focused -- each feature should modify 1-5 files
 - Break complex tasks into logical sub-tasks: data models, API routes, UI components, etc.
 - Consider the project's framework, language, and existing routes when planning
 
@@ -46,7 +46,7 @@ Output ONLY the JSON object. No markdown, no explanations, no code fences.`;
  */
 export function sanitizeFilePath(rawPath: string): string {
   // Remove leading slash (absolute paths)
-  let normalized = rawPath.replace(/^\/+/, '');
+  const normalized = rawPath.replace(/^\/+/, '');
 
   // Split into segments and resolve ../
   const segments = normalized.split('/');
@@ -232,14 +232,16 @@ function validatePlanSchema(raw: unknown): MissionPlan {
 
   const obj = raw as Record<string, unknown>;
 
-  if (!Array.isArray(obj.features)) {
+  const rawFeatures = obj.features;
+  if (!Array.isArray(rawFeatures)) {
     throw new Error('Plan must contain a "features" array');
   }
 
   const features: MissionFeature[] = [];
+  const featuresArr: unknown[] = rawFeatures as unknown[];
 
-  for (let i = 0; i < obj.features.length; i++) {
-    const item = obj.features[i];
+  for (let i = 0; i < featuresArr.length; i++) {
+    const item: unknown = featuresArr[i];
 
     if (typeof item !== 'object' || item === null) {
       throw new Error(`Feature at index ${i} is not a valid object`);
@@ -290,8 +292,8 @@ function validatePlanSchema(raw: unknown): MissionPlan {
     }
 
     features.push({
-      id: f.id as string,
-      description: f.description as string,
+      id: f.id,
+      description: f.description,
       files: (f.files as string[]).map(sanitizeFilePath),
       type: f.type as MissionFeature['type'],
       dependencies: deps,
@@ -328,7 +330,7 @@ function buildPlanPrompt(task: TaskItem, projectMap: ProjectMap): string {
   if (projectMap.routes.length > 0) {
     parts.push('\n## Existing Routes');
     for (const route of projectMap.routes) {
-      parts.push(`- ${route.type.toUpperCase()} ${route.path} → ${route.filePath}`);
+      parts.push(`- ${route.type.toUpperCase()} ${route.path} -> ${route.filePath}`);
     }
   }
 
@@ -418,7 +420,7 @@ export class MissionOrchestrator implements IOrchestrator {
         taskId: task.id,
         error: errorMsg,
       });
-      throw new Error(`Orchestrator LLM call failed: ${errorMsg}`);
+      throw new Error(`Orchestrator LLM call failed: ${errorMsg}`, { cause: error });
     }
 
     taskLog?.info('MissionOrchestrator: LLM responded', {

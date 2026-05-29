@@ -62,13 +62,13 @@ class TestProvider extends BaseProvider {
     return {};
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected async doChat(_request: unknown): Promise<unknown> {
     this.callCount++;
     throw this.errorToThrow;
   }
 
-  // eslint-disable-next-line require-yield, @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line require-yield, @typescript-eslint/no-unused-vars
   protected async *doStream(_request: unknown): AsyncIterable<unknown> {
     this.callCount++;
     throw this.errorToThrow;
@@ -132,7 +132,6 @@ class FallbackTestProvider extends BaseProvider {
     return {};
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   protected async doChat(request: unknown): Promise<unknown> {
     this.callCount++;
     const req = request as { model: string };

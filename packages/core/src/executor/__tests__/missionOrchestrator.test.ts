@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { TaskItem, ProjectMap, StackInfo, RouteInfo, Message, ChatResponse, LlmOptions, MissionPlan, MissionFeature } from '../../models/types.js';
+import { describe, it, expect, vi } from 'vitest';
+import type { TaskItem, ProjectMap, StackInfo, RouteInfo, Message, ChatResponse, LlmOptions, MissionFeature } from '../../models/types.js';
 import type { LlmClient } from '../../contracts/ILlmClient.js';
 import { CircularDependencyError, MissingDependencyError, type IOrchestrator } from '../../contracts/IOrchestrator.js';
 import { MissionOrchestrator } from '../MissionOrchestrator.js';
