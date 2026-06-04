@@ -493,8 +493,8 @@ export async function startCommand(options: StartOptions = {}): Promise<void> {
       .split('\n')
       .filter(
         (l) =>
-          /error|Error|failed|Module not found|SyntaxError|Cannot find/i.test(l) &&
-          !/warning|warn|deprecat/i.test(l),
+          /error|Error|failed|Module not found|SyntaxError|Cannot find|conflict|both match/i.test(l) &&
+          !/warning|warn|deprecat|\[browser\]|nova-overlay|EADDRINUSE/i.test(l),
       )
       .slice(-10)
       .join('\n')

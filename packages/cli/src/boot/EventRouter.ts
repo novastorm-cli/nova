@@ -399,7 +399,10 @@ export function setupEventRouting(deps: EventRouterDeps): void {
       if (hasLogError && autoFixer) {
         const errorLines = recentLogs
           .split('\n')
-          .filter((l) => /error|Error|failed|Module not found/i.test(l))
+          .filter((l) =>
+            /error|Error|failed|Module not found|conflict|both match/i.test(l) &&
+            !/\[browser\]|nova-overlay|EADDRINUSE/i.test(l),
+          )
           .slice(-5)
           .join('\n');
         if (errorLines.trim()) {

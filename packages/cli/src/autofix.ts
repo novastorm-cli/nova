@@ -153,6 +153,12 @@ export class ErrorAutoFixer {
   ): Promise<void> {
     if (this.isFixing) return;
 
+    // Skip non-fixable port conflicts — no code edit can resolve EADDRINUSE
+    if (/EADDRINUSE/i.test(errorOutput)) {
+      this.logger.debug('[Nova] AutoFixer: EADDRINUSE port conflict, not fixable by code edits');
+      return;
+    }
+
     const skipCooldown = options?.skipCooldown ?? false;
     const skipDedup = options?.skipDedup ?? false;
 
@@ -439,7 +445,7 @@ export class ErrorAutoFixer {
 
       // For route conflicts, include conflicting route files
       const routeConflictMatch =
-        errorOutput.match(/both match path:?\s*['"]?(\S+?)['"]?[\s.]/i) ||
+        errorOutput.match(/both match path:?\s*['"]?(\S+?)['"]?[\s.]?/i) ||
         errorOutput.match(/skipping\s+(\S+)\s+\(conflict\)/i);
       if (routeConflictMatch) {
         const conflictPath = routeConflictMatch[1]!;
@@ -458,7 +464,7 @@ export class ErrorAutoFixer {
 
     // ── Deterministic fix: App Router vs Pages Router route conflict ──
     const routeConflictMatch =
-      errorOutput.match(/both match path:?\s*['"]?(\S+?)['"]?[\s.]/i) ||
+      errorOutput.match(/both match path:?\s*['"]?(\S+?)['"]?[\s.]?/i) ||
       errorOutput.match(/skipping\s+(\S+)\s+\(conflict\)/i);
     if (routeConflictMatch) {
       const conflictPath = routeConflictMatch[1]!;
@@ -859,6 +865,50 @@ export class ErrorAutoFixer {
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
+   * Resolve the base directory for a tsconfig path alias prefix.
+   * E.g. for "@/*" → ["./src/*"] returns "src/", for "@/*" → ["./*"] returns "".
+   * Returns null if tsconfig can't be read or the alias is not defined.
+   */
+  private async resolveTsAliasBase(aliasPrefix: string): Promise<string | null> {
+    try {
+      const { readFileSync, existsSync } = await import('node:fs');
+      const { join } = await import('node:path');
+      const tsconfigPath = join(this.projectPath, 'tsconfig.json');
+      if (!existsSync(tsconfigPath)) return null;
+
+      const raw = readFileSync(tsconfigPath, 'utf-8');
+
+      // Try parsing as plain JSON first (most tsconfig files are valid JSON).
+      // Only strip comments as a fallback — aggressive regex can corrupt glob
+      // patterns like "**/*.ts" that contain /* inside strings.
+      let tsconfig: { compilerOptions?: { paths?: Record<string, string[]> } };
+      try {
+        tsconfig = JSON.parse(raw) as typeof tsconfig;
+      } catch {
+        const stripped = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+        tsconfig = JSON.parse(stripped) as typeof tsconfig;
+      }
+
+      const paths = tsconfig?.compilerOptions?.paths;
+      if (!paths) return null;
+
+      // Look for the exact alias pattern (e.g. "@/*")
+      const aliasPattern = aliasPrefix.endsWith('/*')
+        ? aliasPrefix
+        : `${aliasPrefix}/*`;
+      const aliasValues = paths[aliasPattern];
+      if (!aliasValues || aliasValues.length === 0) return null;
+
+      // Take the first path mapping and strip the trailing "/*"
+      const mappedPath = aliasValues[0]!;
+      const basePath = mappedPath.replace(/\/\*$/, '').replace(/^\.\//, '');
+      return basePath === '' || basePath === '.' ? '' : `${basePath}/`;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * When Next.js reports "Module not found: Can't resolve 'X'", attempt to
    * create the missing file deterministically instead of modifying the importing file.
    * Returns a success result if the file was created, null if not applicable.
@@ -884,25 +934,34 @@ export class ErrorAutoFixer {
     if (!importingFile) return null;
 
     try {
-      const { join, dirname, resolve } = await import('node:path');
-      const { readFileSync, existsSync } = await import('node:fs');
+      const { join, dirname } = await import('node:path');
+      const { existsSync } = await import('node:fs');
 
       // Safety check: importing file must exist on disk (prevents false positives in tests)
       const importingAbsPath = join(this.projectPath, importingFile);
       if (!existsSync(importingAbsPath)) return null;
 
-      const importingDir = dirname(importingAbsPath);
-
       let targetPath: string;
       if (unresolvedPath.startsWith('@/')) {
-        // Path alias: @/components/foo → src/components/foo.tsx (or just components/foo.tsx)
+        // Path alias: resolve via tsconfig.json paths, fall back to guessing
         const relativePath = unresolvedPath.slice(2);
-        const candidates = [
-          join(this.projectPath, 'src', relativePath + '.tsx'),
-          join(this.projectPath, relativePath + '.tsx'),
-          join(this.projectPath, 'src', relativePath, 'index.tsx'),
-          join(this.projectPath, relativePath, 'index.tsx'),
-        ];
+        const tsBase = await this.resolveTsAliasBase('@/*');
+        let candidates: string[];
+        if (tsBase !== null) {
+          // Use the exact base from tsconfig
+          candidates = [
+            join(this.projectPath, tsBase, relativePath + '.tsx'),
+            join(this.projectPath, tsBase, relativePath, 'index.tsx'),
+          ];
+        } else {
+          // Fallback: guess common Next.js patterns
+          candidates = [
+            join(this.projectPath, 'src', relativePath + '.tsx'),
+            join(this.projectPath, relativePath + '.tsx'),
+            join(this.projectPath, 'src', relativePath, 'index.tsx'),
+            join(this.projectPath, relativePath, 'index.tsx'),
+          ];
+        }
         const existing = candidates.find((p) => existsSync(p));
         if (existing) return null; // File already exists, something else is wrong
         targetPath = candidates[0]!;
